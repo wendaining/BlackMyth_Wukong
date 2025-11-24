@@ -118,6 +118,7 @@ git push origin dev
 >
 > ```bash
 > git branch -d 你的分支名
+> git push origin --delete 你的分支名
 > ```
 >
 > 以保持提交树的清爽。
