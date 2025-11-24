@@ -117,7 +117,7 @@ git push origin dev
 
 > [!TIP]
 >
-> 如果你在`git push -u origin 你的分支名`之后，github的页面出现了**Compare & PullRequest**，可以无视，这只是github的智能提醒。
+> 如果你在`git push -u origin 你的分支名`之后，github的页面出现了**Compare & PullRequest**，**可以无视**，这只是github的智能提醒，merge操作我们不需要通过github来进行
 >
 > 
 > 当然，如果你不敢直接merge，希望由队友来进行Code Review，这个时候你可以让队友们来github页面上来review。
