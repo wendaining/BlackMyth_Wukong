@@ -69,7 +69,7 @@ git push -u origin 分支名
 
 ### step 3
 
-准备提PR的时候（也就是将feature合并到dev上）
+打算将feature合并到dev上的时候
 
 **必须让feature基于当前最新的dev以防止conflict**
 
@@ -114,6 +114,13 @@ git push origin dev
 ```
 
 **注意merge的--no-ff，这是为了清晰标明merge，防止fast-forward**
+
+> [!TIP]
+>
+> 如果你在`git push -u origin 你的分支名`之后，github的页面出现了**Compare & PullRequest**，可以无视，这只是github的智能提醒。
+>
+> 
+> 当然，如果你不敢直接merge，希望由队友来进行Code Review，这个时候你可以让队友们来github页面上来review。
 
 ### step 4
 
