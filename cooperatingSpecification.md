@@ -29,18 +29,14 @@ feature/enemy-ai
 
 ### step1 
 
-每次开发新的功能之前，必须确保你的起点是最新的（本地有最新的dev分支）
+每次开发新的功能之前，必须确保你的起点是最新的（也就是先`fetch`一下），然后开新的分支
 
 ```bash
-git fetch
-git checkout dev
-git rebase origin/dev
-```
+# 1. 更新远程信息
+git fetch origin
 
-然后开新的分支
-
-```bash
-git checkout -b 分支名
+# 2. 基于远程 dev 直接创建新分支
+git checkout -b feature/你的功能名 origin/dev
 ```
 
 ### step 2
@@ -52,20 +48,19 @@ git checkout -b 分支名
 ```bash
 git add xxx
 git commit -m ""
-# 第一次
-git push -u origin 分支名
-# 之后不需要-u
 ```
 
 > [!WARNING]
 >
-> **不要使用`add .`，不然容易产生很多冲突**
+> **不要使用`add .`，不然容易产生很多冲突，我建议使用IDE自带的git来进行图形化的add操作**
 
 **commit message有规范，第二部分会有讲**
 
 > [!CAUTION]
 >
 > 强调一下，一定要多commit，哪怕只改了一点也commit，这个最后会作为工作依据的
+>
+> 另外，**关于推送备份：** 如果你想把没写完的代码推送到远程备份，可以使用 `git push -u origin 当前分支名。` **但是！** 一旦你推送到远程了，后续执行Step 3的Rebase操作后，再次推送时必须使用 **强制推送 `git push -f origin 你的分支名`**。
 
 ### step 3
 
@@ -80,36 +75,31 @@ git rebase origin/dev
 
 **`git rebase origin/dev`只允许在你这条工作分支完全结束，准备push的时候才允许执行！**
 
-如果有conflict，手动解决（这个后面再说），**不过我们应该是一个人负责一个文件，不太可能出现这种情况**
-
 > [!TIP]
 >
 > **关于如何解决merge conflict**
 >
-> 对于我们这个git规范来说，唯一可能出现merge conflict的情况（也许）就是
->
-> ```
-> git fetch origin
-> git rebase origin/dev
-> ```
->
-> 的时候，你的feature基于的dev的文件被修改了，导致rebase失败。
->
-> 这种情况下的解决方案：
->
-> 首先自己解决合并冲突
->
-> 然后`git add 解决的这个文件`
->
-> 最后`git rebase --continue`，**这里不需要手动commit**
->
-> 中间可以手动检查一下`git status`，看看情况
+> 1. IDE内解决冲突文件（变红的文件）。
+>2. `git add 解决好的文件`
+> 3. `git rebase --continue`
+> 4. **千万不要** 在这里执行 `git commit`，也不要 `git merge`
+> 5. 重复直到提示 Success
+
+**变基完成后：** 如果你之前 push 过这个分支，现在需要强制更新远程分支：
+
+```bash
+git push -f origin 你的分支名
+```
+
+可以放心，这个`-f`在这条分支上是安全的。
+
+### step 4
 
 然后，将自己的工作合并到dev上
 
 ```bash
 git checkout dev
-git merge --no-ff 你自己的工作分支 -m "message" //这里也有规范，下文和commit message的规范一块说
+git merge --no-ff 你自己的工作分支 -m "[Merge] message" //这里也有规范，下文和commit message的规范一块说
 git push origin dev
 ```
 
@@ -122,7 +112,19 @@ git push origin dev
 > 
 > 当然，如果你不敢直接merge，希望由队友来进行Code Review，这个时候你可以让队友们来github页面上来review。
 
-### step 4
+> [!TIP]
+>
+> 如果你确信这条分支在合并入dev之后不会再有任何用处，可以执行
+>
+> ```bash
+> git branch -d 你的分支名
+> ```
+>
+> 以保持提交树的清爽。
+>
+> 不过不执行也无所谓。
+
+### step 5
 
 完成阶段性成果，合并到main
 
