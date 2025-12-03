@@ -54,6 +54,7 @@ void UWukongAnimInstance::UpdateMovementVariables()
         bIsFalling = false;
         bIsGrounded = true;
         LocomotionPlayRate = 1.0f;
+        bIsAccelerating = false;
         return;
     }
 
@@ -69,6 +70,10 @@ void UWukongAnimInstance::UpdateMovementVariables()
     
     // 更新冲刺状态
     bIsSprinting = Wukong->IsSprinting();
+
+    // 是否正在加速（检查当前加速度，对应原蓝图中的 isAccelerating）
+    const FVector CurrentAcceleration = MovementComp->GetCurrentAcceleration();
+    bIsAccelerating = CurrentAcceleration.SizeSquared2D() > KINDA_SMALL_NUMBER;
     
     // 计算动画播放速率
     // 走路时（不冲刺）播放速率较低，让动画看起来更慢
@@ -110,6 +115,26 @@ void UWukongAnimInstance::UpdateMovementVariables()
     
     // 垂直速度
     VerticalVelocity = Velocity.Z;
+
+    // ===== 更新瞄准偏移变量（对应原蓝图 Set Roll Pitch and Yaw） =====
+    // 这些变量用于 Aim Offset BlendSpace，让上半身跟随瞄准方向
+    const FRotator ActorRotation = Wukong->GetActorRotation();
+    const FRotator ControlRotation = Wukong->GetControlRotation();
+    
+    // 计算控制器相对于角色的旋转差
+    const FRotator DeltaRotation = UKismetMathLibrary::NormalizedDeltaRotator(ControlRotation, ActorRotation);
+    
+    AimPitch = FMath::Clamp(DeltaRotation.Pitch, -90.0f, 90.0f);
+    AimYaw = FMath::Clamp(DeltaRotation.Yaw, -90.0f, 90.0f);
+    AimRoll = DeltaRotation.Roll;
+
+    // 计算 Yaw 变化量（用于转向动画混合）
+    const float CurrentYaw = ActorRotation.Yaw;
+    YawDelta = UKismetMathLibrary::NormalizedDeltaRotator(
+        FRotator(0.0f, CurrentYaw, 0.0f),
+        FRotator(0.0f, PreviousYaw, 0.0f)
+    ).Yaw;
+    PreviousYaw = CurrentYaw;
 }
 
 void UWukongAnimInstance::UpdateCombatVariables()
@@ -133,6 +158,11 @@ void UWukongAnimInstance::UpdateCombatVariables()
     
     // 计算是否可以过渡状态
     bCanTransition = !bIsAttacking && !bIsDodging && !bIsHitStunned && !bIsDead;
+
+    // 检测是否正在播放 FullBody 动画
+    // 对应原蓝图中的 isFullbody 变量 - 通过检测 FullBody Curve 值来判断
+    // 如果 Montage 中有名为 "FullBody" 的曲线，其值大于 0 时表示全身动画
+    bIsFullBody = GetCurveValue(FName("FullBody")) > 0.0f;
 }
 
 float UWukongAnimInstance::CalculateDirection(const FVector& Velocity, const FRotator& BaseRotation) const

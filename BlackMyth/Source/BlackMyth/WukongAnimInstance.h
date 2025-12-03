@@ -119,6 +119,32 @@ protected:
     UPROPERTY(BlueprintReadOnly, Category = "State")
     bool bCanTransition = true;
 
+    // ========== 原动画蓝图中的瞄准/旋转变量 ==========
+    
+    /** Yaw 旋转角度（用于 Aim Offset） */
+    UPROPERTY(BlueprintReadOnly, Category = "AimOffset")
+    float AimYaw = 0.0f;
+
+    /** Pitch 旋转角度（用于 Aim Offset） */
+    UPROPERTY(BlueprintReadOnly, Category = "AimOffset")
+    float AimPitch = 0.0f;
+
+    /** Roll 旋转角度 */
+    UPROPERTY(BlueprintReadOnly, Category = "AimOffset")
+    float AimRoll = 0.0f;
+
+    /** Yaw 变化量（用于转向动画） */
+    UPROPERTY(BlueprintReadOnly, Category = "AimOffset")
+    float YawDelta = 0.0f;
+
+    /** 是否正在加速（用于判断是否有移动输入） */
+    UPROPERTY(BlueprintReadOnly, Category = "Movement")
+    bool bIsAccelerating = false;
+
+    /** 是否播放全身动画（FullBody Montage 播放时为 true） */
+    UPROPERTY(BlueprintReadOnly, Category = "Combat")
+    bool bIsFullBody = false;
+
 private:
     /** 缓存悟空角色引用 */
     TWeakObjectPtr<AWukongCharacter> CachedWukongCharacter;
@@ -128,6 +154,9 @@ private:
 
     /** 上一帧是否在地面 */
     bool bWasGrounded = true;
+
+    /** 上一帧的 Yaw 角度（用于计算 YawDelta） */
+    float PreviousYaw = 0.0f;
 
     /** 刷新角色引用缓存 */
     void RefreshOwningCharacter();
