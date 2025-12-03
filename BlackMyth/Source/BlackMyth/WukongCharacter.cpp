@@ -44,6 +44,7 @@ AWukongCharacter::AWukongCharacter()
     if (Attack1Asset.Succeeded())
     {
         AttackMontage1 = Attack1Asset.Object;
+        AttackMontages.Add(Attack1Asset.Object);
     }
 
     static ConstructorHelpers::FObjectFinder<UAnimMontage> Attack2Asset(
@@ -52,6 +53,7 @@ AWukongCharacter::AWukongCharacter()
     if (Attack2Asset.Succeeded())
     {
         AttackMontage2 = Attack2Asset.Object;
+        AttackMontages.Add(Attack2Asset.Object);
     }
 
     static ConstructorHelpers::FObjectFinder<UAnimMontage> Attack3Asset(
@@ -60,6 +62,7 @@ AWukongCharacter::AWukongCharacter()
     if (Attack3Asset.Succeeded())
     {
         AttackMontage3 = Attack3Asset.Object;
+        AttackMontages.Add(Attack3Asset.Object);
     }
 
     // Auto-load locomotion animations
@@ -308,6 +311,11 @@ void AWukongCharacter::ChangeState(EWukongState NewState)
     {
     case EWukongState::Attacking:
         AttackTimer = AttackDuration;
+        // 攻击时禁止移动，防止脚滑
+        if (UCharacterMovementComponent* Movement = GetCharacterMovement())
+        {
+            Movement->DisableMovement();
+        }
         break;
     case EWukongState::Dodging:
         DodgeTimer = DodgeDuration;
@@ -387,6 +395,12 @@ void AWukongCharacter::UpdateAttackingState(float DeltaTime)
 
     if (AttackTimer <= 0.0f)
     {
+        // 攻击结束，恢复移动能力
+        if (UCharacterMovementComponent* Movement = GetCharacterMovement())
+        {
+            Movement->SetMovementMode(MOVE_Walking);
+        }
+
         // Check for combo timeout
         float TimeSinceLastAttack = GetWorld()->GetTimeSeconds() - LastAttackTime;
         if (TimeSinceLastAttack > ComboResetTime)
@@ -670,4 +684,52 @@ FVector AWukongCharacter::GetMovementInputDirection() const
         return Movement->GetLastInputVector();
     }
     return FVector::ZeroVector;
+}
+
+float AWukongCharacter::PlayAnimationAsMontageDynamic(UAnimSequence* AnimSequence, FName SlotName, float PlayRate)
+{
+    if (!AnimSequence)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("PlayAnimationAsMontageDynamic: AnimSequence is null"));
+        return 0.0f;
+    }
+
+    USkeletalMeshComponent* MeshComp = GetMesh();
+    if (!MeshComp)
+    {
+        return 0.0f;
+    }
+
+    UAnimInstance* AnimInstance = MeshComp->GetAnimInstance();
+    if (!AnimInstance)
+    {
+        return 0.0f;
+    }
+
+    // 为了兼容不同引擎版本并避免返回类型不一致的问题，
+    // 我们显式创建一个临时的 UAnimMontage，然后用 Montage_Play 播放它。
+    UAnimMontage* TempMontage = UAnimMontage::CreateSlotAnimationAsDynamicMontage(
+        AnimSequence,
+        SlotName,
+        0.25f, // BlendInTime
+        0.25f, // BlendOutTime
+        PlayRate
+    );
+
+    if (!TempMontage)
+    {
+        return 0.0f;
+    }
+
+    const float PlayedDuration = AnimInstance->Montage_Play(TempMontage, PlayRate);
+
+    // Montage_Play 返回实际播放速率缩放后的持续时间（或 0 表示失败），
+    // 作为保险再从 Montage 获取长度
+    const float MontageLength = TempMontage->GetPlayLength();
+    const float Duration = (PlayedDuration > 0.0f) ? PlayedDuration : MontageLength / FMath::Max(PlayRate, KINDA_SMALL_NUMBER);
+
+    UE_LOG(LogTemp, Log, TEXT("Playing dynamic montage: %s in slot %s, duration: %.2f"), 
+        *AnimSequence->GetName(), *SlotName.ToString(), Duration);
+
+    return Duration;
 }

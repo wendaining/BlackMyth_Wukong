@@ -233,4 +233,15 @@ private:
 	void Die();
 	void UpdateMovementSpeed();
 	FVector GetMovementInputDirection() const;
+
+	/**
+	 * 从 Animation Sequence 动态创建并播放 Montage
+	 * 这样可以避免修改原始 Montage 资源，同时使用自定义的 Slot
+	 * 
+	 * @param AnimSequence 要播放的动画序列
+	 * @param SlotName 要使用的 Slot 名称（默认为 DefaultSlot）
+	 * @param PlayRate 播放速率
+	 * @return 播放的 Montage 时长，失败返回 0
+	 */
+	float PlayAnimationAsMontageDynamic(UAnimSequence* AnimSequence, FName SlotName = FName("DefaultSlot"), float PlayRate = 1.0f);
 };

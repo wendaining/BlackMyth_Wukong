@@ -7,10 +7,16 @@
 #include "WukongAnimInstance.generated.h"
 
 class AWukongCharacter;
+class UCharacterMovementComponent;
 
 /**
- * 基于悟空角色的动画实例，负责把 C++ 层的运动/状态数据实时推送给 AnimBP，
- * 这样蓝图层就能直接驱动 BlendSpace 与状态机，而无需在蓝图里重复计算速度或坠落状态。
+ * 悟空角色的动画实例类
+ * 
+ * 设计理念：所有动画逻辑都在 C++ 层完成，Animation Blueprint 只需要：
+ * 1. 读取这里暴露的变量
+ * 2. 用这些变量驱动 BlendSpace 和状态机
+ * 
+ * 这样可以最大程度减少蓝图逻辑，同时保持动画系统的灵活性。
  */
 UCLASS()
 class BLACKMYTH_API UWukongAnimInstance : public UAnimInstance
@@ -21,31 +27,118 @@ public:
     virtual void NativeInitializeAnimation() override;
     virtual void NativeUpdateAnimation(float DeltaSeconds) override;
 
+    // ========== 动画事件回调 ==========
+    // 这些函数可以被 Animation Montage 中的 Notify 调用
+    
+    /** 攻击命中检测开始 - 在 Montage 中添加 AnimNotify 调用此函数 */
+    UFUNCTION(BlueprintCallable, Category = "Animation|Combat")
+    void AnimNotify_AttackHitStart();
+
+    /** 攻击命中检测结束 */
+    UFUNCTION(BlueprintCallable, Category = "Animation|Combat")
+    void AnimNotify_AttackHitEnd();
+
+    /** 可以接受 Combo 输入的窗口开始 */
+    UFUNCTION(BlueprintCallable, Category = "Animation|Combat")
+    void AnimNotify_ComboWindowStart();
+
+    /** Combo 窗口结束 */
+    UFUNCTION(BlueprintCallable, Category = "Animation|Combat")
+    void AnimNotify_ComboWindowEnd();
+
 protected:
-    /**
-     * 速度标量，使用 BlueprintReadOnly 暴露给动画蓝图，用于 BlendSpace 样条控制。
-     * 初始为 0，防止 AnimBP 在 BeginPlay 前读取未初始化的数值。
-     */
+    // ========== 移动状态变量（每帧自动更新）==========
+    
+    /** 水平移动速度标量，用于 BlendSpace */
     UPROPERTY(BlueprintReadOnly, Category = "Movement")
     float Speed = 0.0f;
 
-    /**
-     * 是否处于下落/腾空状态，直接映射 CharacterMovement 的 IsFalling，
-     * 便于 AnimBP 切换 Jump Start/Apex/Land 等循环。
+    /** 移动方向角度（相对于角色朝向），范围 -180 到 180 */
+    UPROPERTY(BlueprintReadOnly, Category = "Movement")
+    float Direction = 0.0f;
+
+    /** 是否正在移动 */
+    UPROPERTY(BlueprintReadOnly, Category = "Movement")
+    bool bIsMoving = false;
+
+    /** 是否正在冲刺 */
+    UPROPERTY(BlueprintReadOnly, Category = "Movement")
+    bool bIsSprinting = false;
+
+    /** 
+     * 动画播放速率缩放，用于区分走路和跑步
+     * 走路时 ~0.5，跑步时 ~1.0
+     * 可在 BlendSpace 中用此值调整动画播放速率
      */
+    UPROPERTY(BlueprintReadOnly, Category = "Movement")
+    float LocomotionPlayRate = 1.0f;
+
+    // ========== 跳跃/下落状态 ==========
+
+    /** 是否处于下落/腾空状态 */
     UPROPERTY(BlueprintReadOnly, Category = "Movement")
     bool bIsFalling = false;
 
-private:
-    /**
-     * 使用弱指针缓存拥有该 AnimInstance 的悟空角色，避免每帧 Cast 造成额外开销，
-     * 同时在角色销毁时自动失效，保证指针安全。
-     */
-    TWeakObjectPtr<AWukongCharacter> CachedWukongCharacter;
+    /** 是否刚刚起跳（用于播放 Jump Start） */
+    UPROPERTY(BlueprintReadOnly, Category = "Movement")
+    bool bJustJumped = false;
 
-    /**
-     * 缓存 Pawn Owner，若当前缓存失效则重新获取，确保后续的移动组件查询总能拿到有效数据。
-     */
+    /** 垂直速度，正值为上升，负值为下落 */
+    UPROPERTY(BlueprintReadOnly, Category = "Movement")
+    float VerticalVelocity = 0.0f;
+
+    // ========== 战斗状态变量 ==========
+
+    /** 是否正在攻击（播放攻击 Montage 中） */
+    UPROPERTY(BlueprintReadOnly, Category = "Combat")
+    bool bIsAttacking = false;
+
+    /** 当前连击索引 (0, 1, 2...) */
+    UPROPERTY(BlueprintReadOnly, Category = "Combat")
+    int32 ComboIndex = 0;
+
+    /** 是否正在闪避 */
+    UPROPERTY(BlueprintReadOnly, Category = "Combat")
+    bool bIsDodging = false;
+
+    /** 是否处于硬直状态 */
+    UPROPERTY(BlueprintReadOnly, Category = "Combat")
+    bool bIsHitStunned = false;
+
+    /** 是否死亡 */
+    UPROPERTY(BlueprintReadOnly, Category = "Combat")
+    bool bIsDead = false;
+
+    // ========== 用于混合的附加变量 ==========
+
+    /** 是否接地（与 bIsFalling 相反，但更直观） */
+    UPROPERTY(BlueprintReadOnly, Category = "Movement")
+    bool bIsGrounded = true;
+
+    /** 是否可以过渡到下一个状态（用于状态机过渡条件） */
+    UPROPERTY(BlueprintReadOnly, Category = "State")
+    bool bCanTransition = true;
+
+private:
+    /** 缓存悟空角色引用 */
+    TWeakObjectPtr<AWukongCharacter> CachedWukongCharacter;
+    
+    /** 缓存移动组件引用 */
+    TWeakObjectPtr<UCharacterMovementComponent> CachedMovementComponent;
+
+    /** 上一帧是否在地面 */
+    bool bWasGrounded = true;
+
+    /** 刷新角色引用缓存 */
     void RefreshOwningCharacter();
+
+    /** 更新移动相关变量 */
+    void UpdateMovementVariables();
+
+    /** 更新战斗相关变量 */
+    void UpdateCombatVariables();
+
+    /** 计算移动方向角度 */
+    float CalculateDirection(const FVector& Velocity, const FRotator& BaseRotation) const;
 };
 
