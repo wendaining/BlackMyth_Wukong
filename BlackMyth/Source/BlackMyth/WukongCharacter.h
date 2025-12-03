@@ -49,6 +49,19 @@ public:
 	UFUNCTION(BlueprintPure, Category = "State")
 	EWukongState GetCurrentState() const { return CurrentState; }
 
+	// Animation accessors
+	UFUNCTION(BlueprintPure, Category = "Combat")
+	int32 GetComboIndex() const { return CurrentComboIndex; }
+
+	UFUNCTION(BlueprintPure, Category = "Movement")
+	bool IsSprinting() const { return bIsSprinting; }
+
+	UFUNCTION(BlueprintPure, Category = "Movement")
+	float GetMovementSpeed() const;
+
+	UFUNCTION(BlueprintPure, Category = "Movement")
+	FVector GetMovementDirection() const;
+
 	// Health delegate
 	UPROPERTY(BlueprintAssignable, Category = "Combat")
 	FOnHealthChanged OnHealthChanged;
@@ -110,6 +123,54 @@ protected:
 	// Hit Stun Properties
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat")
 	float HitStunDuration = 0.5f;
+
+	// Animation Montages - Attack
+	UPROPERTY(EditDefaultsOnly, Category = "Animation|Combat")
+	TObjectPtr<UAnimMontage> AttackMontage1;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Animation|Combat")
+	TObjectPtr<UAnimMontage> AttackMontage2;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Animation|Combat")
+	TObjectPtr<UAnimMontage> AttackMontage3;
+
+	// Animation Montages - Movement
+	UPROPERTY(EditDefaultsOnly, Category = "Animation|Movement")
+	TObjectPtr<UAnimMontage> DodgeMontage;
+
+	// Animation Sequences - For reference or creating dynamic montages
+	UPROPERTY(EditDefaultsOnly, Category = "Animation|Locomotion")
+	TObjectPtr<UAnimSequence> IdleAnimation;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Animation|Locomotion")
+	TObjectPtr<UAnimSequence> WalkForwardAnimation;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Animation|Locomotion")
+	TObjectPtr<UAnimSequence> SprintForwardAnimation;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Animation|Locomotion")
+	TObjectPtr<UAnimSequence> JumpStartAnimation;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Animation|Locomotion")
+	TObjectPtr<UAnimSequence> JumpApexAnimation;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Animation|Locomotion")
+	TObjectPtr<UAnimSequence> JumpLandAnimation;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Animation|Combat")
+	TObjectPtr<UAnimSequence> DodgeAnimation;
+
+	/**
+	 * 攻击蒙太奇容器，使用 TObjectPtr 遵循 UE5 推荐的智能指针写法，
+	 * 可让 GC/反射系统追踪引用，避免蓝图或热重载导致的悬挂指针。
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat")
+	TArray<TObjectPtr<UAnimMontage>> AttackMontages;
+
+	/**
+	 * 触发一次攻击，后续会随机挑选 AttackMontages 中的动画蒙太奇进行播放。
+	 */
+	void Attack();
 
 private:
 	// State Management
