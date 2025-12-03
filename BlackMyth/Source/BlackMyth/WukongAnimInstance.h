@@ -61,6 +61,10 @@ protected:
     UPROPERTY(BlueprintReadOnly, Category = "Movement")
     bool bIsMoving = false;
 
+    /** 是否正在走路（移动但不冲刺）- 用于区分走路和跑步动画 */
+    UPROPERTY(BlueprintReadOnly, Category = "Movement")
+    bool bIsWalking = false;
+
     /** 是否正在冲刺 */
     UPROPERTY(BlueprintReadOnly, Category = "Movement")
     bool bIsSprinting = false;

@@ -120,6 +120,10 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat")
 	float InputBufferTime = 0.3f;
 
+	/** 攻击冷却时间 - 防止点击过快导致攻击过于频繁 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat")
+	float AttackCooldown = 0.4f;
+
 	// Hit Stun Properties
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat")
 	float HitStunDuration = 0.5f;
@@ -160,6 +164,52 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "Animation|Combat")
 	TObjectPtr<UAnimSequence> DodgeAnimation;
 
+	// 受击动画
+	UPROPERTY(EditDefaultsOnly, Category = "Animation|Combat")
+	TObjectPtr<UAnimSequence> HitReactFrontAnimation;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Animation|Combat")
+	TObjectPtr<UAnimSequence> HitReactBackAnimation;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Animation|Combat")
+	TObjectPtr<UAnimSequence> HitReactLeftAnimation;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Animation|Combat")
+	TObjectPtr<UAnimSequence> HitReactRightAnimation;
+
+	// 死亡动画
+	UPROPERTY(EditDefaultsOnly, Category = "Animation|Combat")
+	TObjectPtr<UAnimSequence> DeathAnimation;
+
+	// 击退/击飞动画
+	UPROPERTY(EditDefaultsOnly, Category = "Animation|Combat")
+	TObjectPtr<UAnimSequence> KnockbackAnimation;
+
+	// 眩晕动画
+	UPROPERTY(EditDefaultsOnly, Category = "Animation|Combat")
+	TObjectPtr<UAnimSequence> StunStartAnimation;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Animation|Combat")
+	TObjectPtr<UAnimSequence> StunLoopAnimation;
+
+	// 表情动画
+	UPROPERTY(EditDefaultsOnly, Category = "Animation|Emote")
+	TObjectPtr<UAnimSequence> EmoteTauntAnimation;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Animation|Emote")
+	TObjectPtr<UAnimSequence> EmoteStaffSpinAnimation;
+
+	// 技能动画（Q技能 - 翻滚冲击）
+	UPROPERTY(EditDefaultsOnly, Category = "Animation|Ability")
+	TObjectPtr<UAnimSequence> AbilityFlipForwardAnimation;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Animation|Ability")
+	TObjectPtr<UAnimSequence> AbilitySlamAnimation;
+
+	// 空中攻击
+	UPROPERTY(EditDefaultsOnly, Category = "Animation|Combat")
+	TObjectPtr<UAnimSequence> AirAttackAnimation;
+
 	/**
 	 * 攻击蒙太奇容器，使用 TObjectPtr 遵循 UE5 推荐的智能指针写法，
 	 * 可让 GC/反射系统追踪引用，避免蓝图或热重载导致的悬挂指针。
@@ -191,6 +241,7 @@ private:
 	int32 CurrentComboIndex = 0;
 	float LastAttackTime = 0.0f;
 	float AttackTimer = 0.0f;
+	float AttackCooldownTimer = 0.0f;  // 攻击冷却计时器
 	TArray<FString> InputBuffer;
 
 	// Hit Stun State

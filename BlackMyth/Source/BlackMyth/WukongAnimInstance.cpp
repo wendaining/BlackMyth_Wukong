@@ -55,6 +55,7 @@ void UWukongAnimInstance::UpdateMovementVariables()
         bIsGrounded = true;
         LocomotionPlayRate = 1.0f;
         bIsAccelerating = false;
+        bIsWalking = false;
         return;
     }
 
@@ -70,6 +71,9 @@ void UWukongAnimInstance::UpdateMovementVariables()
     
     // 更新冲刺状态
     bIsSprinting = Wukong->IsSprinting();
+    
+    // 更新走路状态（移动但不冲刺）
+    bIsWalking = bIsMoving && !bIsSprinting;
 
     // 是否正在加速（检查当前加速度，对应原蓝图中的 isAccelerating）
     const FVector CurrentAcceleration = MovementComp->GetCurrentAcceleration();

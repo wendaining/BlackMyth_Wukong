@@ -119,6 +119,117 @@ AWukongCharacter::AWukongCharacter()
         DodgeAnimation = DodgeAnimAsset.Object;
     }
 
+    // Auto-load hit react animations
+    static ConstructorHelpers::FObjectFinder<UAnimSequence> HitFrontAsset(
+        TEXT("/Game/ParagonSunWukong/Characters/Heroes/Wukong/Animations/HitReact_Front")
+    );
+    if (HitFrontAsset.Succeeded())
+    {
+        HitReactFrontAnimation = HitFrontAsset.Object;
+    }
+
+    static ConstructorHelpers::FObjectFinder<UAnimSequence> HitBackAsset(
+        TEXT("/Game/ParagonSunWukong/Characters/Heroes/Wukong/Animations/HitReact_Back")
+    );
+    if (HitBackAsset.Succeeded())
+    {
+        HitReactBackAnimation = HitBackAsset.Object;
+    }
+
+    static ConstructorHelpers::FObjectFinder<UAnimSequence> HitLeftAsset(
+        TEXT("/Game/ParagonSunWukong/Characters/Heroes/Wukong/Animations/HitReact_Left")
+    );
+    if (HitLeftAsset.Succeeded())
+    {
+        HitReactLeftAnimation = HitLeftAsset.Object;
+    }
+
+    static ConstructorHelpers::FObjectFinder<UAnimSequence> HitRightAsset(
+        TEXT("/Game/ParagonSunWukong/Characters/Heroes/Wukong/Animations/HitReact_Right")
+    );
+    if (HitRightAsset.Succeeded())
+    {
+        HitReactRightAnimation = HitRightAsset.Object;
+    }
+
+    // Auto-load death animation
+    static ConstructorHelpers::FObjectFinder<UAnimSequence> DeathAsset(
+        TEXT("/Game/ParagonSunWukong/Characters/Heroes/Wukong/Animations/Death")
+    );
+    if (DeathAsset.Succeeded())
+    {
+        DeathAnimation = DeathAsset.Object;
+    }
+
+    // Auto-load knockback animation
+    static ConstructorHelpers::FObjectFinder<UAnimSequence> KnockbackAsset(
+        TEXT("/Game/ParagonSunWukong/Characters/Heroes/Wukong/Animations/Knockback")
+    );
+    if (KnockbackAsset.Succeeded())
+    {
+        KnockbackAnimation = KnockbackAsset.Object;
+    }
+
+    // Auto-load stun animations
+    static ConstructorHelpers::FObjectFinder<UAnimSequence> StunStartAsset(
+        TEXT("/Game/ParagonSunWukong/Characters/Heroes/Wukong/Animations/Stun_Start")
+    );
+    if (StunStartAsset.Succeeded())
+    {
+        StunStartAnimation = StunStartAsset.Object;
+    }
+
+    static ConstructorHelpers::FObjectFinder<UAnimSequence> StunLoopAsset(
+        TEXT("/Game/ParagonSunWukong/Characters/Heroes/Wukong/Animations/Stun_Loop")
+    );
+    if (StunLoopAsset.Succeeded())
+    {
+        StunLoopAnimation = StunLoopAsset.Object;
+    }
+
+    // Auto-load emote animations
+    static ConstructorHelpers::FObjectFinder<UAnimSequence> TauntAsset(
+        TEXT("/Game/ParagonSunWukong/Characters/Heroes/Wukong/Animations/Emote_MonkeyTaunt")
+    );
+    if (TauntAsset.Succeeded())
+    {
+        EmoteTauntAnimation = TauntAsset.Object;
+    }
+
+    static ConstructorHelpers::FObjectFinder<UAnimSequence> StaffSpinAsset(
+        TEXT("/Game/ParagonSunWukong/Characters/Heroes/Wukong/Animations/Emote_StaffSpin")
+    );
+    if (StaffSpinAsset.Succeeded())
+    {
+        EmoteStaffSpinAnimation = StaffSpinAsset.Object;
+    }
+
+    // Auto-load ability animations
+    static ConstructorHelpers::FObjectFinder<UAnimSequence> FlipFwdAsset(
+        TEXT("/Game/ParagonSunWukong/Characters/Heroes/Wukong/Animations/Q_Flip_Fwd")
+    );
+    if (FlipFwdAsset.Succeeded())
+    {
+        AbilityFlipForwardAnimation = FlipFwdAsset.Object;
+    }
+
+    static ConstructorHelpers::FObjectFinder<UAnimSequence> SlamAsset(
+        TEXT("/Game/ParagonSunWukong/Characters/Heroes/Wukong/Animations/Q_Slam")
+    );
+    if (SlamAsset.Succeeded())
+    {
+        AbilitySlamAnimation = SlamAsset.Object;
+    }
+
+    // Auto-load air attack animation
+    static ConstructorHelpers::FObjectFinder<UAnimSequence> AirAttackAsset(
+        TEXT("/Game/ParagonSunWukong/Characters/Heroes/Wukong/Animations/Primary_Melee_Air")
+    );
+    if (AirAttackAsset.Succeeded())
+    {
+        AirAttackAnimation = AirAttackAsset.Object;
+    }
+
     // Create Combat Component (will be implemented by Member C)
     // CombatComponent = CreateDefaultSubobject<UCombatComponent>(TEXT("CombatComponent"));
 }
@@ -151,6 +262,12 @@ void AWukongCharacter::Tick(float DeltaTime)
 
     // Update cooldowns
     UpdateCooldowns(DeltaTime);
+
+    // Update attack cooldown timer
+    if (AttackCooldownTimer > 0.0f)
+    {
+        AttackCooldownTimer -= DeltaTime;
+    }
 
     // Update invincibility timer
     if (bIsInvincible && InvincibilityTimer > 0.0f)
@@ -193,19 +310,35 @@ void AWukongCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCom
 
 void AWukongCharacter::Attack()
 {
+    // 检查状态 - 翻滚、硬直、死亡时不能攻击
+    if (CurrentState == EWukongState::Dodging || 
+        CurrentState == EWukongState::HitStun ||
+        CurrentState == EWukongState::Dead)
+    {
+        return;
+    }
+
+    // 检查攻击冷却 - 防止点击过快
+    if (AttackCooldownTimer > 0.0f)
+    {
+        return;
+    }
+
+    // 检查是否有攻击动画
     if (AttackMontages.Num() == 0)
     {
         return;
     }
 
-    const int32 RandomIndex = FMath::RandRange(0, AttackMontages.Num() - 1);
-    if (UAnimMontage* SelectedMontage = AttackMontages[RandomIndex])
+    // 如果已经在攻击中，加入输入缓冲（用于Combo）
+    if (CurrentState == EWukongState::Attacking)
     {
-        if (UAnimInstance* AnimInstance = GetMesh() ? GetMesh()->GetAnimInstance() : nullptr)
-        {
-            AnimInstance->Montage_Play(SelectedMontage, 1.0f);
-        }
+        InputBuffer.Add(TEXT("Attack"));
+        return;
     }
+
+    // 执行攻击
+    PerformAttack();
 }
 
 // Public Interface Implementation
@@ -476,6 +609,9 @@ void AWukongCharacter::PerformAttack()
     }
 
     LastAttackTime = GetWorld()->GetTimeSeconds();
+    
+    // 设置攻击冷却，防止点击过快
+    AttackCooldownTimer = AttackCooldown;
 
     // Play attack animation montage
     if (UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance())
