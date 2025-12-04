@@ -10,6 +10,7 @@ class UInputAction;
 class UStaminaComponent;
 class UCombatComponent;
 class UHealthComponent;
+class UHitboxComponent;
 struct FInputActionValue;
 
 // 角色状态枚举
@@ -137,6 +138,10 @@ protected:
 	/** 战斗属性组件（管理攻击力、伤害倍率等） */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	TObjectPtr<UCombatComponent> CombatComponent;
+
+	/** 武器 Hitbox 组件（用于攻击判定） */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
+	TObjectPtr<UHitboxComponent> WeaponHitbox;
 
 	// ========== 移动属性 ==========
 	

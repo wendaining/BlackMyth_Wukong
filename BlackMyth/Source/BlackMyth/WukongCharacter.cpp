@@ -4,6 +4,7 @@
 #include "Components/StaminaComponent.h"
 #include "Components/CombatComponent.h"
 #include "Components/HealthComponent.h"
+#include "Combat/HitboxComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "EnhancedInputComponent.h"
 #include "InputAction.h"
@@ -26,6 +27,10 @@ AWukongCharacter::AWukongCharacter()
 
     // 创建战斗组件
     CombatComponent = CreateDefaultSubobject<UCombatComponent>(TEXT("CombatComponent"));
+
+    // 创建武器 Hitbox 组件（先挂载到 RootComponent，BeginPlay 时再附加到骨骼）
+    WeaponHitbox = CreateDefaultSubobject<UHitboxComponent>(TEXT("WeaponHitbox"));
+    WeaponHitbox->SetupAttachment(RootComponent);
 
     // Auto-load Paragon Wukong skeletal mesh
     static ConstructorHelpers::FObjectFinder<USkeletalMesh> WukongMeshAsset(
@@ -353,6 +358,17 @@ void AWukongCharacter::BeginPlay()
     
     UE_LOG(LogTemp, Log, TEXT("BeginPlay: WalkSpeed=%f, GravityScale=%f, AirControl=%f, BrakingDecelFalling=%f, JumpVelocity=%f"), 
         WalkSpeed, GravityScale, AirControl, BrakingDecelerationFalling, JumpVelocity);
+
+    // 将武器 Hitbox 附加到右手骨骼
+    if (WeaponHitbox && GetMesh())
+    {
+        // 尝试附加到武器插槽，如果不存在则用右手
+        FName SocketName = GetMesh()->DoesSocketExist(TEXT("weapon_r")) ? TEXT("weapon_r") : TEXT("hand_r");
+        WeaponHitbox->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetNotIncludingScale, SocketName);
+        WeaponHitbox->SetBoxExtent(FVector(80.0f, 15.0f, 15.0f));  // 棍棒形状
+        WeaponHitbox->SetRelativeLocation(FVector(60.0f, 0.0f, 0.0f));
+        UE_LOG(LogTemp, Log, TEXT("WeaponHitbox attached to socket: %s"), *SocketName.ToString());
+    }
 
     // 绑定生命组件死亡事件
     if (HealthComponent)
