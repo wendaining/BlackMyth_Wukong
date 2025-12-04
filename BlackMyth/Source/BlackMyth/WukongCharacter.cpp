@@ -348,6 +348,10 @@ void AWukongCharacter::BeginPlay()
 
     // Broadcast initial health
     OnHealthChanged.Broadcast(CurrentHealth, MaxHealth);
+
+    // 初始化体力值
+    CurrentStamina = MaxStamina;
+    OnStaminaChanged.Broadcast(CurrentStamina, MaxStamina);
 }
 
 // Called every frame
@@ -360,6 +364,9 @@ void AWukongCharacter::Tick(float DeltaTime)
 
     // Update cooldowns
     UpdateCooldowns(DeltaTime);
+
+    // Update stamina (regen/consumption)
+    UpdateStamina(DeltaTime);
 
     // Update attack cooldown timer
     if (AttackCooldownTimer > 0.0f)
@@ -567,6 +574,12 @@ void AWukongCharacter::OnSprintStarted()
         CurrentState == EWukongState::Dodging ||
         CurrentState == EWukongState::HitStun ||
         CurrentState == EWukongState::Dead)
+    {
+        return;
+    }
+
+    // 检查是否有足够体力开始冲刺（至少需要能持续一小段时间）
+    if (!HasEnoughStamina(SprintStaminaCost * 0.1f))
     {
         return;
     }
@@ -792,6 +805,16 @@ void AWukongCharacter::UpdateDeadState(float DeltaTime)
 // Combat Methods
 void AWukongCharacter::PerformAttack()
 {
+    // 检查是否有足够体力攻击
+    if (!HasEnoughStamina(AttackStaminaCost))
+    {
+        UE_LOG(LogTemp, Log, TEXT("PerformAttack: Not enough stamina! Current=%f, Required=%f"), CurrentStamina, AttackStaminaCost);
+        return;
+    }
+
+    // 消耗体力
+    ConsumeStamina(AttackStaminaCost);
+
     ChangeState(EWukongState::Attacking);
     
     // 设置攻击冷却，防止点击过快
@@ -902,6 +925,16 @@ void AWukongCharacter::PerformDodge()
 {
     UE_LOG(LogTemp, Log, TEXT("PerformDodge() called"));
     
+    // 检查是否有足够体力翻滚
+    if (!HasEnoughStamina(DodgeStaminaCost))
+    {
+        UE_LOG(LogTemp, Log, TEXT("PerformDodge: Not enough stamina! Current=%f, Required=%f"), CurrentStamina, DodgeStaminaCost);
+        return;
+    }
+
+    // 消耗体力
+    ConsumeStamina(DodgeStaminaCost);
+
     ChangeState(EWukongState::Dodging);
 
     // Determine dodge direction
@@ -1065,6 +1098,116 @@ float AWukongCharacter::CalculateDamage(bool bIsHeavyAttack, bool bIsAirAttack, 
     }
     
     return FinalDamage;
+}
+
+// ========== 跳跃体力检查 ==========
+
+bool AWukongCharacter::CanJumpInternal_Implementation() const
+{
+    // 先检查父类的跳跃条件
+    if (!Super::CanJumpInternal_Implementation())
+    {
+        return false;
+    }
+    
+    // 检查是否有足够体力跳跃
+    if (!HasEnoughStamina(JumpStaminaCost))
+    {
+        return false;
+    }
+    
+    return true;
+}
+
+void AWukongCharacter::OnJumped_Implementation()
+{
+    Super::OnJumped_Implementation();
+    
+    // 跳跃时消耗体力（这个函数在跳跃成功后调用）
+    // 注意：这里要用非const的方式消耗体力
+    AWukongCharacter* MutableThis = const_cast<AWukongCharacter*>(this);
+    MutableThis->ConsumeStamina(JumpStaminaCost);
+    
+    UE_LOG(LogTemp, Log, TEXT("OnJumped: Consumed %f stamina, remaining=%f"), JumpStaminaCost, CurrentStamina);
+}
+
+// ========== 体力值管理 ==========
+
+void AWukongCharacter::ConsumeStamina(float Amount)
+{
+    if (Amount <= 0.0f) return;
+    
+    float OldStamina = CurrentStamina;
+    CurrentStamina = FMath::Clamp(CurrentStamina - Amount, 0.0f, MaxStamina);
+    
+    // 重置恢复延迟计时器
+    StaminaRegenDelayTimer = StaminaRegenDelay;
+    
+    // 如果体力不足以继续冲刺，停止冲刺
+    if (bIsSprinting && CurrentStamina <= 0.0f)
+    {
+        bIsSprinting = false;
+        UpdateMovementSpeed();
+    }
+    
+    // 广播体力变化
+    if (OldStamina != CurrentStamina)
+    {
+        OnStaminaChanged.Broadcast(CurrentStamina, MaxStamina);
+    }
+}
+
+void AWukongCharacter::UpdateStamina(float DeltaTime)
+{
+    float OldStamina = CurrentStamina;
+    
+    // 冲刺时持续消耗体力
+    if (bIsSprinting && CurrentState != EWukongState::Attacking)
+    {
+        // 检查是否在移动（只有移动时才消耗冲刺体力）
+        if (UCharacterMovementComponent* Movement = GetCharacterMovement())
+        {
+            FVector Velocity = Movement->Velocity;
+            Velocity.Z = 0.0f;
+            if (Velocity.Size() > 10.0f)  // 有水平移动
+            {
+                CurrentStamina = FMath::Max(0.0f, CurrentStamina - SprintStaminaCost * DeltaTime);
+                StaminaRegenDelayTimer = StaminaRegenDelay;
+                
+                // 体力耗尽时停止冲刺
+                if (CurrentStamina <= 0.0f)
+                {
+                    bIsSprinting = false;
+                    UpdateMovementSpeed();
+                    UE_LOG(LogTemp, Log, TEXT("UpdateStamina: Stamina depleted, stopping sprint"));
+                }
+            }
+        }
+    }
+    else
+    {
+        // 非冲刺状态：处理恢复延迟和恢复
+        if (StaminaRegenDelayTimer > 0.0f)
+        {
+            StaminaRegenDelayTimer -= DeltaTime;
+        }
+        else if (CurrentStamina < MaxStamina)
+        {
+            // 恢复体力（只有在地面且非战斗状态时恢复）
+            bool bCanRegen = (CurrentState == EWukongState::Idle || CurrentState == EWukongState::Moving);
+            
+            if (bCanRegen)
+            {
+                CurrentStamina = FMath::Min(MaxStamina, CurrentStamina + StaminaRegenRate * DeltaTime);
+            }
+        }
+    }
+    
+    // 广播体力变化
+    if (OldStamina != CurrentStamina)
+    {
+        OnStaminaChanged.Broadcast(CurrentStamina, MaxStamina);
+    }
 }
 
 // Helper Methods

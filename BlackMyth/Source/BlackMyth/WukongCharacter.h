@@ -25,6 +25,9 @@ enum class EWukongState : uint8
 // 生命值变化委托
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnHealthChanged, float, CurrentHealth, float, MaxHealth);
 
+// 体力值变化委托
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnStaminaChanged, float, CurrentStamina, float, MaxStamina);
+
 UCLASS()
 class BLACKMYTH_API AWukongCharacter : public ABlackMythCharacter
 {
@@ -39,6 +42,10 @@ protected:
 public:	
 	virtual void Tick(float DeltaTime) override;
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
+
+	// 重写跳跃函数以添加体力检查
+	virtual bool CanJumpInternal_Implementation() const override;
+	virtual void OnJumped_Implementation() override;
 
 	// ========== 公共接口 ==========
 	
@@ -84,6 +91,22 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "Combat")
 	FOnHealthChanged OnHealthChanged;
 
+	// 体力值变化委托
+	UPROPERTY(BlueprintAssignable, Category = "Combat")
+	FOnStaminaChanged OnStaminaChanged;
+
+	/** 获取当前体力值 */
+	UFUNCTION(BlueprintPure, Category = "Stats")
+	float GetCurrentStamina() const { return CurrentStamina; }
+
+	/** 获取最大体力值 */
+	UFUNCTION(BlueprintPure, Category = "Stats")
+	float GetMaxStamina() const { return MaxStamina; }
+
+	/** 检查是否有足够体力执行动作 */
+	UFUNCTION(BlueprintPure, Category = "Stats")
+	bool HasEnoughStamina(float Cost) const { return CurrentStamina >= Cost; }
+
 protected:
 	// ========== 输入动作 ==========
 	
@@ -117,9 +140,43 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Stats")
 	float CurrentHealth;
 
-	/** 基础攻击力 */
+/** 基础攻击力 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stats")
 	float BaseAttackPower = 10.0f;
+
+	// ========== 体力值属性 ==========
+
+	/** 最大体力值 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stats|Stamina")
+	float MaxStamina = 100.0f;
+
+	/** 当前体力值 */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Stats|Stamina")
+	float CurrentStamina;
+
+	/** 体力自动恢复速度（每秒恢复量） */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stats|Stamina")
+	float StaminaRegenRate = 15.0f;
+
+	/** 体力恢复延迟（消耗体力后多久开始恢复） */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stats|Stamina")
+	float StaminaRegenDelay = 1.0f;
+
+	/** 冲刺每秒消耗体力 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stats|Stamina")
+	float SprintStaminaCost = 20.0f;
+
+	/** 跳跃消耗体力 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stats|Stamina")
+	float JumpStaminaCost = 15.0f;
+
+	/** 攻击消耗体力 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stats|Stamina")
+	float AttackStaminaCost = 10.0f;
+
+	/** 翻滚消耗体力 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stats|Stamina")
+	float DodgeStaminaCost = 20.0f;
 
 	// ========== 移动属性 ==========
 	
@@ -426,6 +483,11 @@ private:
 	bool IsCooldownActive(const FString& CooldownName) const;        // 检查冷却是否激活
 	void StartCooldown(const FString& CooldownName, float Duration); // 开始冷却
 	void UpdateCooldowns(float DeltaTime);                           // 更新冷却
+
+	// ========== 体力值管理 ==========
+	float StaminaRegenDelayTimer = 0.0f;  // 体力恢复延迟计时器
+	void ConsumeStamina(float Amount);    // 消耗体力
+	void UpdateStamina(float DeltaTime);  // 更新体力（恢复/消耗）
 
 	// ========== 辅助函数 ==========
 	void Die();                                // 死亡处理
