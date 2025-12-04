@@ -6,19 +6,19 @@
 
 ## 1. 仓库结构
 
-保留**2+n**套主要分支：**main, dev, feature/, debug/\*, ...**
+保留**2+n**套主要分支：**main, dev, feature, debug\*, ...**
 
 分工大致是：
 
 - **main**：只在开发周期的关键节点更新
 - **dev**：我们从这里拉分支开发（**但是我们禁止使用git pull，统一fetch+rebase**），完成后merge到这里
-- **feature/\***：每个人/每个需求一个分支（这个暂定），如：
-- **debug/\***: 一个bug开一个分支，
+- **feature\***：每个人/每个需求一个分支（这个暂定），如：
+- **debug\***: 一个bug开一个分支，
 - ...，也许feature也可以细分，这个之后再说
 
 ```bash
-feature/player-movement
-feature/enemy-ai
+player-movement
+enemy-ai
 ...
 ```
 
@@ -36,7 +36,7 @@ feature/enemy-ai
 git fetch origin
 
 # 2. 基于远程 dev 直接创建新分支
-git checkout -b feature/你的功能名 origin/dev
+git checkout -b 你的功能名 origin/dev
 ```
 
 ### step 2
@@ -72,8 +72,6 @@ git commit -m ""
 git fetch origin
 git rebase origin/dev
 ```
-
-**`git rebase origin/dev`只允许在你这条工作分支完全结束，准备push的时候才允许执行！**
 
 > [!TIP]
 >
