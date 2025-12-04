@@ -3,6 +3,7 @@
 #include "WukongCharacter.h"
 #include "Components/StaminaComponent.h"
 #include "Components/CombatComponent.h"
+#include "Components/HealthComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "EnhancedInputComponent.h"
 #include "InputAction.h"
@@ -17,8 +18,8 @@ AWukongCharacter::AWukongCharacter()
     // Set this character to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
     PrimaryActorTick.bCanEverTick = true;
 
-    // Initialize health
-    CurrentHealth = MaxHealth;
+    // 创建生命组件
+    HealthComponent = CreateDefaultSubobject<UHealthComponent>(TEXT("HealthComponent"));
 
     // 创建体力组件
     StaminaComponent = CreateDefaultSubobject<UStaminaComponent>(TEXT("StaminaComponent"));
@@ -328,7 +329,6 @@ void AWukongCharacter::BeginPlay()
 {
     Super::BeginPlay();
     
-    CurrentHealth = MaxHealth;
     CurrentState = EWukongState::Idle;
 
     // Configure movement speeds and physics
@@ -354,8 +354,11 @@ void AWukongCharacter::BeginPlay()
     UE_LOG(LogTemp, Log, TEXT("BeginPlay: WalkSpeed=%f, GravityScale=%f, AirControl=%f, BrakingDecelFalling=%f, JumpVelocity=%f"), 
         WalkSpeed, GravityScale, AirControl, BrakingDecelerationFalling, JumpVelocity);
 
-    // Broadcast initial health
-    OnHealthChanged.Broadcast(CurrentHealth, MaxHealth);
+    // 绑定生命组件死亡事件
+    if (HealthComponent)
+    {
+        HealthComponent->OnDeath.AddDynamic(this, &AWukongCharacter::OnHealthDepleted);
+    }
 
     // 绑定体力耗尽事件
     if (StaminaComponent)
@@ -495,28 +498,35 @@ void AWukongCharacter::Attack()
 // Public Interface Implementation
 void AWukongCharacter::ReceiveDamage(float Damage, AActor* DamageInstigator)
 {
-    if (CurrentState == EWukongState::Dead || bIsInvincible)
+    if (CurrentState == EWukongState::Dead)
     {
         return;
     }
 
-    CurrentHealth = FMath::Max(0.0f, CurrentHealth - Damage);
-    OnHealthChanged.Broadcast(CurrentHealth, MaxHealth);
-
-    if (CurrentHealth <= 0.0f)
+    // 委托给生命组件处理
+    if (HealthComponent)
     {
-        Die();
-    }
-    else
-    {
-        ChangeState(EWukongState::HitStun);
-        HitStunTimer = HitStunDuration;
+        HealthComponent->TakeDamage(Damage, DamageInstigator);
+        
+        // 如果还活着，进入硬直状态
+        if (HealthComponent->IsAlive())
+        {
+            ChangeState(EWukongState::HitStun);
+            HitStunTimer = HitStunDuration;
+        }
     }
 }
 
 void AWukongCharacter::SetInvincible(bool bInInvincible)
 {
     bIsInvincible = bInInvincible;
+    
+    // 同步到生命组件
+    if (HealthComponent)
+    {
+        HealthComponent->SetInvincible(bInInvincible);
+    }
+    
     if (!bIsInvincible)
     {
         InvincibilityTimer = 0.0f;
@@ -1106,6 +1116,14 @@ void AWukongCharacter::OnStaminaDepleted()
     }
 }
 
+// ========== 生命值耗尽回调 ==========
+void AWukongCharacter::OnHealthDepleted(AActor* Killer)
+{
+    UE_LOG(LogTemp, Warning, TEXT("OnHealthDepleted: Character died! Killer=%s"), 
+        Killer ? *Killer->GetName() : TEXT("None"));
+    Die();
+}
+
 // New accessor implementations
 float AWukongCharacter::GetMovementSpeed() const
 {
@@ -1185,7 +1203,7 @@ void AWukongCharacter::OnJumped_Implementation()
 void AWukongCharacter::Die()
 {
     ChangeState(EWukongState::Dead);
-    OnHealthChanged.Broadcast(0.0f, MaxHealth);
+    // 生命组件会广播死亡事件
 
     // TODO: Trigger death animation and respawn logic
 }

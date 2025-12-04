@@ -9,6 +9,7 @@
 class UInputAction;
 class UStaminaComponent;
 class UCombatComponent;
+class UHealthComponent;
 struct FInputActionValue;
 
 // 角色状态枚举
@@ -24,9 +25,7 @@ enum class EWukongState : uint8
 	Dead          // 死亡
 };
 
-// 生命值变化委托
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnHealthChanged, float, CurrentHealth, float, MaxHealth);
-
+// 生命值变化委托已迁移到 UHealthComponent
 // 体力值变化委托已迁移到 UStaminaComponent
 
 UCLASS()
@@ -50,13 +49,17 @@ public:
 
 	// ========== 公共接口 ==========
 	
-	/** 受到伤害 */
+	/** 受到伤害（委托给HealthComponent） */
 	UFUNCTION(BlueprintCallable, Category = "Combat")
 	void ReceiveDamage(float Damage, AActor* DamageInstigator);
 
-	/** 设置无敌状态 */
+	/** 设置无敌状态（委托给HealthComponent） */
 	UFUNCTION(BlueprintCallable, Category = "Combat")
 	void SetInvincible(bool bInInvincible);
+
+	/** 获取生命组件 */
+	UFUNCTION(BlueprintPure, Category = "Health")
+	UHealthComponent* GetHealthComponent() const { return HealthComponent; }
 
 	/** 获取当前状态 */
 	UFUNCTION(BlueprintPure, Category = "State")
@@ -92,9 +95,7 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Movement")
 	FVector GetMovementDirection() const;
 
-	// 生命值变化委托
-	UPROPERTY(BlueprintAssignable, Category = "Combat")
-	FOnHealthChanged OnHealthChanged;
+	// 生命值变化委托已迁移到 UHealthComponent
 
 	/** 获取体力组件 */
 	UFUNCTION(BlueprintPure, Category = "Stats")
@@ -123,19 +124,13 @@ protected:
 	// UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Combat")
 	// TObjectPtr<UCombatComponent> CombatComponent;
 
-	// ========== 角色属性 ==========
-	
-	/** 最大生命值 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stats")
-	float MaxHealth = 100.0f;
-
-	/** 当前生命值 */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Stats")
-	float CurrentHealth;
-
 	// ========== 组件 ==========
 
-	/** 体力值组件（管理体力消耗与恢复） */
+	/** 生命值组件 */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
+	TObjectPtr<UHealthComponent> HealthComponent;
+
+	/** 体力值组件 */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	TObjectPtr<UStaminaComponent> StaminaComponent;
 
@@ -388,6 +383,10 @@ private:
 	/** 体力耗尽时的回调 */
 	UFUNCTION()
 	void OnStaminaDepleted();
+
+	/** 生命值耗尽时的回调 */
+	UFUNCTION()
+	void OnHealthDepleted(AActor* Killer);
 
 	// ========== 战技状态 ==========
 	bool bIsUsingAbility = false;  // 是否正在使用战技
