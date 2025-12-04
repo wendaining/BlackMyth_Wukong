@@ -242,6 +242,7 @@ private:
 	float LastAttackTime = 0.0f;
 	float AttackTimer = 0.0f;
 	float AttackCooldownTimer = 0.0f;  // 攻击冷却计时器
+	float CachedMaxWalkSpeed = 0.0f;   // 攻击时缓存的最大速度
 	TArray<FString> InputBuffer;
 
 	// Hit Stun State

@@ -444,10 +444,19 @@ void AWukongCharacter::ChangeState(EWukongState NewState)
     {
     case EWukongState::Attacking:
         AttackTimer = AttackDuration;
-        // 攻击时禁止移动，防止脚滑
+        // 攻击时：禁止水平移动输入，但保留重力（允许下落）
+        // 不使用 DisableMovement()，因为那会禁止重力导致滞空
         if (UCharacterMovementComponent* Movement = GetCharacterMovement())
         {
-            Movement->DisableMovement();
+            // 保存当前最大速度，攻击结束后恢复
+            CachedMaxWalkSpeed = Movement->MaxWalkSpeed;
+            // 将水平速度设为0，这样角色不会滑动
+            Movement->MaxWalkSpeed = 0.0f;
+            // 停止当前水平速度（防止惯性滑动）
+            FVector Velocity = Movement->Velocity;
+            Velocity.X = 0.0f;
+            Velocity.Y = 0.0f;
+            Movement->Velocity = Velocity;
         }
         break;
     case EWukongState::Dodging:
@@ -531,7 +540,8 @@ void AWukongCharacter::UpdateAttackingState(float DeltaTime)
         // 攻击结束，恢复移动能力
         if (UCharacterMovementComponent* Movement = GetCharacterMovement())
         {
-            Movement->SetMovementMode(MOVE_Walking);
+            // 恢复原来的最大速度
+            Movement->MaxWalkSpeed = CachedMaxWalkSpeed > 0.0f ? CachedMaxWalkSpeed : WalkSpeed;
         }
 
         // Check for combo timeout
