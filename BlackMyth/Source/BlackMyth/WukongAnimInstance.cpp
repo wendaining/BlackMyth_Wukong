@@ -38,6 +38,8 @@ void UWukongAnimInstance::RefreshOwningCharacter()
     if (CachedWukongCharacter.IsValid())
     {
         CachedMovementComponent = CachedWukongCharacter->GetCharacterMovement();
+        // 设置 Paragon 兼容的 Character 引用
+        Character = CachedWukongCharacter.Get();
     }
 }
 
@@ -139,6 +141,12 @@ void UWukongAnimInstance::UpdateMovementVariables()
         FRotator(0.0f, PreviousYaw, 0.0f)
     ).Yaw;
     PreviousYaw = CurrentYaw;
+
+    // ===== 同步 Paragon 兼容变量 =====
+    isAccelerating = bIsAccelerating;
+    Pitch = AimPitch;
+    Yaw = AimYaw;
+    Roll = AimRoll;
 }
 
 void UWukongAnimInstance::UpdateCombatVariables()
@@ -167,6 +175,9 @@ void UWukongAnimInstance::UpdateCombatVariables()
     // 对应原蓝图中的 isFullbody 变量 - 通过检测 FullBody Curve 值来判断
     // 如果 Montage 中有名为 "FullBody" 的曲线，其值大于 0 时表示全身动画
     bIsFullBody = GetCurveValue(FName("FullBody")) > 0.0f;
+
+    // ===== 同步 Paragon 兼容变量 =====
+    isFullbody = bIsFullBody;
 }
 
 float UWukongAnimInstance::CalculateDirection(const FVector& Velocity, const FRotator& BaseRotation) const

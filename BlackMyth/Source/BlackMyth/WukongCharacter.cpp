@@ -3,6 +3,7 @@
 #include "WukongCharacter.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "EnhancedInputComponent.h"
+#include "InputAction.h"
 #include "Kismet/KismetMathLibrary.h"
 #include "UObject/ConstructorHelpers.h"
 #include "Animation/AnimMontage.h"
@@ -27,9 +28,10 @@ AWukongCharacter::AWukongCharacter()
         GetMesh()->SetRelativeLocation(FVector(0.0f, 0.0f, -90.0f));
         GetMesh()->SetRelativeRotation(FRotator(0.0f, -90.0f, 0.0f));
         
-        // Try to load custom AnimBP based on WukongAnimInstance
+        // 使用 Paragon 的动画蓝图（需要先 Reparent 到 WukongAnimInstance）
+        // 参见 Docs/ParagonAnimBP_Integration_Guide.md
         static ConstructorHelpers::FClassFinder<UAnimInstance> AnimBPClass(
-            TEXT("/Game/Blueprints/ABP_Wukong")
+            TEXT("/Game/ParagonSunWukong/Characters/Heroes/Wukong/SunWukong_AnimBlueprint")
         );
         if (AnimBPClass.Succeeded())
         {
@@ -117,6 +119,23 @@ AWukongCharacter::AWukongCharacter()
     if (DodgeAnimAsset.Succeeded())
     {
         DodgeAnimation = DodgeAnimAsset.Object;
+    }
+
+    // Also try to auto-load common dodge montages (if present) to ensure montage playback
+    static ConstructorHelpers::FObjectFinder<UAnimMontage> DodgeMontage1Asset(
+        TEXT("/Game/ParagonSunWukong/Characters/Heroes/Wukong/Animations/RMB_Evade_CC_Montage")
+    );
+    if (DodgeMontage1Asset.Succeeded())
+    {
+        DodgeMontage = DodgeMontage1Asset.Object;
+    }
+
+    static ConstructorHelpers::FObjectFinder<UAnimMontage> DodgeMontage2Asset(
+        TEXT("/Game/ParagonSunWukong/Characters/Heroes/Wukong/Animations/AM_Dodge")
+    );
+    if (DodgeMontage2Asset.Succeeded())
+    {
+        DodgeMontage = DodgeMontage2Asset.Object;
     }
 
     // Auto-load hit react animations
@@ -230,6 +249,50 @@ AWukongCharacter::AWukongCharacter()
         AirAttackAnimation = AirAttackAsset.Object;
     }
 
+    // ========== Auto-load Input Actions ==========
+    // 加载输入动作资产，确保输入绑定能正常工作
+    static ConstructorHelpers::FObjectFinder<UInputAction> DodgeActionAsset(
+        TEXT("/Game/_BlackMythGame/Input/Actions/IA_Dodge")
+    );
+    if (DodgeActionAsset.Succeeded())
+    {
+        DodgeAction = DodgeActionAsset.Object;
+    }
+
+    static ConstructorHelpers::FObjectFinder<UInputAction> AttackActionAsset(
+        TEXT("/Game/_BlackMythGame/Input/Actions/IA_Attack")
+    );
+    if (AttackActionAsset.Succeeded())
+    {
+        AttackAction = AttackActionAsset.Object;
+    }
+
+    static ConstructorHelpers::FObjectFinder<UInputAction> SprintActionAsset(
+        TEXT("/Game/_BlackMythGame/Input/Actions/IA_Sprint")
+    );
+    if (SprintActionAsset.Succeeded())
+    {
+        SprintAction = SprintActionAsset.Object;
+    }
+
+    // 加载 Q 键战技输入动作
+    static ConstructorHelpers::FObjectFinder<UInputAction> AbilityActionAsset(
+        TEXT("/Game/_BlackMythGame/Input/Actions/IA_Ability")
+    );
+    if (AbilityActionAsset.Succeeded())
+    {
+        AbilityAction = AbilityActionAsset.Object;
+    }
+
+    // 加载战技蒙太奇（Q_Slam - 筋斗云突击）
+    static ConstructorHelpers::FObjectFinder<UAnimMontage> AbilityMontageAsset(
+        TEXT("/Game/ParagonSunWukong/Characters/Heroes/Wukong/Animations/Q_Slam_Montage")
+    );
+    if (AbilityMontageAsset.Succeeded())
+    {
+        AbilityMontage = AbilityMontageAsset.Object;
+    }
+
     // Create Combat Component (will be implemented by Member C)
     // CombatComponent = CreateDefaultSubobject<UCombatComponent>(TEXT("CombatComponent"));
 }
@@ -246,7 +309,10 @@ void AWukongCharacter::BeginPlay()
     if (UCharacterMovementComponent* Movement = GetCharacterMovement())
     {
         Movement->MaxWalkSpeed = WalkSpeed;
+        CachedMaxWalkSpeed = WalkSpeed;  // 初始化缓存速度
     }
+    
+    UE_LOG(LogTemp, Log, TEXT("BeginPlay: WalkSpeed=%f, MaxWalkSpeed=%f"), WalkSpeed, CachedMaxWalkSpeed);
 
     // Broadcast initial health
     OnHealthChanged.Broadcast(CurrentHealth, MaxHealth);
@@ -285,18 +351,35 @@ void AWukongCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCom
 {
     Super::SetupPlayerInputComponent(PlayerInputComponent);
 
+    UE_LOG(LogTemp, Warning, TEXT("SetupPlayerInputComponent called!"));
+    UE_LOG(LogTemp, Warning, TEXT("  DodgeAction=%s"), DodgeAction ? *DodgeAction->GetName() : TEXT("NULL"));
+    UE_LOG(LogTemp, Warning, TEXT("  AttackAction=%s"), AttackAction ? *AttackAction->GetName() : TEXT("NULL"));
+    UE_LOG(LogTemp, Warning, TEXT("  SprintAction=%s"), SprintAction ? *SprintAction->GetName() : TEXT("NULL"));
+
     if (UEnhancedInputComponent* EnhancedInputComponent = Cast<UEnhancedInputComponent>(PlayerInputComponent))
     {
+        UE_LOG(LogTemp, Warning, TEXT("  EnhancedInputComponent is valid"));
+        
         // Bind dodge action
         if (DodgeAction)
         {
             EnhancedInputComponent->BindAction(DodgeAction, ETriggerEvent::Started, this, &AWukongCharacter::OnDodgePressed);
+            UE_LOG(LogTemp, Warning, TEXT("  Bound DodgeAction to OnDodgePressed"));
+        }
+        else
+        {
+            UE_LOG(LogTemp, Error, TEXT("  DodgeAction is NULL! Dodge will not work!"));
         }
 
         // Bind attack action
         if (AttackAction)
         {
             EnhancedInputComponent->BindAction(AttackAction, ETriggerEvent::Started, this, &AWukongCharacter::Attack);
+            UE_LOG(LogTemp, Warning, TEXT("  Bound AttackAction to Attack"));
+        }
+        else
+        {
+            UE_LOG(LogTemp, Error, TEXT("  AttackAction is NULL! Attack will not work!"));
         }
 
         // Bind sprint action
@@ -304,7 +387,27 @@ void AWukongCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCom
         {
             EnhancedInputComponent->BindAction(SprintAction, ETriggerEvent::Started, this, &AWukongCharacter::OnSprintStarted);
             EnhancedInputComponent->BindAction(SprintAction, ETriggerEvent::Completed, this, &AWukongCharacter::OnSprintStopped);
+            UE_LOG(LogTemp, Warning, TEXT("  Bound SprintAction"));
         }
+        else
+        {
+            UE_LOG(LogTemp, Error, TEXT("  SprintAction is NULL! Sprint will not work!"));
+        }
+
+        // Bind ability action (Q key)
+        if (AbilityAction)
+        {
+            EnhancedInputComponent->BindAction(AbilityAction, ETriggerEvent::Started, this, &AWukongCharacter::OnAbilityPressed);
+            UE_LOG(LogTemp, Warning, TEXT("  Bound AbilityAction (Q) to OnAbilityPressed"));
+        }
+        else
+        {
+            UE_LOG(LogTemp, Warning, TEXT("  AbilityAction is NULL - Q ability disabled (create IA_Ability asset)"));
+        }
+    }
+    else
+    {
+        UE_LOG(LogTemp, Error, TEXT("  EnhancedInputComponent is NULL! No inputs will work!"));
     }
 }
 
@@ -375,17 +478,25 @@ void AWukongCharacter::SetInvincible(bool bInInvincible)
 // Input Handlers
 void AWukongCharacter::OnDodgePressed()
 {
+    UE_LOG(LogTemp, Warning, TEXT("OnDodgePressed() called! CurrentState=%d"), (int32)CurrentState);
+    
     if (CurrentState == EWukongState::Attacking || 
         CurrentState == EWukongState::Dodging || 
         CurrentState == EWukongState::HitStun ||
         CurrentState == EWukongState::Dead)
     {
+        UE_LOG(LogTemp, Warning, TEXT("OnDodgePressed() blocked by state"));
         return;
     }
 
     if (!IsCooldownActive(TEXT("Dodge")))
     {
+        UE_LOG(LogTemp, Warning, TEXT("OnDodgePressed() -> calling PerformDodge()"));
         PerformDodge();
+    }
+    else
+    {
+        UE_LOG(LogTemp, Warning, TEXT("OnDodgePressed() blocked by cooldown"));
     }
 }
 
@@ -436,12 +547,35 @@ void AWukongCharacter::ChangeState(EWukongState NewState)
         return;
     }
 
+    // 退出当前状态时的清理逻辑
+    if (CurrentState == EWukongState::Attacking)
+    {
+        // 攻击状态结束，恢复移动能力
+        if (UCharacterMovementComponent* Movement = GetCharacterMovement())
+        {
+            Movement->MaxWalkSpeed = CachedMaxWalkSpeed > 0.0f ? CachedMaxWalkSpeed : WalkSpeed;
+            UE_LOG(LogTemp, Log, TEXT("ChangeState: Exiting Attacking, restored MaxWalkSpeed=%f"), Movement->MaxWalkSpeed);
+        }
+    }
+
     PreviousState = CurrentState;
     CurrentState = NewState;
 
     // State entry logic
     switch (CurrentState)
     {
+    case EWukongState::Idle:
+    case EWukongState::Moving:
+        // 确保进入正常移动状态时速度是正确的
+        if (UCharacterMovementComponent* Movement = GetCharacterMovement())
+        {
+            if (Movement->MaxWalkSpeed < 1.0f)  // 如果速度异常低
+            {
+                Movement->MaxWalkSpeed = bIsSprinting ? SprintSpeed : WalkSpeed;
+                UE_LOG(LogTemp, Warning, TEXT("ChangeState: Fixed abnormal MaxWalkSpeed, now=%f"), Movement->MaxWalkSpeed);
+            }
+        }
+        break;
     case EWukongState::Attacking:
         AttackTimer = AttackDuration;
         // 攻击时：禁止水平移动输入，但保留重力（允许下落）
@@ -464,6 +598,13 @@ void AWukongCharacter::ChangeState(EWukongState NewState)
         bIsInvincible = true;
         InvincibilityTimer = DodgeInvincibilityDuration;
         StartCooldown(TEXT("Dodge"), DodgeCooldown);
+        break;
+    case EWukongState::UsingAbility:
+        bIsUsingAbility = true;
+        AbilityTimer = 1.5f;  // 战技持续时间
+        bIsInvincible = true;  // 战技期间无敌
+        InvincibilityTimer = 1.5f;
+        StartCooldown(TEXT("Ability"), AbilityCooldown);
         break;
     case EWukongState::HitStun:
         ResetCombo();
@@ -497,6 +638,9 @@ void AWukongCharacter::UpdateState(float DeltaTime)
         break;
     case EWukongState::Dodging:
         UpdateDodgingState(DeltaTime);
+        break;
+    case EWukongState::UsingAbility:
+        UpdateAbilityState(DeltaTime);
         break;
     case EWukongState::HitStun:
         UpdateHitStunState(DeltaTime);
@@ -683,6 +827,8 @@ void AWukongCharacter::ProcessInputBuffer()
 // Dodge Methods
 void AWukongCharacter::PerformDodge()
 {
+    UE_LOG(LogTemp, Log, TEXT("PerformDodge() called"));
+    
     ChangeState(EWukongState::Dodging);
 
     // Determine dodge direction
@@ -705,24 +851,42 @@ void AWukongCharacter::PerformDodge()
         // Try to play montage first
         if (DodgeMontage)
         {
-            AnimInstance->Montage_Play(DodgeMontage, 1.0f);
+            // Log the montage's slot name for debugging
+            if (DodgeMontage->SlotAnimTracks.Num() > 0)
+            {
+                FName SlotName = DodgeMontage->SlotAnimTracks[0].SlotName;
+                UE_LOG(LogTemp, Warning, TEXT("PerformDodge: DodgeMontage=%s, uses Slot='%s'"), 
+                    *DodgeMontage->GetName(), *SlotName.ToString());
+            }
+            
+            float Duration = AnimInstance->Montage_Play(DodgeMontage, 1.0f);
+            UE_LOG(LogTemp, Warning, TEXT("PerformDodge: Montage_Play returned Duration=%f"), Duration);
+            
+            if (Duration <= 0.0f)
+            {
+                UE_LOG(LogTemp, Error, TEXT("PerformDodge: Montage failed to play! Check if AnimBP has matching Slot node!"));
+            }
         }
         // If no montage, try to play sequence directly (less flexible but works)
         else if (DodgeAnimation)
         {
-            // Create a temporary montage from the sequence
-            UAnimMontage* TempMontage = UAnimMontage::CreateSlotAnimationAsDynamicMontage(
-                DodgeAnimation, 
-                FName("DefaultSlot"), 
-                0.25f,  // Blend in time
-                0.25f,  // Blend out time
-                1.0f    // Play rate
-            );
-            
-            if (TempMontage)
+            UE_LOG(LogTemp, Log, TEXT("PerformDodge: Trying dynamic montage from DodgeAnimation"));
+            // Try to play the dodge animation using several common slot names
+            // to improve compatibility with Paragon AnimBP slot naming.
+            float Played = PlayAnimationAsMontageDynamic(DodgeAnimation, FName("DefaultGroup.FullBody"), 1.0f);
+            if (Played <= 0.0f)
             {
-                AnimInstance->Montage_Play(TempMontage, 1.0f);
+                // Fallbacks
+                Played = PlayAnimationAsMontageDynamic(DodgeAnimation, FName("FullBody"), 1.0f);
             }
+            if (Played <= 0.0f)
+            {
+                Played = PlayAnimationAsMontageDynamic(DodgeAnimation, FName("DefaultSlot"), 1.0f);
+            }
+        }
+        else
+        {
+            UE_LOG(LogTemp, Warning, TEXT("PerformDodge: No DodgeMontage or DodgeAnimation available!"));
         }
     }
 }
@@ -852,30 +1016,156 @@ float AWukongCharacter::PlayAnimationAsMontageDynamic(UAnimSequence* AnimSequenc
         return 0.0f;
     }
 
-    // 为了兼容不同引擎版本并避免返回类型不一致的问题，
-    // 我们显式创建一个临时的 UAnimMontage，然后用 Montage_Play 播放它。
-    UAnimMontage* TempMontage = UAnimMontage::CreateSlotAnimationAsDynamicMontage(
-        AnimSequence,
-        SlotName,
-        0.25f, // BlendInTime
-        0.25f, // BlendOutTime
-        PlayRate
-    );
-
-    if (!TempMontage)
+    // Try to create and play montage with the requested slot name first
+    TArray<FName> SlotCandidates;
+    if (!SlotName.IsNone())
     {
-        return 0.0f;
+        SlotCandidates.Add(SlotName);
+    }
+    // Common Paragon/UE slot fallbacks
+    SlotCandidates.Add(FName("DefaultGroup.FullBody"));
+    SlotCandidates.Add(FName("FullBody"));
+    // Paragon AnimBP may use UpperBody slot for many actions
+    SlotCandidates.Add(FName("DefaultGroup.UpperBody"));
+    SlotCandidates.Add(FName("UpperBody"));
+    SlotCandidates.Add(FName("DefaultSlot"));
+    SlotCandidates.Add(FName("Default"));
+
+    for (const FName& CandidateSlot : SlotCandidates)
+    {
+        UAnimMontage* TempMontage = UAnimMontage::CreateSlotAnimationAsDynamicMontage(
+            AnimSequence,
+            CandidateSlot,
+            0.12f, // BlendInTime (snappier)
+            0.12f, // BlendOutTime
+            PlayRate
+        );
+
+        if (!TempMontage)
+        {
+            continue;
+        }
+
+        const float PlayedDuration = AnimInstance->Montage_Play(TempMontage, PlayRate);
+        const float MontageLength = TempMontage->GetPlayLength();
+        const float Duration = (PlayedDuration > 0.0f) ? PlayedDuration : MontageLength / FMath::Max(PlayRate, KINDA_SMALL_NUMBER);
+
+        if (Duration > 0.0f)
+        {
+            UE_LOG(LogTemp, Log, TEXT("Playing dynamic montage: %s in slot %s, duration: %.2f"),
+                *AnimSequence->GetName(), *CandidateSlot.ToString(), Duration);
+            return Duration;
+        }
     }
 
-    const float PlayedDuration = AnimInstance->Montage_Play(TempMontage, PlayRate);
+    // 如果所有候选 Slot 都失败，记录警告
+    UE_LOG(LogTemp, Warning, TEXT("PlayAnimationAsMontageDynamic: Failed to create/play montage for %s (tried slots)."), *AnimSequence->GetName());
+    return 0.0f;
+}
 
-    // Montage_Play 返回实际播放速率缩放后的持续时间（或 0 表示失败），
-    // 作为保险再从 Montage 获取长度
-    const float MontageLength = TempMontage->GetPlayLength();
-    const float Duration = (PlayedDuration > 0.0f) ? PlayedDuration : MontageLength / FMath::Max(PlayRate, KINDA_SMALL_NUMBER);
+// ========== 战技系统实现 ==========
 
-    UE_LOG(LogTemp, Log, TEXT("Playing dynamic montage: %s in slot %s, duration: %.2f"), 
-        *AnimSequence->GetName(), *SlotName.ToString(), Duration);
+void AWukongCharacter::OnAbilityPressed()
+{
+    UE_LOG(LogTemp, Warning, TEXT("OnAbilityPressed() called! CurrentState=%d"), (int32)CurrentState);
 
-    return Duration;
+    // 检查状态 - 翻滚、硬直、死亡、使用技能时不能释放战技
+    if (CurrentState == EWukongState::Dodging || 
+        CurrentState == EWukongState::HitStun ||
+        CurrentState == EWukongState::Dead ||
+        CurrentState == EWukongState::UsingAbility)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("OnAbilityPressed() blocked by state"));
+        return;
+    }
+
+    // 检查战技冷却
+    if (IsCooldownActive(TEXT("Ability")))
+    {
+        UE_LOG(LogTemp, Warning, TEXT("OnAbilityPressed() blocked by cooldown"));
+        return;
+    }
+
+    UE_LOG(LogTemp, Warning, TEXT("OnAbilityPressed() -> calling PerformAbility()"));
+    PerformAbility();
+}
+
+void AWukongCharacter::PerformAbility()
+{
+    UE_LOG(LogTemp, Log, TEXT("PerformAbility() called"));
+
+    // 切换到使用战技状态
+    ChangeState(EWukongState::UsingAbility);
+
+    // 播放战技动画
+    if (UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance())
+    {
+        // 优先尝试播放战技蒙太奇
+        if (AbilityMontage)
+        {
+            if (AbilityMontage->SlotAnimTracks.Num() > 0)
+            {
+                FName SlotName = AbilityMontage->SlotAnimTracks[0].SlotName;
+                UE_LOG(LogTemp, Warning, TEXT("PerformAbility: AbilityMontage=%s, uses Slot='%s'"), 
+                    *AbilityMontage->GetName(), *SlotName.ToString());
+            }
+            
+            float Duration = AnimInstance->Montage_Play(AbilityMontage, 1.0f);
+            UE_LOG(LogTemp, Warning, TEXT("PerformAbility: Montage_Play returned Duration=%f"), Duration);
+            AbilityTimer = FMath::Max(Duration, 1.5f);
+        }
+        // 如果没有蒙太奇，尝试用 Q_Slam 动画序列
+        else if (AbilitySlamAnimation)
+        {
+            UE_LOG(LogTemp, Log, TEXT("PerformAbility: Playing Q_Slam animation as dynamic montage"));
+            float Duration = PlayAnimationAsMontageDynamic(AbilitySlamAnimation, FName("DefaultSlot"), 1.0f);
+            AbilityTimer = FMath::Max(Duration, 1.5f);
+        }
+        // 如果没有 Slam，尝试用 Flip Forward
+        else if (AbilityFlipForwardAnimation)
+        {
+            UE_LOG(LogTemp, Log, TEXT("PerformAbility: Playing Q_Flip_Fwd animation as dynamic montage"));
+            float Duration = PlayAnimationAsMontageDynamic(AbilityFlipForwardAnimation, FName("DefaultSlot"), 1.0f);
+            AbilityTimer = FMath::Max(Duration, 1.0f);
+        }
+        else
+        {
+            UE_LOG(LogTemp, Warning, TEXT("PerformAbility: No ability animation available!"));
+            AbilityTimer = 0.5f;
+        }
+    }
+
+    // 给角色一个简单的小跳跃（不要太浮夸）
+    if (UCharacterMovementComponent* Movement = GetCharacterMovement())
+    {
+        // 只是稍微向上跳跃，然后攻击
+        FVector LaunchVelocity = FVector(0, 0, 350.0f);  // 只有向上的力
+        LaunchCharacter(LaunchVelocity, false, true);  // 不覆盖XY速度
+    }
+}
+
+void AWukongCharacter::UpdateAbilityState(float DeltaTime)
+{
+    AbilityTimer -= DeltaTime;
+
+    // 战技结束
+    if (AbilityTimer <= 0.0f)
+    {
+        bIsUsingAbility = false;
+        bIsInvincible = false;
+        
+        // 在战技结束时造成 AOE 伤害（可选）
+        // TODO: 实现 AOE 伤害检测
+        
+        // 根据是否有移动输入决定切换到什么状态
+        FVector InputDirection = GetMovementInputDirection();
+        if (InputDirection.IsNearlyZero())
+        {
+            ChangeState(EWukongState::Idle);
+        }
+        else
+        {
+            ChangeState(EWukongState::Moving);
+        }
+    }
 }

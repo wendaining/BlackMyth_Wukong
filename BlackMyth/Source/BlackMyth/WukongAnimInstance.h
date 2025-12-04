@@ -149,6 +149,33 @@ protected:
     UPROPERTY(BlueprintReadOnly, Category = "Combat")
     bool bIsFullBody = false;
 
+    // ========== Paragon AnimBP 兼容变量（别名） ==========
+    // 这些变量与上面的变量同步，只是命名风格不同，用于兼容原 Paragon 动画蓝图
+    
+    /** Paragon 兼容：isAccelerating */
+    UPROPERTY(BlueprintReadOnly, Category = "Paragon Compat")
+    bool isAccelerating = false;
+
+    /** Paragon 兼容：isFullbody */
+    UPROPERTY(BlueprintReadOnly, Category = "Paragon Compat")
+    bool isFullbody = false;
+
+    /** Paragon 兼容：Pitch（用于 Aim Offset） */
+    UPROPERTY(BlueprintReadOnly, Category = "Paragon Compat")
+    float Pitch = 0.0f;
+
+    /** Paragon 兼容：Yaw（用于 Aim Offset） */
+    UPROPERTY(BlueprintReadOnly, Category = "Paragon Compat")
+    float Yaw = 0.0f;
+
+    /** Paragon 兼容：Roll */
+    UPROPERTY(BlueprintReadOnly, Category = "Paragon Compat")
+    float Roll = 0.0f;
+
+    /** Paragon 兼容：角色引用（供蓝图 Cast 使用） */
+    UPROPERTY(BlueprintReadOnly, Category = "Paragon Compat")
+    TObjectPtr<ACharacter> Character = nullptr;
+
 private:
     /** 缓存悟空角色引用 */
     TWeakObjectPtr<AWukongCharacter> CachedWukongCharacter;

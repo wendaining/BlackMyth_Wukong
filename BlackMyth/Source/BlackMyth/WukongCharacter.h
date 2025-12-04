@@ -17,6 +17,7 @@ enum class EWukongState : uint8
 	Moving,
 	Attacking,
 	Dodging,
+	UsingAbility,  // 使用战技中
 	HitStun,
 	Dead
 };
@@ -76,6 +77,9 @@ protected:
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UInputAction> SprintAction;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input", meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<UInputAction> AbilityAction;  // Q键战技
 
 	// Combat Component - TODO: Uncomment when UCombatComponent is implemented by Member C
 	// UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Combat")
@@ -210,6 +214,20 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "Animation|Combat")
 	TObjectPtr<UAnimSequence> AirAttackAnimation;
 
+	// 战技蒙太奇（Q技能 - 筋斗云突击）
+	UPROPERTY(EditDefaultsOnly, Category = "Animation|Ability")
+	TObjectPtr<UAnimMontage> AbilityMontage;
+
+	// 战技属性
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Ability")
+	float AbilityCooldown = 5.0f;  // 战技冷却时间
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Ability")
+	float AbilityDamage = 50.0f;  // 战技伤害
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Ability")
+	float AbilityRadius = 300.0f;  // AOE范围
+
 	/**
 	 * 攻击蒙太奇容器，使用 TObjectPtr 遵循 UE5 推荐的智能指针写法，
 	 * 可让 GC/反射系统追踪引用，避免蓝图或热重载导致的悬挂指针。
@@ -256,6 +274,7 @@ private:
 	void OnAttackPressed();
 	void OnSprintStarted();
 	void OnSprintStopped();
+	void OnAbilityPressed();  // Q键战技
 
 	// State Methods
 	void ChangeState(EWukongState NewState);
@@ -264,6 +283,7 @@ private:
 	void UpdateMovingState(float DeltaTime);
 	void UpdateAttackingState(float DeltaTime);
 	void UpdateDodgingState(float DeltaTime);
+	void UpdateAbilityState(float DeltaTime);  // 战技状态更新
 	void UpdateHitStunState(float DeltaTime);
 	void UpdateDeadState(float DeltaTime);
 
@@ -275,6 +295,13 @@ private:
 	// Dodge Methods
 	void PerformDodge();
 	void UpdateDodgeMovement(float DeltaTime);
+
+	// Ability Methods
+	void PerformAbility();  // 执行战技
+
+	// 战技状态
+	bool bIsUsingAbility = false;
+	float AbilityTimer = 0.0f;
 
 	// Cooldown Management
 	bool IsCooldownActive(const FString& CooldownName) const;
