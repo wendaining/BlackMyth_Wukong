@@ -284,13 +284,31 @@ AWukongCharacter::AWukongCharacter()
         AbilityAction = AbilityActionAsset.Object;
     }
 
-    // 加载战技蒙太奇（Q_Slam - 筋斗云突击）
+    // 加载地面战技蒙太奇（Q_Flip_Bwd - 后空翻）
     static ConstructorHelpers::FObjectFinder<UAnimMontage> AbilityMontageAsset(
-        TEXT("/Game/ParagonSunWukong/Characters/Heroes/Wukong/Animations/Q_Slam_Montage")
+        TEXT("/Game/ParagonSunWukong/Characters/Heroes/Wukong/Animations/Q_Flip_Bwd_Montage")
     );
     if (AbilityMontageAsset.Succeeded())
     {
         AbilityMontage = AbilityMontageAsset.Object;
+    }
+
+    // 加载空中战技蒙太奇（Q_Fall_Loop - 下坠攻击）
+    static ConstructorHelpers::FObjectFinder<UAnimMontage> AirAbilityMontageAsset(
+        TEXT("/Game/ParagonSunWukong/Characters/Heroes/Wukong/Animations/Q_Fall_Loop_Montage")
+    );
+    if (AirAbilityMontageAsset.Succeeded())
+    {
+        AirAbilityMontage = AirAbilityMontageAsset.Object;
+    }
+
+    // 加载空中攻击蒙太奇（Primary_Melee_Air）
+    static ConstructorHelpers::FObjectFinder<UAnimMontage> AirAttackMontageAsset(
+        TEXT("/Game/ParagonSunWukong/Characters/Heroes/Wukong/Animations/Primary_Melee_Air_Montage")
+    );
+    if (AirAttackMontageAsset.Succeeded())
+    {
+        AirAttackMontage = AirAttackMontageAsset.Object;
     }
 
     // Create Combat Component (will be implemented by Member C)
@@ -305,14 +323,28 @@ void AWukongCharacter::BeginPlay()
     CurrentHealth = MaxHealth;
     CurrentState = EWukongState::Idle;
 
-    // Configure movement speeds
+    // Configure movement speeds and physics
     if (UCharacterMovementComponent* Movement = GetCharacterMovement())
     {
         Movement->MaxWalkSpeed = WalkSpeed;
         CachedMaxWalkSpeed = WalkSpeed;  // 初始化缓存速度
+        
+        // 增加重力，让跳跃更有重量感
+        Movement->GravityScale = GravityScale;
+        
+        // 空中控制设为 0，跳跃后不能改变方向（只保留初速度）
+        Movement->AirControl = AirControl;
+        
+        // 关键：空中减速设为 0，这样水平速度在空中不会衰减
+        // 默认值约 200-1500，会让角色在空中快速失去水平速度
+        Movement->BrakingDecelerationFalling = BrakingDecelerationFalling;
+        
+        // 跳跃初速度
+        Movement->JumpZVelocity = JumpVelocity;
     }
     
-    UE_LOG(LogTemp, Log, TEXT("BeginPlay: WalkSpeed=%f, MaxWalkSpeed=%f"), WalkSpeed, CachedMaxWalkSpeed);
+    UE_LOG(LogTemp, Log, TEXT("BeginPlay: WalkSpeed=%f, GravityScale=%f, AirControl=%f, BrakingDecelFalling=%f, JumpVelocity=%f"), 
+        WalkSpeed, GravityScale, AirControl, BrakingDecelerationFalling, JumpVelocity);
 
     // Broadcast initial health
     OnHealthChanged.Broadcast(CurrentHealth, MaxHealth);
@@ -489,6 +521,16 @@ void AWukongCharacter::OnDodgePressed()
         return;
     }
 
+    // 空中不能翻滚
+    if (UCharacterMovementComponent* Movement = GetCharacterMovement())
+    {
+        if (Movement->IsFalling())
+        {
+            UE_LOG(LogTemp, Warning, TEXT("OnDodgePressed() blocked - cannot dodge in air"));
+            return;
+        }
+    }
+
     if (!IsCooldownActive(TEXT("Dodge")))
     {
         UE_LOG(LogTemp, Warning, TEXT("OnDodgePressed() -> calling PerformDodge()"));
@@ -578,19 +620,15 @@ void AWukongCharacter::ChangeState(EWukongState NewState)
         break;
     case EWukongState::Attacking:
         AttackTimer = AttackDuration;
-        // 攻击时：禁止水平移动输入，但保留重力（允许下落）
-        // 不使用 DisableMovement()，因为那会禁止重力导致滞空
+        // 攻击时：允许移动但速度减半
         if (UCharacterMovementComponent* Movement = GetCharacterMovement())
         {
             // 保存当前最大速度，攻击结束后恢复
             CachedMaxWalkSpeed = Movement->MaxWalkSpeed;
-            // 将水平速度设为0，这样角色不会滑动
-            Movement->MaxWalkSpeed = 0.0f;
-            // 停止当前水平速度（防止惯性滑动）
-            FVector Velocity = Movement->Velocity;
-            Velocity.X = 0.0f;
-            Velocity.Y = 0.0f;
-            Movement->Velocity = Velocity;
+            // 攻击时移动速度变为原来的 50%（可通过 AttackMoveSpeedMultiplier 调整）
+            Movement->MaxWalkSpeed = CachedMaxWalkSpeed * AttackMoveSpeedMultiplier;
+            UE_LOG(LogTemp, Log, TEXT("ChangeState: Entering Attacking, MaxWalkSpeed reduced to %f (%.0f%%)"), 
+                Movement->MaxWalkSpeed, AttackMoveSpeedMultiplier * 100.0f);
         }
         break;
     case EWukongState::Dodging:
@@ -756,32 +794,67 @@ void AWukongCharacter::PerformAttack()
 {
     ChangeState(EWukongState::Attacking);
     
-    CurrentComboIndex++;
-    if (CurrentComboIndex > MaxComboCount)
-    {
-        CurrentComboIndex = 1;
-    }
-
-    LastAttackTime = GetWorld()->GetTimeSeconds();
-    
     // 设置攻击冷却，防止点击过快
     AttackCooldownTimer = AttackCooldown;
+
+    // 检查是否在空中
+    bool bIsInAir = false;
+    if (UCharacterMovementComponent* Movement = GetCharacterMovement())
+    {
+        bIsInAir = Movement->IsFalling();
+    }
 
     // Play attack animation montage
     if (UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance())
     {
-        UAnimMontage* MontageToPlay = nullptr;
-        
-        switch (CurrentComboIndex)
+        if (bIsInAir)
         {
-        case 1: MontageToPlay = AttackMontage1; break;
-        case 2: MontageToPlay = AttackMontage2; break;
-        case 3: MontageToPlay = AttackMontage3; break;
+            // ========== 空中攻击：Primary_Melee_Air ==========
+            UE_LOG(LogTemp, Log, TEXT("PerformAttack: In Air - using AirAttackMontage"));
+            
+            if (AirAttackMontage)
+            {
+                float Duration = AnimInstance->Montage_Play(AirAttackMontage, 1.0f);
+                UE_LOG(LogTemp, Log, TEXT("PerformAttack: Playing AirAttackMontage, Duration=%f"), Duration);
+            }
+            else if (AirAttackAnimation)
+            {
+                // 回退：使用动画序列动态创建蒙太奇
+                float Duration = PlayAnimationAsMontageDynamic(AirAttackAnimation, FName("DefaultSlot"), 1.0f);
+                UE_LOG(LogTemp, Log, TEXT("PerformAttack: Playing AirAttackAnimation as dynamic montage, Duration=%f"), Duration);
+            }
+            else
+            {
+                UE_LOG(LogTemp, Warning, TEXT("PerformAttack: No air attack animation! Create Primary_Melee_Air_Montage in editor."));
+            }
+            
+            // 空中攻击不增加连击计数
         }
-        
-        if (MontageToPlay)
+        else
         {
-            AnimInstance->Montage_Play(MontageToPlay, 1.0f);
+            // ========== 地面攻击：Combo 连击 ==========
+            CurrentComboIndex++;
+            if (CurrentComboIndex > MaxComboCount)
+            {
+                CurrentComboIndex = 1;
+            }
+
+            LastAttackTime = GetWorld()->GetTimeSeconds();
+            
+            UAnimMontage* MontageToPlay = nullptr;
+            
+            switch (CurrentComboIndex)
+            {
+            case 1: MontageToPlay = AttackMontage1; break;
+            case 2: MontageToPlay = AttackMontage2; break;
+            case 3: MontageToPlay = AttackMontage3; break;
+            }
+            
+            if (MontageToPlay)
+            {
+                AnimInstance->Montage_Play(MontageToPlay, 1.0f);
+                UE_LOG(LogTemp, Log, TEXT("PerformAttack: Ground combo %d"), CurrentComboIndex);
+            }
         }
     }
 
@@ -963,6 +1036,37 @@ FVector AWukongCharacter::GetMovementDirection() const
     return FVector::ZeroVector;
 }
 
+float AWukongCharacter::CalculateDamage(bool bIsHeavyAttack, bool bIsAirAttack, int32 ComboIndex) const
+{
+    // 基础伤害 = 基础攻击力
+    float FinalDamage = BaseAttackPower;
+    
+    // 应用攻击类型倍率
+    if (bIsAirAttack)
+    {
+        // 空中攻击倍率
+        FinalDamage *= AirAttackMultiplier;
+    }
+    else if (bIsHeavyAttack)
+    {
+        // 重击倍率
+        FinalDamage *= HeavyAttackMultiplier;
+    }
+    else
+    {
+        // 轻击倍率
+        FinalDamage *= LightAttackMultiplier;
+    }
+    
+    // 应用连击倍率（如果有效）
+    if (ComboMultipliers.IsValidIndex(ComboIndex))
+    {
+        FinalDamage *= ComboMultipliers[ComboIndex];
+    }
+    
+    return FinalDamage;
+}
+
 // Helper Methods
 void AWukongCharacter::Die()
 {
@@ -1097,50 +1201,79 @@ void AWukongCharacter::PerformAbility()
     // 切换到使用战技状态
     ChangeState(EWukongState::UsingAbility);
 
+    // 检查是否在空中
+    bool bIsInAir = false;
+    if (UCharacterMovementComponent* Movement = GetCharacterMovement())
+    {
+        bIsInAir = Movement->IsFalling();
+    }
+
     // 播放战技动画
     if (UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance())
     {
-        // 优先尝试播放战技蒙太奇
-        if (AbilityMontage)
+        if (bIsInAir)
         {
-            if (AbilityMontage->SlotAnimTracks.Num() > 0)
+            // ========== 空中战技：Q_Fall_Loop ==========
+            UE_LOG(LogTemp, Log, TEXT("PerformAbility: In Air - using AirAbilityMontage"));
+            
+            if (AirAbilityMontage)
             {
-                FName SlotName = AbilityMontage->SlotAnimTracks[0].SlotName;
-                UE_LOG(LogTemp, Warning, TEXT("PerformAbility: AbilityMontage=%s, uses Slot='%s'"), 
-                    *AbilityMontage->GetName(), *SlotName.ToString());
+                if (AirAbilityMontage->SlotAnimTracks.Num() > 0)
+                {
+                    FName SlotName = AirAbilityMontage->SlotAnimTracks[0].SlotName;
+                    UE_LOG(LogTemp, Warning, TEXT("PerformAbility: AirAbilityMontage=%s, uses Slot='%s'"), 
+                        *AirAbilityMontage->GetName(), *SlotName.ToString());
+                }
+                
+                float Duration = AnimInstance->Montage_Play(AirAbilityMontage, 1.0f);
+                UE_LOG(LogTemp, Warning, TEXT("PerformAbility: Montage_Play returned Duration=%f"), Duration);
+                AbilityTimer = FMath::Max(Duration, 1.0f);
+            }
+            else
+            {
+                UE_LOG(LogTemp, Warning, TEXT("PerformAbility: No AirAbilityMontage! Create Q_Fall_Loop_Montage in editor."));
+                AbilityTimer = 0.5f;
             }
             
-            float Duration = AnimInstance->Montage_Play(AbilityMontage, 1.0f);
-            UE_LOG(LogTemp, Warning, TEXT("PerformAbility: Montage_Play returned Duration=%f"), Duration);
-            AbilityTimer = FMath::Max(Duration, 1.5f);
-        }
-        // 如果没有蒙太奇，尝试用 Q_Slam 动画序列
-        else if (AbilitySlamAnimation)
-        {
-            UE_LOG(LogTemp, Log, TEXT("PerformAbility: Playing Q_Slam animation as dynamic montage"));
-            float Duration = PlayAnimationAsMontageDynamic(AbilitySlamAnimation, FName("DefaultSlot"), 1.0f);
-            AbilityTimer = FMath::Max(Duration, 1.5f);
-        }
-        // 如果没有 Slam，尝试用 Flip Forward
-        else if (AbilityFlipForwardAnimation)
-        {
-            UE_LOG(LogTemp, Log, TEXT("PerformAbility: Playing Q_Flip_Fwd animation as dynamic montage"));
-            float Duration = PlayAnimationAsMontageDynamic(AbilityFlipForwardAnimation, FName("DefaultSlot"), 1.0f);
-            AbilityTimer = FMath::Max(Duration, 1.0f);
+            // 空中战技：快速下坠
+            if (UCharacterMovementComponent* Movement = GetCharacterMovement())
+            {
+                FVector DownVelocity = FVector(0, 0, -800.0f);  // 快速下坠
+                LaunchCharacter(DownVelocity, false, true);
+            }
         }
         else
         {
-            UE_LOG(LogTemp, Warning, TEXT("PerformAbility: No ability animation available!"));
-            AbilityTimer = 0.5f;
+            // ========== 地面战技：Q_Flip_Bwd（后空翻）==========
+            UE_LOG(LogTemp, Log, TEXT("PerformAbility: On Ground - using AbilityMontage"));
+            
+            if (AbilityMontage)
+            {
+                if (AbilityMontage->SlotAnimTracks.Num() > 0)
+                {
+                    FName SlotName = AbilityMontage->SlotAnimTracks[0].SlotName;
+                    UE_LOG(LogTemp, Warning, TEXT("PerformAbility: AbilityMontage=%s, uses Slot='%s'"), 
+                        *AbilityMontage->GetName(), *SlotName.ToString());
+                }
+                
+                float Duration = AnimInstance->Montage_Play(AbilityMontage, 1.0f);
+                UE_LOG(LogTemp, Warning, TEXT("PerformAbility: Montage_Play returned Duration=%f"), Duration);
+                AbilityTimer = FMath::Max(Duration, 1.0f);
+            }
+            else
+            {
+                UE_LOG(LogTemp, Warning, TEXT("PerformAbility: No AbilityMontage! Create Q_Flip_Bwd_Montage in editor."));
+                AbilityTimer = 0.5f;
+            }
+            
+            // 地面战技：向后小跳
+            if (UCharacterMovementComponent* Movement = GetCharacterMovement())
+            {
+                FVector BackDirection = -GetActorForwardVector();
+                FVector LaunchVelocity = BackDirection * 200.0f + FVector(0, 0, 400.0f);
+                LaunchCharacter(LaunchVelocity, false, true);
+            }
         }
-    }
-
-    // 给角色一个简单的小跳跃（不要太浮夸）
-    if (UCharacterMovementComponent* Movement = GetCharacterMovement())
-    {
-        // 只是稍微向上跳跃，然后攻击
-        FVector LaunchVelocity = FVector(0, 0, 350.0f);  // 只有向上的力
-        LaunchCharacter(LaunchVelocity, false, true);  // 不覆盖XY速度
     }
 }
 

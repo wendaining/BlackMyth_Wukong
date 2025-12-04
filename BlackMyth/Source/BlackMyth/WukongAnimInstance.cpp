@@ -66,48 +66,64 @@ void UWukongAnimInstance::UpdateMovementVariables()
     FVector HorizontalVelocity = Velocity;
     HorizontalVelocity.Z = 0.0f;
     
-    // 更新速度和方向
-    Speed = HorizontalVelocity.Size();
-    Direction = CalculateDirection(Velocity, Wukong->GetActorRotation());
-    bIsMoving = Speed > 10.0f;
-    
-    // 更新冲刺状态
-    bIsSprinting = Wukong->IsSprinting();
-    
-    // 更新走路状态（移动但不冲刺）
-    bIsWalking = bIsMoving && !bIsSprinting;
-
-    // 是否正在加速（检查当前加速度，对应原蓝图中的 isAccelerating）
-    const FVector CurrentAcceleration = MovementComp->GetCurrentAcceleration();
-    bIsAccelerating = CurrentAcceleration.SizeSquared2D() > KINDA_SMALL_NUMBER;
-    
-    // 计算动画播放速率
-    // 走路时（不冲刺）播放速率较低，让动画看起来更慢
-    // 冲刺时播放速率正常
-    const float WalkSpeed = 300.0f;  // 与 WukongCharacter 中的 WalkSpeed 保持一致
-    const float SprintSpeed = 600.0f; // 与 WukongCharacter 中的 SprintSpeed 保持一致
-    
-    if (bIsSprinting)
-    {
-        // 冲刺时正常播放
-        LocomotionPlayRate = 1.0f;
-    }
-    else if (Speed > 10.0f)
-    {
-        // 走路时，根据速度比例降低播放速率
-        // 这样动画会更慢，脚步看起来更自然
-        LocomotionPlayRate = FMath::Clamp(Speed / SprintSpeed, 0.4f, 0.7f);
-    }
-    else
-    {
-        LocomotionPlayRate = 1.0f;
-    }
-    
-    // 更新跳跃/下落状态
+    // 更新跳跃/下落状态（先更新这个，因为后面要用）
     const bool bCurrentlyFalling = MovementComp->IsFalling();
     bWasGrounded = bIsGrounded;
     bIsFalling = bCurrentlyFalling;
     bIsGrounded = !bCurrentlyFalling;
+    
+    // 更新速度和方向
+    // 注意：物理上角色仍保持惯性（抛物线轨迹），但动画只在地面时播放走路
+    // 空中时 Speed 设为0，这样 AnimBP 不会播放走路动画，但角色仍沿抛物线移动
+    
+    // 先获取实际水平速度（用于判断移动状态）
+    const float ActualHorizontalSpeed = HorizontalVelocity.Size();
+    
+    if (bIsFalling)
+    {
+        // 空中时：动画系统的 Speed 设为0，防止播放走路/跑步动画
+        // 但物理系统仍保持惯性速度（AirControl=0 只是不响应输入，不会清零速度）
+        Speed = 0.0f;
+        Direction = 0.0f;
+        bIsMoving = false;
+        bIsWalking = false;
+        bIsSprinting = false;
+        bIsAccelerating = false;
+        LocomotionPlayRate = 1.0f;
+    }
+    else
+    {
+        // 地面时：正常更新移动变量
+        Speed = ActualHorizontalSpeed;
+        Direction = CalculateDirection(Velocity, Wukong->GetActorRotation());
+        bIsMoving = Speed > 10.0f;
+        
+        // 更新冲刺状态
+        bIsSprinting = Wukong->IsSprinting();
+        
+        // 更新走路状态（移动但不冲刺）
+        bIsWalking = bIsMoving && !bIsSprinting;
+
+        // 是否正在加速（检查当前加速度，对应原蓝图中的 isAccelerating）
+        const FVector CurrentAcceleration = MovementComp->GetCurrentAcceleration();
+        bIsAccelerating = CurrentAcceleration.SizeSquared2D() > KINDA_SMALL_NUMBER;
+        
+        // 计算动画播放速率
+        const float SprintSpeed = 600.0f;
+        
+        if (bIsSprinting)
+        {
+            LocomotionPlayRate = 1.0f;
+        }
+        else if (Speed > 10.0f)
+        {
+            LocomotionPlayRate = FMath::Clamp(Speed / SprintSpeed, 0.4f, 0.7f);
+        }
+        else
+        {
+            LocomotionPlayRate = 1.0f;
+        }
+    }
     
     // 检测刚刚起跳
     if (bIsFalling && bWasGrounded)
