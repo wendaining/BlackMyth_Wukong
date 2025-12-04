@@ -8,6 +8,7 @@
 
 class UInputAction;
 class UStaminaComponent;
+class UCombatComponent;
 struct FInputActionValue;
 
 // 角色状态枚举
@@ -65,15 +66,19 @@ public:
 	
 	/** 获取当前连击索引 */
 	UFUNCTION(BlueprintPure, Category = "Combat")
-	int32 GetComboIndex() const { return CurrentComboIndex; }
+	int32 GetComboIndex() const;
 
-	/** 计算最终伤害值 */
+	/** 计算最终伤害值（委托给CombatComponent） */
 	UFUNCTION(BlueprintPure, Category = "Combat")
 	float CalculateDamage(bool bIsHeavyAttack = false, bool bIsAirAttack = false, int32 ComboIndex = 0) const;
 
 	/** 获取基础攻击力 */
 	UFUNCTION(BlueprintPure, Category = "Combat")
-	float GetBaseAttackPower() const { return BaseAttackPower; }
+	float GetBaseAttackPower() const;
+
+	/** 获取战斗组件 */
+	UFUNCTION(BlueprintPure, Category = "Combat")
+	UCombatComponent* GetCombatComponent() const { return CombatComponent; }
 
 	/** 是否正在冲刺 */
 	UFUNCTION(BlueprintPure, Category = "Movement")
@@ -128,15 +133,15 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Stats")
 	float CurrentHealth;
 
-	/** 基础攻击力 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stats")
-	float BaseAttackPower = 10.0f;
-
-	// ========== 体力组件 ==========
+	// ========== 组件 ==========
 
 	/** 体力值组件（管理体力消耗与恢复） */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	TObjectPtr<UStaminaComponent> StaminaComponent;
+
+	/** 战斗属性组件（管理攻击力、伤害倍率等） */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
+	TObjectPtr<UCombatComponent> CombatComponent;
 
 	// ========== 移动属性 ==========
 	
@@ -190,31 +195,7 @@ protected:
 
 	// ========== 攻击属性 ==========
 	
-	/** 最大连击数 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat")
-	int32 MaxComboCount = 3;
-
-	/** 连击重置时间（超过此时间连击归零） */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat")
-	float ComboResetTime = 1.0f;
-
-	// ========== 伤害倍率 ==========
-
-	/** 轻击伤害倍率（基于基础攻击力） */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat|Damage")
-	float LightAttackMultiplier = 1.0f;
-
-	/** 重击伤害倍率（基于基础攻击力） */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat|Damage")
-	float HeavyAttackMultiplier = 2.0f;
-
-	/** 空中攻击伤害倍率（基于基础攻击力） */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat|Damage")
-	float AirAttackMultiplier = 1.8f;
-
-	/** 连击各段伤害倍率 [第1段=1.0, 第2段=1.2, 第3段=1.5] */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat|Damage")
-	TArray<float> ComboMultipliers = {1.0f, 1.2f, 1.5f};
+	// ========== 攻击属性（时间相关，保留在角色类中） ==========
 
 	/** 攻击动作持续时间 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat")
@@ -392,7 +373,6 @@ private:
 	TMap<FString, float> CooldownMap;    // 冷却时间表
 
 	// ========== 攻击状态 ==========
-	int32 CurrentComboIndex = 0;       // 当前连击索引
 	float LastAttackTime = 0.0f;       // 上次攻击时间
 	float AttackTimer = 0.0f;          // 攻击计时器
 	float AttackCooldownTimer = 0.0f;  // 攻击冷却计时器

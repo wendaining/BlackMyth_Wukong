@@ -2,6 +2,7 @@
 
 #include "WukongCharacter.h"
 #include "Components/StaminaComponent.h"
+#include "Components/CombatComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "EnhancedInputComponent.h"
 #include "InputAction.h"
@@ -21,6 +22,9 @@ AWukongCharacter::AWukongCharacter()
 
     // 创建体力组件
     StaminaComponent = CreateDefaultSubobject<UStaminaComponent>(TEXT("StaminaComponent"));
+
+    // 创建战斗组件
+    CombatComponent = CreateDefaultSubobject<UCombatComponent>(TEXT("CombatComponent"));
 
     // Auto-load Paragon Wukong skeletal mesh
     static ConstructorHelpers::FObjectFinder<USkeletalMesh> WukongMeshAsset(
@@ -773,6 +777,7 @@ void AWukongCharacter::UpdateAttackingState(float DeltaTime)
 
         // Check for combo timeout
         float TimeSinceLastAttack = GetWorld()->GetTimeSeconds() - LastAttackTime;
+        float ComboResetTime = CombatComponent ? CombatComponent->ComboResetTime : 1.0f;
         if (TimeSinceLastAttack > ComboResetTime)
         {
             ResetCombo();
@@ -890,27 +895,28 @@ void AWukongCharacter::PerformAttack()
         else
         {
             // ========== 地面攻击：Combo 连击 ==========
-            CurrentComboIndex++;
-            if (CurrentComboIndex > MaxComboCount)
+            if (CombatComponent)
             {
-                CurrentComboIndex = 1;
+                CombatComponent->AdvanceCombo();
             }
+            int32 ComboIndex = CombatComponent ? CombatComponent->GetCurrentComboIndex() : 0;
 
             LastAttackTime = GetWorld()->GetTimeSeconds();
             
             UAnimMontage* MontageToPlay = nullptr;
             
-            switch (CurrentComboIndex)
+            // ComboIndex 从0开始，所以 0=第1段, 1=第2段, 2=第3段
+            switch (ComboIndex)
             {
-            case 1: MontageToPlay = AttackMontage1; break;
-            case 2: MontageToPlay = AttackMontage2; break;
-            case 3: MontageToPlay = AttackMontage3; break;
+            case 0: MontageToPlay = AttackMontage1; break;
+            case 1: MontageToPlay = AttackMontage2; break;
+            case 2: MontageToPlay = AttackMontage3; break;
             }
             
             if (MontageToPlay)
             {
                 AnimInstance->Montage_Play(MontageToPlay, 1.0f);
-                UE_LOG(LogTemp, Log, TEXT("PerformAttack: Ground combo %d"), CurrentComboIndex);
+                UE_LOG(LogTemp, Log, TEXT("PerformAttack: Ground combo %d"), ComboIndex + 1);
             }
         }
     }
@@ -918,13 +924,16 @@ void AWukongCharacter::PerformAttack()
     // TODO: Deal damage via CombatComponent
     // if (CombatComponent)
     // {
-    //     CombatComponent->ExecuteAttack(CurrentComboIndex);
+    //     float Damage = CombatComponent->CalculateDamage(false, bIsInAir, ComboIndex);
     // }
 }
 
 void AWukongCharacter::ResetCombo()
 {
-    CurrentComboIndex = 0;
+    if (CombatComponent)
+    {
+        CombatComponent->ResetCombo();
+    }
     LastAttackTime = 0.0f;
 }
 
@@ -1123,33 +1132,21 @@ FVector AWukongCharacter::GetMovementDirection() const
 
 float AWukongCharacter::CalculateDamage(bool bIsHeavyAttack, bool bIsAirAttack, int32 ComboIndex) const
 {
-    // 基础伤害 = 基础攻击力
-    float FinalDamage = BaseAttackPower;
-    
-    // 应用攻击类型倍率
-    if (bIsAirAttack)
+    if (CombatComponent)
     {
-        // 空中攻击倍率
-        FinalDamage *= AirAttackMultiplier;
+        return CombatComponent->CalculateDamage(bIsHeavyAttack, bIsAirAttack, ComboIndex);
     }
-    else if (bIsHeavyAttack)
-    {
-        // 重击倍率
-        FinalDamage *= HeavyAttackMultiplier;
-    }
-    else
-    {
-        // 轻击倍率
-        FinalDamage *= LightAttackMultiplier;
-    }
-    
-    // 应用连击倍率（如果有效）
-    if (ComboMultipliers.IsValidIndex(ComboIndex))
-    {
-        FinalDamage *= ComboMultipliers[ComboIndex];
-    }
-    
-    return FinalDamage;
+    return 0.0f;
+}
+
+int32 AWukongCharacter::GetComboIndex() const
+{
+    return CombatComponent ? CombatComponent->GetCurrentComboIndex() : 0;
+}
+
+float AWukongCharacter::GetBaseAttackPower() const
+{
+    return CombatComponent ? CombatComponent->GetBaseAttackPower() : 0.0f;
 }
 
 // ========== 跳跃体力检查 ==========
