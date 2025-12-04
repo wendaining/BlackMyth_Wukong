@@ -6,10 +6,16 @@
 #include "Kismet/GameplayStatics.h"
 #include "AIController.h"
 #include "Navigation/PathFollowingComponent.h"
+#include "Components/HealthComponent.h"
+#include "Components/CombatComponent.h"
 
 AEnemyBase::AEnemyBase()
 {
 	PrimaryActorTick.bCanEverTick = true;
+
+	// 创建组件
+	HealthComponent = CreateDefaultSubobject<UHealthComponent>(TEXT("HealthComponent"));
+	CombatComponent = CreateDefaultSubobject<UCombatComponent>(TEXT("CombatComponent"));
 
 	// 设置默认 AI 控制器
 	AIControllerClass = AEnemyAIController::StaticClass();
@@ -35,13 +41,18 @@ AEnemyBase::AEnemyBase()
 void AEnemyBase::BeginPlay()
 {
 	Super::BeginPlay();
-	CurrentHealth = MaxHealth;
+	// CurrentHealth = MaxHealth; // Managed by HealthComponent
 	
 	EnemyController = Cast<AAIController>(GetController());
 	
 	if (PawnSensing)
 	{
 		PawnSensing->OnSeePawn.AddDynamic(this, &AEnemyBase::PawnSeen);
+	}
+
+	if (HealthComponent)
+	{
+		HealthComponent->OnDeath.AddDynamic(this, &AEnemyBase::HandleDeath);
 	}
 
 	// 初始化状态
@@ -71,7 +82,10 @@ void AEnemyBase::ReceiveDamage(float Damage, AActor* DamageInstigator)
 {
 	if (IsDead()) return;
 
-	CurrentHealth = FMath::Clamp(CurrentHealth - Damage, 0.0f, MaxHealth);
+	if (HealthComponent)
+	{
+		HealthComponent->TakeDamage(Damage, DamageInstigator);
+	}
 
 	// 显示血条
 	ShowHealthBar();
@@ -103,10 +117,7 @@ void AEnemyBase::ReceiveDamage(float Damage, AActor* DamageInstigator)
 		PlayAnimMontage(HitReactMontage);
 	}
 
-	if (CurrentHealth <= 0.0f)
-	{
-		Die();
-	}
+	// Death is handled by HealthComponent delegate
 }
 
 void AEnemyBase::Die()
@@ -326,6 +337,21 @@ bool AEnemyBase::IsDead()
 bool AEnemyBase::IsEngaged()
 {
 	return EnemyState == EEnemyState::EES_Engaged;
+}
+
+float AEnemyBase::GetCurrentHealth() const
+{
+	return HealthComponent ? HealthComponent->GetCurrentHealth() : 0.f;
+}
+
+float AEnemyBase::GetMaxHealth() const
+{
+	return HealthComponent ? HealthComponent->GetMaxHealth() : 0.f;
+}
+
+void AEnemyBase::HandleDeath(AActor* Killer)
+{
+	Die();
 }
 
 bool AEnemyBase::InTargetRange(AActor* Target, double Radius)

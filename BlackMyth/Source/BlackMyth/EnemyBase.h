@@ -7,6 +7,8 @@
 class UBehaviorTree;
 class UPawnSensingComponent;
 class AAIController;
+class UHealthComponent;
+class UCombatComponent;
 
 /**
  * 敌人状态枚举
@@ -50,11 +52,11 @@ public:
 
 	/** 获取当前生命值 */
 	UFUNCTION(BlueprintPure, Category = "Stats")
-	float GetCurrentHealth() const { return CurrentHealth; }
+	float GetCurrentHealth() const;
 
 	/** 获取最大生命值 */
 	UFUNCTION(BlueprintPure, Category = "Stats")
-	float GetMaxHealth() const { return MaxHealth; }
+	float GetMaxHealth() const;
 
 	/** 获取行为树资源 */
 	UBehaviorTree* GetBehaviorTree() const { return BehaviorTree; }
@@ -82,6 +84,10 @@ protected:
 
 	/** 巡逻计时器结束 */
 	void PatrolTimerFinished();
+
+	/** 处理死亡回调 */
+	UFUNCTION()
+	void HandleDeath(AActor* Killer);
 
 	/** 隐藏/显示血条 (预留接口) */
 	void HideHealthBar();
@@ -123,11 +129,17 @@ protected:
 
 protected:
 	// 基础属性
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stats")
-	float MaxHealth = 100.0f;
+	// UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stats")
+	// float MaxHealth = 100.0f; // Moved to HealthComponent
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Stats")
-	float CurrentHealth;
+	// UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Stats")
+	// float CurrentHealth; // Moved to HealthComponent
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
+	TObjectPtr<UHealthComponent> HealthComponent;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
+	TObjectPtr<UCombatComponent> CombatComponent;
 
 	// 状态
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "State")
