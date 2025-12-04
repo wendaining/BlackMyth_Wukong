@@ -2,7 +2,6 @@
 #include "Components/CapsuleComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "EnemyAIController.h"
-#include "Perception/PawnSensingComponent.h"
 #include "Kismet/GameplayStatics.h"
 #include "AIController.h"
 #include "Navigation/PathFollowingComponent.h"
@@ -31,11 +30,6 @@ AEnemyBase::AEnemyBase()
 	GetCharacterMovement()->bOrientRotationToMovement = true;
 	GetCharacterMovement()->RotationRate = FRotator(0.0f, 500.0f, 0.0f);
 	GetCharacterMovement()->MaxWalkSpeed = PatrollingSpeed;
-
-	// 初始化感知组件
-	PawnSensing = CreateDefaultSubobject<UPawnSensingComponent>(TEXT("PawnSensing"));
-	PawnSensing->SightRadius = 4000.f;
-	PawnSensing->SetPeripheralVisionAngle(45.f);
 }
 
 void AEnemyBase::BeginPlay()
@@ -45,11 +39,6 @@ void AEnemyBase::BeginPlay()
 	
 	EnemyController = Cast<AAIController>(GetController());
 	
-	if (PawnSensing)
-	{
-		PawnSensing->OnSeePawn.AddDynamic(this, &AEnemyBase::PawnSeen);
-	}
-
 	if (HealthComponent)
 	{
 		HealthComponent->OnDeath.AddDynamic(this, &AEnemyBase::HandleDeath);
@@ -68,14 +57,7 @@ void AEnemyBase::Tick(float DeltaTime)
 
 	if (IsDead()) return;
 
-	if (EnemyState > EEnemyState::EES_Patrolling)
-	{
-		CheckCombatTarget();
-	}
-	else
-	{
-		CheckPatrolTarget();
-	}
+	// 逻辑已移至行为树
 }
 
 void AEnemyBase::ReceiveDamage(float Damage, AActor* DamageInstigator)
@@ -176,50 +158,14 @@ void AEnemyBase::AttackEnd()
 	CheckCombatTarget();
 }
 
-void AEnemyBase::PawnSeen(APawn* SeenPawn)
-{
-	// 简单的敌对判断：如果是玩家控制的角色
-	bool bShouldChase = 
-		EnemyState != EEnemyState::EES_Dead &&
-		EnemyState != EEnemyState::EES_Chasing &&
-		EnemyState < EEnemyState::EES_Attacking &&
-		SeenPawn->IsPlayerControlled(); // 或者检查 Tag
-
-	if (bShouldChase)
-	{
-		CombatTarget = SeenPawn;
-		ClearPatrolTimer();
-		ChaseTarget();
-	}
-}
-
 void AEnemyBase::CheckCombatTarget()
 {
-	if (IsOutsideCombatRadius())
-	{
-		ClearAttackTimer();
-		LoseInterest();
-		if (!IsEngaged()) StartPatrolling();
-	}
-	else if (IsOutsideAttackRadius() && !IsChasing())
-	{
-		ClearAttackTimer();
-		if (!IsEngaged()) ChaseTarget();
-	}
-	else if (IsInsideAttackRadius() && !IsAttacking() && !IsEngaged() && !IsDead())
-	{
-		StartAttackTimer();
-	}
+	// 逻辑移至行为树
 }
 
 void AEnemyBase::CheckPatrolTarget()
 {
-	if (InTargetRange(PatrolTarget, PatrolRadius))
-	{
-		PatrolTarget = ChoosePatrolTarget();
-		const float WaitTime = FMath::RandRange(PatrolWaitMin, PatrolWaitMax);
-		GetWorldTimerManager().SetTimer(PatrolTimer, this, &AEnemyBase::PatrolTimerFinished, WaitTime);
-	}
+	// 逻辑移至行为树
 }
 
 void AEnemyBase::PatrolTimerFinished()
@@ -235,12 +181,6 @@ void AEnemyBase::HideHealthBar()
 void AEnemyBase::ShowHealthBar()
 {
 	// TODO: 实现 UI 显示逻辑
-}
-
-void AEnemyBase::LoseInterest()
-{
-	CombatTarget = nullptr;
-	HideHealthBar();
 }
 
 void AEnemyBase::StartPatrolling()

@@ -2,7 +2,11 @@
 
 #include "CoreMinimal.h"
 #include "AIController.h"
+#include "Perception/AIPerceptionTypes.h"
 #include "EnemyAIController.generated.h"
+
+class UAIPerceptionComponent;
+class UAISenseConfig_Sight;
 
 /**
  * 敌人 AI 控制器
@@ -22,16 +26,20 @@ protected:
 public:
 	virtual void Tick(float DeltaTime) override;
 
-protected:
-	// 感知范围
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AI")
-	float SightRadius = 1500.0f;
+	/** 感知更新回调 */
+	UFUNCTION()
+	void OnPerceptionUpdated(const TArray<AActor*>& UpdatedActors);
 
-	// 攻击范围
+protected:
+	/** AI 感知组件 */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "AI")
+	UAIPerceptionComponent* AIPerceptionComponent;
+
+	/** 视觉感官配置 */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "AI")
+	UAISenseConfig_Sight* SightConfig;
+
+	/** 攻击范围 (用于行为树判断) */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AI")
 	float AttackRange = 150.0f;
-
-	// 目标引用
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "AI")
-	TObjectPtr<AActor> TargetActor;
 };

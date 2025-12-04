@@ -4,15 +4,43 @@
 #include "EnemyBase.h"
 #include "BehaviorTree/BehaviorTree.h"
 #include "BehaviorTree/BlackboardComponent.h"
+#include "Perception/AIPerceptionComponent.h"
+#include "Perception/AISenseConfig_Sight.h"
+#include "Perception/AISense_Sight.h"
 
 AEnemyAIController::AEnemyAIController()
 {
 	PrimaryActorTick.bCanEverTick = true;
+
+	// 初始化感知组件
+	AIPerceptionComponent = CreateDefaultSubobject<UAIPerceptionComponent>(TEXT("AIPerceptionComponent"));
+	
+	// 初始化视觉配置
+	SightConfig = CreateDefaultSubobject<UAISenseConfig_Sight>(TEXT("SightConfig"));
+	if (SightConfig)
+	{
+		SightConfig->SightRadius = 1500.0f;
+		SightConfig->LoseSightRadius = 2000.0f;
+		SightConfig->PeripheralVisionAngleDegrees = 60.0f;
+		SightConfig->DetectionByAffiliation.bDetectEnemies = true;
+		SightConfig->DetectionByAffiliation.bDetectNeutrals = true;
+		SightConfig->DetectionByAffiliation.bDetectFriendlies = true;
+		
+		// 将视觉配置添加到感知组件
+		AIPerceptionComponent->ConfigureSense(*SightConfig);
+		AIPerceptionComponent->SetDominantSense(SightConfig->GetSenseImplementation());
+	}
 }
 
 void AEnemyAIController::OnPossess(APawn* InPawn)
 {
 	Super::OnPossess(InPawn);
+
+	// 绑定感知更新事件
+	if (AIPerceptionComponent)
+	{
+		AIPerceptionComponent->OnPerceptionUpdated.AddDynamic(this, &AEnemyAIController::OnPerceptionUpdated);
+	}
 
 	// 如果有行为树，优先运行行为树
 	if (AEnemyBase* Enemy = Cast<AEnemyBase>(InPawn))
@@ -27,51 +55,45 @@ void AEnemyAIController::OnPossess(APawn* InPawn)
 void AEnemyAIController::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
+	
+	// 可以在这里添加调试绘制或其他每帧逻辑
+}
 
-	// 如果正在运行行为树，则跳过简单的 Tick 逻辑
-	if (BrainComponent && BrainComponent->IsRunning())
-	{
-		return;
-	}
+void AEnemyAIController::OnPerceptionUpdated(const TArray<AActor*>& UpdatedActors)
+{
+	// 获取黑板组件
+	UBlackboardComponent* BlackboardComp = GetBlackboardComponent();
+	if (!BlackboardComp) return;
 
-	// 简单的 AI 逻辑：寻找并追逐玩家
-	// 注意：这是最基础的实现，后续建议使用行为树 (Behavior Tree) 替代
-	if (!TargetActor)
+	for (AActor* Actor : UpdatedActors)
 	{
-		APawn* PlayerPawn = UGameplayStatics::GetPlayerPawn(GetWorld(), 0);
-		if (PlayerPawn)
+		FActorPerceptionBlueprintInfo Info;
+		if (AIPerceptionComponent->GetActorsPerception(Actor, Info))
 		{
-			float Distance = FVector::Dist(GetPawn()->GetActorLocation(), PlayerPawn->GetActorLocation());
-			if (Distance <= SightRadius)
+			// 检查是否是视觉刺激
+			for (const FAIStimulus& Stimulus : Info.LastSensedStimuli)
 			{
-				TargetActor = PlayerPawn;
+				if (Stimulus.Type == UAISense::GetSenseID(UAISense_Sight::StaticClass()))
+				{
+					// 检查是否是玩家 (这里假设玩家是 ACharacter 的子类，且不是自己人)
+					// 实际项目中最好使用 Tag 或 Interface 来区分阵营
+					// 这里简单判断是否是玩家控制的角色
+					APawn* SensedPawn = Cast<APawn>(Actor);
+					if (SensedPawn && SensedPawn->IsPlayerControlled()) 
+					{
+						if (Stimulus.WasSuccessfullySensed())
+						{
+							// 看到了玩家，更新黑板
+							BlackboardComp->SetValueAsObject(TEXT("TargetActor"), Actor);
+						}
+						else
+						{
+							// 丢失视野 (可选：清除目标或保留最后已知位置)
+							// BlackboardComp->ClearValue(TEXT("TargetActor"));
+						}
+					}
+				}
 			}
-		}
-	}
-
-	if (TargetActor)
-	{
-		// 检查目标是否死亡
-		// ABlackMythCharacter* TargetChar = Cast<ABlackMythCharacter>(TargetActor);
-		// if (TargetChar && TargetChar->IsDead()) { TargetActor = nullptr; StopMovement(); return; }
-
-		float Distance = FVector::Dist(GetPawn()->GetActorLocation(), TargetActor->GetActorLocation());
-		
-		if (Distance > AttackRange)
-		{
-			// 追逐
-			MoveToActor(TargetActor, AttackRange * 0.8f); // 移动到攻击范围内
-		}
-		else
-		{
-			// 停止移动，准备攻击
-			StopMovement();
-			
-			// 这里可以调用 EnemyBase 的攻击接口
-			// if (AEnemyBase* Enemy = Cast<AEnemyBase>(GetPawn()))
-			// {
-			//     Enemy->Attack();
-			// }
 		}
 	}
 }

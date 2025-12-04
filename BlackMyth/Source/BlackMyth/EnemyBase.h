@@ -5,7 +5,6 @@
 #include "EnemyBase.generated.h"
 
 class UBehaviorTree;
-class UPawnSensingComponent;
 class AAIController;
 class UHealthComponent;
 class UCombatComponent;
@@ -72,10 +71,6 @@ protected:
 	UFUNCTION(BlueprintCallable)
 	void AttackEnd();
 
-	/** 感知到 Pawn 的回调 */
-	UFUNCTION()
-	void PawnSeen(APawn* SeenPawn);
-
 	/** 检查战斗目标 */
 	void CheckCombatTarget();
 	
@@ -92,9 +87,6 @@ protected:
 	/** 隐藏/显示血条 (预留接口) */
 	void HideHealthBar();
 	void ShowHealthBar();
-	
-	/** 失去兴趣 */
-	void LoseInterest();
 	
 	/** 开始巡逻 */
 	void StartPatrolling();
@@ -144,10 +136,6 @@ protected:
 	// 状态
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "State")
 	EEnemyState EnemyState = EEnemyState::EES_Patrolling;
-
-	// AI 组件
-	UPROPERTY(VisibleAnywhere, Category = "AI")
-	TObjectPtr<UPawnSensingComponent> PawnSensing;
 
 	UPROPERTY()
 	TObjectPtr<AAIController> EnemyController;
