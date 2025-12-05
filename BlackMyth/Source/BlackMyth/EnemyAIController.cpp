@@ -95,8 +95,10 @@ void AEnemyAIController::OnPerceptionUpdated(const TArray<AActor*>& UpdatedActor
 						}
 						else
 						{
-							// 丢失视野 (可选：清除目标或保留最后已知位置)
-							// BlackboardComp->ClearValue(TEXT("TargetActor"));
+							// 丢失视野：记录最后位置，进入搜寻模式
+							BlackboardComp->SetValueAsVector(TEXT("TargetLocation"), Actor->GetActorLocation());
+							BlackboardComp->SetValueAsBool(TEXT("IsInvestigating"), true);
+							BlackboardComp->ClearValue(TEXT("TargetActor"));
 							
 							// 如果是 Boss，丢失视野后隐藏血条 (可选)
 							// if (ABossEnemy* Boss = Cast<ABossEnemy>(GetPawn()))
