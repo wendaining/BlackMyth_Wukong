@@ -1,5 +1,5 @@
 #include "BossEnemy.h"
-#include "Blueprint/UserWidget.h"
+#include "BossHealthBar.h"
 #include "Kismet/GameplayStatics.h"
 
 ABossEnemy::ABossEnemy()
@@ -14,9 +14,12 @@ void ABossEnemy::BeginPlay()
 	// 创建 Boss 血条 UI
 	if (BossHealthBarClass)
 	{
-		BossHealthBarWidget = CreateWidget<UUserWidget>(GetWorld(), BossHealthBarClass);
+		BossHealthBarWidget = CreateWidget<UBossHealthBar>(GetWorld(), BossHealthBarClass);
 		if (BossHealthBarWidget)
 		{
+			// 初始化 Widget，传入 HealthComponent
+			BossHealthBarWidget->InitializeWidget(HealthComponent);
+			
 			BossHealthBarWidget->AddToViewport();
 			BossHealthBarWidget->SetVisibility(ESlateVisibility::Hidden);
 		}

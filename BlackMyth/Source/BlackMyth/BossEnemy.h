@@ -4,7 +4,7 @@
 #include "EnemyBase.h"
 #include "BossEnemy.generated.h"
 
-class UUserWidget;
+class UBossHealthBar;
 
 /**
  * Boss 敌人
@@ -26,9 +26,9 @@ public:
 protected:
 	/** Boss 血条 UI 类 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "UI")
-	TSubclassOf<UUserWidget> BossHealthBarClass;
+	TSubclassOf<UBossHealthBar> BossHealthBarClass;
 
 	/** Boss 血条 UI 实例 */
 	UPROPERTY()
-	UUserWidget* BossHealthBarWidget;
+	UBossHealthBar* BossHealthBarWidget;
 };
