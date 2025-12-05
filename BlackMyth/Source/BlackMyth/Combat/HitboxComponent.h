@@ -7,6 +7,11 @@
 #include "DamageTypes.h"
 #include "HitboxComponent.generated.h"
 
+// 前向声明
+class UCombatComponent;
+class UHealthComponent;
+class AEnemyBase;
+
 // 命中事件委托
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnHitDetected, AActor*, HitActor, const FHitResult&, HitResult);
 
@@ -18,7 +23,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnHitboxStateChanged, bool, bIsActi
  * 用于检测近战攻击的碰撞，挂载在武器或角色骨骼上
  * 支持调试可视化、命中去重、伤害信息传递
  */
-UCLASS(ClassGroup=(Combat), meta=(BlueprintSpawnableComponent))
+UCLASS(ClassGroup = (Combat), meta = (BlueprintSpawnableComponent))
 class BLACKMYTH_API UHitboxComponent : public UBoxComponent
 {
 	GENERATED_BODY()
@@ -52,6 +57,34 @@ public:
 	/** 清除已命中列表（允许再次命中同一目标） */
 	UFUNCTION(BlueprintCallable, Category = "Hitbox")
 	void ClearHitActors();
+
+	// ========== CombatComponent 对接==========
+
+	/** 设置关联的战斗组件 */
+	UFUNCTION(BlueprintCallable, Category = "Hitbox")
+	void SetCombatComponent(UCombatComponent* InCombatComponent);
+
+	/** 获取关联的战斗组件 */
+	UFUNCTION(BlueprintPure, Category = "Hitbox")
+	UCombatComponent* GetCombatComponent() const;
+
+	// ========== 攻击类型配置==========
+
+	/** 设置当前攻击是否为重击（供 AnimNotify 调用） */
+	UFUNCTION(BlueprintCallable, Category = "Hitbox|Attack")
+	void SetHeavyAttack(bool bHeavy) { bIsHeavyAttack = bHeavy; }
+
+	/** 设置当前攻击是否为空中攻击（供 AnimNotify 调用） */
+	UFUNCTION(BlueprintCallable, Category = "Hitbox|Attack")
+	void SetAirAttack(bool bAir) { bIsAirAttack = bAir; }
+
+	/** 当前是否为重击 */
+	UFUNCTION(BlueprintPure, Category = "Hitbox|Attack")
+	bool IsHeavyAttack() const { return bIsHeavyAttack; }
+
+	/** 当前是否为空中攻击 */
+	UFUNCTION(BlueprintPure, Category = "Hitbox|Attack")
+	bool IsAirAttack() const { return bIsAirAttack; }
 
 	// ========== 伤害配置 ==========
 
@@ -97,11 +130,19 @@ protected:
 	void OnHitboxBeginOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,
 		UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);
 
-	/** 对目标应用伤害 */
+	/** 对目标应用伤害（MemberC 重写） */
 	void ApplyDamageToTarget(AActor* Target, const FHitResult& HitResult);
 
 	/** 绘制调试形状 */
 	void DrawDebugHitbox();
+
+	// ========== 目标有效性检查 ==========
+
+	/** 检查目标是否为有效攻击对象 */
+	bool IsValidTarget(AActor* Target) const;
+
+	/** 尝试对 EnemyBase 应用伤害 */
+	bool TryApplyDamageToEnemy(AEnemyBase* Enemy, float FinalDamage);
 
 protected:
 	// ========== 配置属性 ==========
@@ -134,6 +175,16 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Hitbox")
 	bool bIgnoreOwner = true;
 
+	// ========== 攻击类型状态 ==========
+
+	/** 当前攻击是否为重击 */
+	UPROPERTY(BlueprintReadWrite, Category = "Hitbox|Attack")
+	bool bIsHeavyAttack = false;
+
+	/** 当前攻击是否为空中攻击 */
+	UPROPERTY(BlueprintReadWrite, Category = "Hitbox|Attack")
+	bool bIsAirAttack = false;
+
 private:
 	/** Hitbox 是否激活 */
 	bool bIsActive = false;
@@ -144,4 +195,8 @@ private:
 
 	/** 命中闪烁计时器 */
 	float HitFlashTimer = 0.0f;
+
+	/** 缓存的战斗组件引用（MemberC 新增） */
+	UPROPERTY()
+	TWeakObjectPtr<UCombatComponent> CachedCombatComponent;
 };

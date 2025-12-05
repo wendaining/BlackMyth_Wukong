@@ -2,6 +2,8 @@
 
 #include "HitboxComponent.h"
 #include "../Components/HealthComponent.h"
+#include "../Components/CombatComponent.h"
+#include "../EnemyBase.h"
 #include "DrawDebugHelpers.h"
 #include "Engine/World.h"
 #include "GameFramework/Character.h"
@@ -27,9 +29,20 @@ void UHitboxComponent::BeginPlay()
 {
 	Super::BeginPlay();
 
-	// 设置默认尺寸（棍棒形状）- 移到 BeginPlay 避免构造函数问题
+	// TODO [MemberA]: 以下尺寸需要根据悟空模型的武器骨骼调整
+	// 当前使用临时值，待模型确定后修改
 	SetBoxExtent(FVector(50.0f, 10.0f, 10.0f));
-	
+
+	// TODO [MemberA]: 以下相对位置需要附加到武器骨骼上
+	// 当前挂载在 RootComponent，待骨骼名称确定后修改
+	// 示例：
+	// if (ACharacter* OwnerCharacter = Cast<ACharacter>(GetOwner()))
+	// {
+	//     AttachToComponent(OwnerCharacter->GetMesh(),
+	//         FAttachmentTransformRules::SnapToTargetNotIncludingScale,
+	//         FName("weapon_socket"));
+	// }
+
 	// 不可见
 	SetVisibility(false);
 	SetHiddenInGame(true);
@@ -41,8 +54,21 @@ void UHitboxComponent::BeginPlay()
 	// 绑定碰撞事件
 	OnComponentBeginOverlap.AddDynamic(this, &UHitboxComponent::OnHitboxBeginOverlap);
 
-	// 确保初始状态是禁用的
+	// 确保初始状态禁用
 	DeactivateHitbox();
+
+	// 自动查找 Owner 的 CombatComponent
+	if (!CachedCombatComponent.IsValid())
+	{
+		if (AActor* Owner = GetOwner())
+		{
+			CachedCombatComponent = Owner->FindComponentByClass<UCombatComponent>();
+			if (CachedCombatComponent.IsValid())
+			{
+				UE_LOG(LogTemp, Log, TEXT("[Hitbox] Found CombatComponent on %s"), *Owner->GetName());
+			}
+		}
+	}
 }
 
 void UHitboxComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
@@ -62,6 +88,8 @@ void UHitboxComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActo
 	}
 }
 
+// ========== 激活控制 ==========
+
 void UHitboxComponent::ActivateHitbox()
 {
 	if (bIsActive)
@@ -73,7 +101,10 @@ void UHitboxComponent::ActivateHitbox()
 	SetCollisionEnabled(ECollisionEnabled::QueryOnly);
 	HitActors.Empty();  // 清除上次的命中记录
 
-	UE_LOG(LogTemp, Log, TEXT("[Hitbox] %s Activated"), *GetOwner()->GetName());
+	UE_LOG(LogTemp, Log, TEXT("[Hitbox] %s Activated (Heavy: %s, Air: %s)"),
+		*GetOwner()->GetName(),
+		bIsHeavyAttack ? TEXT("YES") : TEXT("NO"),
+		bIsAirAttack ? TEXT("YES") : TEXT("NO"));
 
 	OnHitboxStateChanged.Broadcast(true);
 }
@@ -87,6 +118,10 @@ void UHitboxComponent::DeactivateHitbox()
 
 	bIsActive = false;
 	SetCollisionEnabled(ECollisionEnabled::NoCollision);
+
+	// 重置攻击类型状态
+	bIsHeavyAttack = false;
+	bIsAirAttack = false;
 
 	UE_LOG(LogTemp, Log, TEXT("[Hitbox] %s Deactivated. Hit %d actors."), *GetOwner()->GetName(), HitActors.Num());
 
@@ -110,6 +145,77 @@ void UHitboxComponent::ClearHitActors()
 	HitActors.Empty();
 }
 
+// ========== CombatComponent 对接 ==========
+
+void UHitboxComponent::SetCombatComponent(UCombatComponent* InCombatComponent)
+{
+	CachedCombatComponent = InCombatComponent;
+}
+
+UCombatComponent* UHitboxComponent::GetCombatComponent() const
+{
+	return CachedCombatComponent.Get();
+}
+
+// ========== 目标有效性检查（MemberC 核心逻辑） ==========
+
+bool UHitboxComponent::IsValidTarget(AActor* Target) const
+{
+	// 检查 Actor 基础有效性
+	if (Target == nullptr || !IsValid(Target))
+	{
+		return false;
+	}
+
+	// 不攻击自己
+	if (bIgnoreOwner && Target == GetOwner())
+	{
+		return false;
+	}
+
+	// 不重复攻击同一目标
+	if (HitActors.Contains(Target))
+	{
+		return false;
+	}
+
+	// 检查目标的 HealthComponent 状态
+	UHealthComponent* TargetHealth = Target->FindComponentByClass<UHealthComponent>();
+	if (TargetHealth)
+	{
+		// 跳过已死亡的目标（避免鞭尸）
+		if (TargetHealth->IsDead())
+		{
+			UE_LOG(LogTemp, Verbose, TEXT("[Hitbox] Skipped dead target: %s"), *Target->GetName());
+			return false;
+		}
+
+		// 跳过无敌状态的目标
+		if (TargetHealth->IsInvincible())
+		{
+			UE_LOG(LogTemp, Verbose, TEXT("[Hitbox] Skipped invincible target: %s"), *Target->GetName());
+			return false;
+		}
+	}
+
+	// 检查碰撞是否启用
+	UPrimitiveComponent* RootPrimitive = Cast<UPrimitiveComponent>(Target->GetRootComponent());
+	if (RootPrimitive)
+	{
+		if (RootPrimitive->GetCollisionEnabled() == ECollisionEnabled::NoCollision)
+		{
+			UE_LOG(LogTemp, Verbose, TEXT("[Hitbox] Skipped no-collision target: %s"), *Target->GetName());
+			return false;
+		}
+	}
+
+	// TODO : 未来添加 TeamComponent 阵营检查
+
+	return true;
+}
+
+// ========== 碰撞处理 ==========
+
 void UHitboxComponent::OnHitboxBeginOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,
 	UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
 {
@@ -119,14 +225,8 @@ void UHitboxComponent::OnHitboxBeginOverlap(UPrimitiveComponent* OverlappedCompo
 		return;
 	}
 
-	// 忽略自己
-	if (bIgnoreOwner && OtherActor == GetOwner())
-	{
-		return;
-	}
-
-	// 忽略已命中的
-	if (HitActors.Contains(OtherActor))
+	// 检查有效性
+	if (!IsValidTarget(OtherActor))
 	{
 		return;
 	}
@@ -146,7 +246,7 @@ void UHitboxComponent::OnHitboxBeginOverlap(UPrimitiveComponent* OverlappedCompo
 		HitResult.ImpactNormal = (GetOwner()->GetActorLocation() - OtherActor->GetActorLocation()).GetSafeNormal();
 	}
 
-	// 广播命中事件
+	// 广播命中事件（供外部监听：顿帧、飙血特效等）
 	OnHitDetected.Broadcast(OtherActor, HitResult);
 
 	// 自动应用伤害
@@ -156,6 +256,8 @@ void UHitboxComponent::OnHitboxBeginOverlap(UPrimitiveComponent* OverlappedCompo
 	}
 }
 
+// ========== 伤害应用 ==========
+
 void UHitboxComponent::ApplyDamageToTarget(AActor* Target, const FHitResult& HitResult)
 {
 	if (!Target)
@@ -163,36 +265,98 @@ void UHitboxComponent::ApplyDamageToTarget(AActor* Target, const FHitResult& Hit
 		return;
 	}
 
-	// 查找目标的 HealthComponent
-	UHealthComponent* TargetHealth = Target->FindComponentByClass<UHealthComponent>();
-	if (TargetHealth)
+	// ========== 通过 CombatComponent 计算伤害 ==========
+	FDamageInfo FinalDamageInfo = DamageInfo;  // 从默认配置开始
+	float ActualDamage = 0.0f;
+
+	if (CachedCombatComponent.IsValid())
 	{
-		// 更新伤害信息
-		FDamageInfo FinalDamage = DamageInfo;
-		FinalDamage.HitLocation = HitResult.ImpactPoint;
-		FinalDamage.HitDirection = HitResult.ImpactNormal * -1.0f;  // 受击方向
+		// 使用 CombatComponent 进行完整伤害计算
+		ActualDamage = CachedCombatComponent->CalculateFinalDamage(
+			FinalDamageInfo,
+			bIsHeavyAttack,
+			bIsAirAttack
+		);
 
-		// 应用伤害
-		float ActualDamage = FinalDamage.GetFinalDamage();
-		TargetHealth->TakeDamage(ActualDamage, GetOwner());
-
-		UE_LOG(LogTemp, Warning, TEXT("[Hitbox] Applied %.1f damage to %s (Health: %.1f)"), 
-			ActualDamage, *Target->GetName(), TargetHealth->GetCurrentHealth());
+		UE_LOG(LogTemp, Log, TEXT("[Hitbox] Damage calculated by CombatComponent: %.1f"), ActualDamage);
 	}
 	else
 	{
-		// 目标没有 HealthComponent，使用 UE 内置伤害系统
-		UGameplayStatics::ApplyDamage(
-			Target,
-			DamageInfo.GetFinalDamage(),
-			GetOwner()->GetInstigatorController(),
-			GetOwner(),
-			nullptr
-		);
-
-		UE_LOG(LogTemp, Log, TEXT("[Hitbox] Applied UE damage to %s (no HealthComponent)"), *Target->GetName());
+		// 使用 Hitbox 自身配置的基础伤害
+		ActualDamage = DamageInfo.GetFinalDamage();
+		FinalDamageInfo = DamageInfo;
+		UE_LOG(LogTemp, Warning, TEXT("[Hitbox] No CombatComponent found, using base damage: %.1f"), ActualDamage);
 	}
+
+	// ========== 填充命中位置和方向 ==========
+	FinalDamageInfo.HitLocation = HitResult.ImpactPoint;
+	FinalDamageInfo.HitDirection = HitResult.ImpactNormal * -1.0f;  // 受击方向 = 法线反向
+	FinalDamageInfo.Instigator = GetOwner();
+	FinalDamageInfo.DamageCauser = GetOwner();
+
+	// ========== 优先尝试作为 EnemyBase 处理 ==========
+	AEnemyBase* Enemy = Cast<AEnemyBase>(Target);
+	if (Enemy)
+	{
+		if (TryApplyDamageToEnemy(Enemy, ActualDamage))
+		{
+			// 广播伤害造成事件
+			if (CachedCombatComponent.IsValid())
+			{
+				CachedCombatComponent->OnDamageDealt.Broadcast(ActualDamage, Target, FinalDamageInfo.bIsCritical);
+			}
+			return;
+		}
+	}
+
+	// ========== 通过 HealthComponent 应用伤害 ==========
+	UHealthComponent* TargetHealth = Target->FindComponentByClass<UHealthComponent>();
+	if (TargetHealth)
+	{
+		TargetHealth->TakeDamage(ActualDamage, GetOwner());
+
+		UE_LOG(LogTemp, Warning, TEXT("[Hitbox] Applied %.1f damage to %s via HealthComponent (Remaining: %.1f)"),
+			ActualDamage, *Target->GetName(), TargetHealth->GetCurrentHealth());
+
+		// 广播伤害造成事件
+		if (CachedCombatComponent.IsValid())
+		{
+			CachedCombatComponent->OnDamageDealt.Broadcast(ActualDamage, Target, FinalDamageInfo.bIsCritical);
+		}
+		return;
+	}
+
+	// ========== 后备最后方案：使用 UE 内置伤害系统 ==========
+	UGameplayStatics::ApplyDamage(
+		Target,
+		ActualDamage,
+		GetOwner()->GetInstigatorController(),
+		GetOwner(),
+		nullptr
+	);
+
+	UE_LOG(LogTemp, Log, TEXT("[Hitbox] Applied %.1f UE damage to %s (no HealthComponent)"),
+		ActualDamage, *Target->GetName());
 }
+
+bool UHitboxComponent::TryApplyDamageToEnemy(AEnemyBase* Enemy, float FinalDamage)
+{
+	if (!Enemy)
+	{
+		return false;
+	}
+
+	// 调用 EnemyBase 受伤接口
+	// 触发敌人的受击动画
+	Enemy->ReceiveDamage(FinalDamage, GetOwner());
+
+	UE_LOG(LogTemp, Warning, TEXT("[Hitbox] Applied %.1f damage to Enemy %s via ReceiveDamage"),
+		FinalDamage, *Enemy->GetName());
+
+	return true;
+}
+
+// ========== 调试绘制 ==========
 
 void UHitboxComponent::DrawDebugHitbox()
 {
