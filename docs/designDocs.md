@@ -178,9 +178,7 @@ bool IsHostileToActor(AActor* OtherActor) const;
 #### 5. HitboxComponent → TraceHitboxComponent (需重构 🔄)
 **职责**: 攻击碰撞检测
 
-**当前问题**: 使用 Box 碰撞，无法精确跟踪武器
-
-**建议方案**: 改用 Trace 射线检测
+**当前问题**: 角色模型不精准，需要改善
 
 ```cpp
 // 新设计
