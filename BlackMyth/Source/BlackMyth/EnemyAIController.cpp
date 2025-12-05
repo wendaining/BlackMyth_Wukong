@@ -2,6 +2,7 @@
 #include "Kismet/GameplayStatics.h"
 #include "GameFramework/Character.h"
 #include "EnemyBase.h"
+#include "BossEnemy.h"
 #include "BehaviorTree/BehaviorTree.h"
 #include "BehaviorTree/BlackboardComponent.h"
 #include "Perception/AIPerceptionComponent.h"
@@ -85,11 +86,23 @@ void AEnemyAIController::OnPerceptionUpdated(const TArray<AActor*>& UpdatedActor
 						{
 							// 看到了玩家，更新黑板
 							BlackboardComp->SetValueAsObject(TEXT("TargetActor"), Actor);
+
+							// 如果是 Boss，显示血条
+							if (ABossEnemy* Boss = Cast<ABossEnemy>(GetPawn()))
+							{
+								Boss->SetBossHealthVisibility(true);
+							}
 						}
 						else
 						{
 							// 丢失视野 (可选：清除目标或保留最后已知位置)
 							// BlackboardComp->ClearValue(TEXT("TargetActor"));
+							
+							// 如果是 Boss，丢失视野后隐藏血条 (可选)
+							// if (ABossEnemy* Boss = Cast<ABossEnemy>(GetPawn()))
+							// {
+							// 	Boss->SetBossHealthVisibility(false);
+							// }
 						}
 					}
 				}
