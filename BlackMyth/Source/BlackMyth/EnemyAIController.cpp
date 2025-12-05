@@ -57,7 +57,26 @@ void AEnemyAIController::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 	
-	// 可以在这里添加调试绘制或其他每帧逻辑
+	// 如果有目标，平滑旋转朝向目标
+	if (UBlackboardComponent* BlackboardComp = GetBlackboardComponent())
+	{
+		if (AActor* Target = Cast<AActor>(BlackboardComp->GetValueAsObject(TEXT("TargetActor"))))
+		{
+			if (APawn* ControlledPawn = GetPawn())
+			{
+				FVector Direction = Target->GetActorLocation() - ControlledPawn->GetActorLocation();
+				Direction.Z = 0.0f; // 忽略高度差
+				
+				if (!Direction.IsNearlyZero())
+				{
+					FRotator TargetRotation = Direction.Rotation();
+					// 使用 RInterpTo 进行平滑插值，速度设为 5.0f (可调整)
+					FRotator NewRotation = FMath::RInterpTo(ControlledPawn->GetActorRotation(), TargetRotation, DeltaTime, 5.0f);
+					ControlledPawn->SetActorRotation(NewRotation);
+				}
+			}
+		}
+	}
 }
 
 void AEnemyAIController::OnPerceptionUpdated(const TArray<AActor*>& UpdatedActors)
@@ -112,3 +131,5 @@ void AEnemyAIController::OnPerceptionUpdated(const TArray<AActor*>& UpdatedActor
 		}
 	}
 }
+
+
