@@ -30,4 +30,14 @@ public:
 	/** 本次攻击的基础伤害（0 = 使用组件默认值） */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Hitbox")
 	float OverrideDamage = 0.0f;
+
+	// ========== 其它攻击类型 ==========
+
+	/** 是否为重击（影响伤害倍率） */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Hitbox|Attack Type")
+	bool bIsHeavyAttack = false;
+
+	/** 是否为空中攻击（影响伤害倍率） */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Hitbox|Attack Type")
+	bool bIsAirAttack = false;
 };

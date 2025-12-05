@@ -47,9 +47,16 @@ void UAnimNotify_ActivateHitbox::Notify(USkeletalMeshComponent* MeshComp, UAnimS
 			Hitbox->SetBaseDamage(OverrideDamage);
 		}
 
-		// 激活
+		// 设置攻击类型，影响 CombatComponent 的伤害计算
+		Hitbox->SetHeavyAttack(bIsHeavyAttack);
+		Hitbox->SetAirAttack(bIsAirAttack);
+
+		// 激活 Hitbox
 		Hitbox->ActivateHitbox();
 
-		UE_LOG(LogTemp, Log, TEXT("[AnimNotify] Activated Hitbox: %s on %s"), *Hitbox->GetName(), *Owner->GetName());
+		UE_LOG(LogTemp, Log, TEXT("[AnimNotify] Activated Hitbox: %s on %s (Heavy: %s, Air: %s)"),
+			*Hitbox->GetName(), *Owner->GetName(),
+			bIsHeavyAttack ? TEXT("YES") : TEXT("NO"),
+			bIsAirAttack ? TEXT("YES") : TEXT("NO"));
 	}
 }
