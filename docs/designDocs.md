@@ -1,7 +1,7 @@
 # 黑神话悟空 - 系统架构设计文档
 
 > 版本: 1.0  
-> 最后更新: 2024年12月5日
+> 最后更新: 2025年12月5日
 
 ---
 
@@ -495,6 +495,39 @@ enum class ESpellType : uint8
 };
 ```
 
+### 🟣 第五优先级 - 探索与交互系统
+
+#### 17. CheckpointSystem (土地庙) (待实现 📝)
+**职责**: 存档、复活、恢复状态
+- **功能**: 
+    - 玩家交互后完全恢复生命/体力/法力。
+    - 记录当前位置为重生点。
+    - 刷新场景中的怪物（可选）。
+    - 提供“上香”动画交互。
+
+#### 18. TransformationComponent (72变) (待实现 📝)
+**职责**: 变身机制管理
+- **功能**:
+    - 临时替换玩家模型与技能组 (SkillSet)。
+    - 变身期间独立的生命值/体力条。
+    - 变身结束/死亡后切回本体。
+    - **示例**: 变身“金蝉”用于潜行侦查，变身“广智”用于辅助战斗。
+
+#### 19. InteractionComponent (待实现 📝)
+**职责**: 处理与 NPC、商店、机关的交互
+- **功能**:
+    - 检测交互范围内的可交互对象 (IInteractable)。
+    - 触发对话 UI 或 商店 UI。
+    - **NPC**: 支持简单的对话树与任务状态检查。
+    - **商店**: 购买消耗品。
+
+#### 20. 剧情 (待实现 📝)
+**职责**: 关卡剧情和场景切换
+- **功能**:
+    - 触发过场动画 (Cinematic)。
+    - 场景切换与加载。
+    - 关键剧情节点的状态保存。
+    - 音乐与音效管理。
 ---
 
 ## 接口设计
@@ -834,16 +867,19 @@ Phase 6: 扩展系统
 | Struct | F | FDamageInfo |
 | Delegate | F...Signature | FOnHealthChangedSignature |
 
-### B. 文件结构
+### B. 文件结构 (实际项目结构)
 
 ```
 Source/BlackMyth/
 ├── BlackMyth.Build.cs
 ├── BlackMyth.h/cpp
+├── BlackMythCharacter.h/cpp        (项目角色基类)
+├── WukongCharacter.h/cpp           (玩家角色)
 ├── Components/
-│   ├── HealthComponent.h/cpp
-│   ├── StaminaComponent.h/cpp
-│   ├── CombatComponent.h/cpp
+│   ├── HealthComponent.h/cpp       (已完成)
+│   ├── StaminaComponent.h/cpp      (已完成)
+│   ├── CombatComponent.h/cpp       (已完成)
+│   ├── HitboxComponent.h/cpp       (需要改进)
 │   ├── TeamComponent.h/cpp         (待创建)
 │   └── TargetingComponent.h/cpp    (待创建)
 ├── Combat/
