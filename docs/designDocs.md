@@ -315,6 +315,188 @@ FOnThreatCleared OnThreatCleared;
 
 ---
 
+### 🔵 第四优先级 - 魔法与远程系统
+
+#### 12. ManaComponent (待实现 📝)
+**职责**: 法力值管理
+
+```cpp
+// 属性
+UPROPERTY(EditAnywhere)
+float MaxMana = 100.0f;
+
+UPROPERTY(VisibleAnywhere)
+float CurrentMana;
+
+UPROPERTY(EditAnywhere)
+float ManaRegenRate = 5.0f;  // 每秒恢复量
+
+// 核心接口
+bool ConsumeMana(float Amount);
+void RestoreMana(float Amount);
+bool HasEnoughMana(float Amount) const;
+float GetManaPercent() const;
+
+// 委托
+FOnManaChanged OnManaChanged;
+FOnManaEmpty OnManaEmpty;
+```
+
+#### 13. SpellCastingComponent (待实现 📝)
+**职责**: 法术施放、冷却管理
+
+```cpp
+// 法术槽位
+UPROPERTY(EditAnywhere)
+TArray<TSubclassOf<USpellBase>> EquippedSpells;  // 最多4个法术槽
+
+// 核心接口
+bool CastSpell(int32 SlotIndex, FVector TargetLocation);
+bool CastSpellByClass(TSubclassOf<USpellBase> SpellClass, FVector TargetLocation);
+void InterruptCurrentCast();
+bool IsOnCooldown(int32 SlotIndex) const;
+float GetCooldownRemaining(int32 SlotIndex) const;
+bool IsCasting() const;
+
+// 配置
+float GlobalCooldown = 0.5f;  // 全局冷却
+bool bCanMoveWhileCasting = false;
+
+// 委托
+FOnSpellCast OnSpellCast;
+FOnSpellInterrupted OnSpellInterrupted;
+FOnCooldownComplete OnCooldownComplete;
+```
+
+#### 14. RangedCombatComponent (待实现 📝)
+**职责**: 远程攻击、弹道管理
+
+```cpp
+// 属性
+UPROPERTY(EditAnywhere)
+TSubclassOf<AProjectileBase> ProjectileClass;  // 弹丸类
+
+UPROPERTY(EditAnywhere)
+int32 MaxAmmo = -1;  // -1 = 无限弹药
+
+UPROPERTY(VisibleAnywhere)
+int32 CurrentAmmo;
+
+UPROPERTY(EditAnywhere)
+float AttackRange = 2000.0f;
+
+UPROPERTY(EditAnywhere)
+float ProjectileSpeed = 3000.0f;
+
+// 核心接口
+bool FireProjectile(FVector TargetLocation);
+void StartAiming();
+void StopAiming();
+bool IsAiming() const;
+void Reload();
+FVector GetAimLocation() const;  // 获取瞄准点（考虑锁定目标）
+
+// 委托
+FOnProjectileFired OnProjectileFired;
+FOnAmmoChanged OnAmmoChanged;
+FOnReloadComplete OnReloadComplete;
+```
+
+#### 15. ProjectileBase (待实现 📝)
+**职责**: 弹丸基类
+
+```cpp
+// 属性
+UPROPERTY(EditAnywhere)
+float BaseDamage = 50.0f;
+
+UPROPERTY(EditAnywhere)
+float Speed = 3000.0f;
+
+UPROPERTY(EditAnywhere)
+float LifeSpan = 5.0f;  // 存活时间
+
+UPROPERTY(EditAnywhere)
+bool bHomingEnabled = false;  // 是否追踪
+
+UPROPERTY(EditAnywhere)
+float HomingAcceleration = 5000.0f;
+
+// 组件
+UPROPERTY()
+USphereComponent* CollisionComponent;
+
+UPROPERTY()
+UProjectileMovementComponent* ProjectileMovement;
+
+// 核心接口
+void InitializeProjectile(AActor* Instigator, FVector Direction);
+virtual void OnHit(UPrimitiveComponent* HitComponent, AActor* OtherActor, 
+                   UPrimitiveComponent* OtherComp, FVector NormalImpulse, 
+                   const FHitResult& Hit);
+```
+
+#### 16. SpellBase (待实现 📝)
+**职责**: 法术基类（DataAsset 或 UObject）
+
+```cpp
+UCLASS(Blueprintable, Abstract)
+class USpellBase : public UDataAsset
+{
+    GENERATED_BODY()
+
+public:
+    // 基础信息
+    UPROPERTY(EditDefaultsOnly)
+    FText SpellName;
+
+    UPROPERTY(EditDefaultsOnly)
+    FText Description;
+
+    UPROPERTY(EditDefaultsOnly)
+    UTexture2D* Icon;
+
+    // 消耗与冷却
+    UPROPERTY(EditDefaultsOnly)
+    float ManaCost = 20.0f;
+
+    UPROPERTY(EditDefaultsOnly)
+    float Cooldown = 5.0f;
+
+    UPROPERTY(EditDefaultsOnly)
+    float CastTime = 0.5f;  // 0 = 瞬发
+
+    // 效果类型
+    UPROPERTY(EditDefaultsOnly)
+    ESpellType SpellType;  // Projectile, AOE, Buff, Summon
+
+    // 伤害/效果
+    UPROPERTY(EditDefaultsOnly)
+    float BaseDamage = 100.0f;
+
+    UPROPERTY(EditDefaultsOnly)
+    EDamageType DamageType = EDamageType::Fire;
+
+    // 法术执行（蓝图可重写）
+    UFUNCTION(BlueprintNativeEvent)
+    void Execute(AActor* Caster, FVector TargetLocation);
+};
+
+// 法术类型枚举
+UENUM(BlueprintType)
+enum class ESpellType : uint8
+{
+    Projectile,   // 弹丸型（火球）
+    AOE,          // 范围型（地裂）
+    Buff,         // 增益型（护盾）
+    Debuff,       // 减益型（减速）
+    Summon,       // 召唤型（分身）
+    Channel       // 引导型（持续伤害）
+};
+```
+
+---
+
 ## 接口设计
 
 ### ICombatant - 战斗者接口
@@ -383,6 +565,76 @@ public:
     
     // 是否存活
     virtual bool IsAlive() const = 0;
+};
+```
+
+### IMagicUser - 魔法使用者接口
+```cpp
+UINTERFACE(MinimalAPI, BlueprintType)
+class UMagicUser : public UInterface
+{
+    GENERATED_BODY()
+};
+
+class IMagicUser
+{
+    GENERATED_BODY()
+
+public:
+    // 能否施放法术
+    virtual bool CanCastSpell(TSubclassOf<USpellBase> SpellClass) const = 0;
+    
+    // 施放法术
+    virtual void CastSpell(TSubclassOf<USpellBase> SpellClass, FVector TargetLocation) = 0;
+    
+    // 获取当前法力值
+    virtual float GetCurrentMana() const = 0;
+    
+    // 获取法术冷却进度 (0-1)
+    virtual float GetSpellCooldownProgress(TSubclassOf<USpellBase> SpellClass) const = 0;
+    
+    // 打断施法
+    virtual void InterruptCast() = 0;
+    
+    // 是否正在施法
+    virtual bool IsCasting() const = 0;
+};
+```
+
+### IRangedAttacker - 远程攻击者接口
+```cpp
+UINTERFACE(MinimalAPI, BlueprintType)
+class URangedAttacker : public UInterface
+{
+    GENERATED_BODY()
+};
+
+class IRangedAttacker
+{
+    GENERATED_BODY()
+
+public:
+    // 能否进行远程攻击
+    virtual bool CanPerformRangedAttack() const = 0;
+    
+    // 执行远程攻击
+    virtual void PerformRangedAttack(FVector TargetLocation) = 0;
+    
+    // 获取瞄准方向
+    virtual FVector GetAimDirection() const = 0;
+    
+    // 获取当前弹药数量 (-1 表示无限)
+    virtual int32 GetCurrentAmmo() const = 0;
+    
+    // 是否正在瞄准
+    virtual bool IsAiming() const = 0;
+    
+    // 开始/结束瞄准
+    virtual void StartAiming() = 0;
+    virtual void StopAiming() = 0;
+    
+    // 获取射程
+    virtual float GetAttackRange() const = 0;
 };
 ```
 
@@ -517,6 +769,9 @@ ACharacter (UE 基类)
 | TeamComponent | 📝 待实现 | - | 高优先级 |
 | TargetingComponent | 📝 待实现 | - | 高优先级 |
 | TriggerZoneComponent | 📝 待实现 | - | Boss 战需要 |
+| ManaComponent | 📝 待实现 | - | 魔法系统基础 |
+| SpellCastingComponent | 📝 待实现 | - | 法术施放 |
+| RangedCombatComponent | 📝 待实现 | - | 远程攻击 |
 | EnemyBase | 🔨 开发中 | 队友 | 另一分支 |
 | BossEnemy | 📝 待实现 | - | 依赖 EnemyBase |
 
@@ -549,7 +804,15 @@ Phase 4: 场景系统
 ├── [ ] CheckpointSystem
 └── [ ] 过场动画触发
 
-Phase 5: 扩展系统
+Phase 5: 魔法与远程系统 (新增)
+├── [ ] ManaComponent (法力系统)
+├── [ ] SpellCastingComponent (施法组件)
+├── [ ] SpellBase 法术基类
+├── [ ] RangedCombatComponent (远程战斗)
+├── [ ] ProjectileBase 弹丸基类
+└── [ ] 各类法术实现 (火球、雷击、冰冻等)
+
+Phase 6: 扩展系统
 ├── [ ] StatusEffectComponent
 ├── [ ] EquipmentComponent
 ├── [ ] InventoryComponent
@@ -595,7 +858,16 @@ Source/BlackMyth/
 ├── Interfaces/
 │   ├── Combatant.h
 │   ├── Targetable.h
-│   └── Damageable.h
+│   ├── Damageable.h
+│   ├── MagicUser.h                 (待创建)
+│   └── RangedAttacker.h            (待创建)
+├── Magic/                          (待创建)
+│   ├── SpellBase.h/cpp
+│   ├── ProjectileBase.h/cpp
+│   └── Spells/                     (具体法术实现)
+│       ├── Spell_Fireball.h/cpp
+│       ├── Spell_IceSpear.h/cpp
+│       └── Spell_LightningBolt.h/cpp
 ├── AI/
 │   └── (AI 控制器、行为树任务)
 ├── UI/
