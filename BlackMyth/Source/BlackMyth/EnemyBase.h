@@ -1,0 +1,202 @@
+#pragma once
+
+#include "CoreMinimal.h"
+#include "BlackMythCharacter.h"
+#include "EnemyBase.generated.h"
+
+class UBehaviorTree;
+class AAIController;
+class UHealthComponent;
+class UCombatComponent;
+
+/**
+ * 敌人状态枚举
+ */
+UENUM(BlueprintType)
+enum class EEnemyState : uint8
+{
+	EES_Patrolling UMETA(DisplayName = "Patrolling"),
+	EES_Chasing UMETA(DisplayName = "Chasing"),
+	EES_Attacking UMETA(DisplayName = "Attacking"),
+	EES_Engaged UMETA(DisplayName = "Engaged"),
+	EES_Dead UMETA(DisplayName = "Dead"),
+	EES_NoState UMETA(DisplayName = "NoState")
+};
+
+/**
+ * 敌人基类
+ * 继承自 ABlackMythCharacter 以复用摄像机等功能（如击杀特写）
+ */
+UCLASS()
+class BLACKMYTH_API AEnemyBase : public ABlackMythCharacter
+{
+	GENERATED_BODY()
+
+public:
+	AEnemyBase();
+
+protected:
+	virtual void BeginPlay() override;
+
+public:
+	virtual void Tick(float DeltaTime) override;
+
+	/**
+	 * 接收伤害接口
+	 * @param Damage 伤害数值
+	 * @param DamageInstigator 伤害来源
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Combat")
+	virtual void ReceiveDamage(float Damage, AActor* DamageInstigator);
+
+	/** 获取当前生命值 */
+	UFUNCTION(BlueprintPure, Category = "Stats")
+	float GetCurrentHealth() const;
+
+	/** 获取最大生命值 */
+	UFUNCTION(BlueprintPure, Category = "Stats")
+	float GetMaxHealth() const;
+
+	/** 获取行为树资源 */
+	UBehaviorTree* GetBehaviorTree() const { return BehaviorTree; }
+
+protected:
+	/** 死亡处理 */
+	virtual void Die();
+
+	/** 攻击逻辑 */
+	virtual void Attack();
+	
+	/** 攻击结束回调（需要在动画蓝图中通过通知调用） */
+	UFUNCTION(BlueprintCallable)
+	void AttackEnd();
+
+	/** 检查战斗目标 */
+	void CheckCombatTarget();
+	
+	/** 检查巡逻目标 */
+	void CheckPatrolTarget();
+
+	/** 巡逻计时器结束 */
+	void PatrolTimerFinished();
+
+	/** 处理死亡回调 */
+	UFUNCTION()
+	void HandleDeath(AActor* Killer);
+
+	/** 隐藏/显示血条 (预留接口) */
+	void HideHealthBar();
+	void ShowHealthBar();
+	
+	/** 开始巡逻 */
+	void StartPatrolling();
+	
+	/** 追逐目标 */
+	void ChaseTarget();
+	
+	/** 移动到目标 */
+	void MoveToTarget(AActor* Target);
+	
+	/** 选择新的巡逻点 */
+	AActor* ChoosePatrolTarget();
+	
+	/** 启动攻击计时器 */
+	void StartAttackTimer();
+	
+	/** 清除攻击计时器 */
+	void ClearAttackTimer();
+	
+	/** 清除巡逻计时器 */
+	void ClearPatrolTimer();
+
+	// 状态判断辅助函数
+	bool IsOutsideCombatRadius();
+	bool IsOutsideAttackRadius();
+	bool IsInsideAttackRadius();
+	bool IsChasing();
+	bool IsAttacking();
+	bool IsDead();
+	bool IsEngaged();
+	bool InTargetRange(AActor* Target, double Radius);
+
+protected:
+	// 基础属性
+	// UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stats")
+	// float MaxHealth = 100.0f; // Moved to HealthComponent
+
+	// UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Stats")
+	// float CurrentHealth; // Moved to HealthComponent
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
+	TObjectPtr<UHealthComponent> HealthComponent;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
+	TObjectPtr<UCombatComponent> CombatComponent;
+
+	// 状态
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "State")
+	EEnemyState EnemyState = EEnemyState::EES_Patrolling;
+
+	UPROPERTY()
+	TObjectPtr<AAIController> EnemyController;
+
+	// 战斗目标
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "AI")
+	TObjectPtr<AActor> CombatTarget;
+
+	// 巡逻目标
+	UPROPERTY(EditInstanceOnly, Category = "AI")
+	TObjectPtr<AActor> PatrolTarget;
+
+	// 可选的巡逻点列表
+	UPROPERTY(EditInstanceOnly, Category = "AI")
+	TArray<AActor*> PatrolTargets;
+
+	// AI 参数配置
+	UPROPERTY(EditAnywhere, Category = "AI")
+	double CombatRadius = 1000.f;
+
+	UPROPERTY(EditAnywhere, Category = "AI")
+	double AttackRadius = 150.f;
+
+	UPROPERTY(EditAnywhere, Category = "AI")
+	double PatrolRadius = 200.f;
+
+	UPROPERTY(EditAnywhere, Category = "AI")
+	float PatrollingSpeed = 125.f;
+
+	UPROPERTY(EditAnywhere, Category = "AI")
+	float ChasingSpeed = 300.f;
+
+	UPROPERTY(EditAnywhere, Category = "AI")
+	float PatrolWaitMin = 2.f;
+
+	UPROPERTY(EditAnywhere, Category = "AI")
+	float PatrolWaitMax = 5.f;
+
+	UPROPERTY(EditAnywhere, Category = "AI")
+	float AttackMin = 0.5f;
+
+	UPROPERTY(EditAnywhere, Category = "AI")
+	float AttackMax = 1.0f;
+
+	// 计时器句柄
+	FTimerHandle PatrolTimer;
+	FTimerHandle AttackTimer;
+
+	// 行为树 (保留，以备后续扩展)
+	UPROPERTY(EditAnywhere, Category = "AI")
+	TObjectPtr<UBehaviorTree> BehaviorTree;
+
+	// 动画蒙太奇 - 受击
+	UPROPERTY(EditDefaultsOnly, Category = "Animation|Combat")
+	TObjectPtr<UAnimMontage> HitReactMontage;
+
+	// 动画蒙太奇 - 死亡
+	UPROPERTY(EditDefaultsOnly, Category = "Animation|Combat")
+	TObjectPtr<UAnimMontage> DeathMontage;
+
+	// 动画蒙太奇 - 攻击
+	UPROPERTY(EditDefaultsOnly, Category = "Animation|Combat")
+	TObjectPtr<UAnimMontage> AttackMontage;
+};
