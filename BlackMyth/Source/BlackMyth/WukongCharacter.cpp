@@ -923,7 +923,7 @@ void AWukongCharacter::PerformAttack()
             // ========== 地面攻击：Combo 连击 ==========
             if (CombatComponent)
             {
-                CombatComponent->AdvanceCombo();
+                CombatComponent->StartAttack();
             }
             int32 ComboIndex = CombatComponent ? CombatComponent->GetCurrentComboIndex() : 0;
 
@@ -946,12 +946,6 @@ void AWukongCharacter::PerformAttack()
             }
         }
     }
-
-    // TODO: Deal damage via CombatComponent
-    // if (CombatComponent)
-    // {
-    //     float Damage = CombatComponent->CalculateDamage(false, bIsInAir, ComboIndex);
-    // }
 }
 
 void AWukongCharacter::ResetCombo()

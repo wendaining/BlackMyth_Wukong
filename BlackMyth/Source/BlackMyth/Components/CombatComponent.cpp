@@ -80,7 +80,7 @@ float UCombatComponent::CalculateFinalDamage(FDamageInfo& OutDamageInfo, bool bI
 {
 	// 计算带暴击的伤害
 	bool bIsCritical = false;
-	float FinalDamage = CalculateDamageWithCrit(bIsHeavyAttack, bIsAirAttack, CurrentComboIndex, bIsCritical);
+	float FinalDamage = CalculateDamageWithCrit(bIsHeavyAttack, bIsAirAttack, ActiveComboIndex, bIsCritical);
 
 	// 填充伤害信息结构体
 	OutDamageInfo.BaseDamage = FinalDamage;
@@ -88,7 +88,7 @@ float UCombatComponent::CalculateFinalDamage(FDamageInfo& OutDamageInfo, bool bI
 	OutDamageInfo.CriticalMultiplier = CriticalMultiplier;
 	OutDamageInfo.Instigator = GetOwner();
 	OutDamageInfo.DamageCauser = GetOwner();
-	OutDamageInfo.ComboIndex = CurrentComboIndex;
+	OutDamageInfo.ComboIndex = ActiveComboIndex;
 
 	// 设置攻击类型
 	if (bIsAirAttack)
@@ -123,12 +123,25 @@ float UCombatComponent::CalculateFinalDamage(FDamageInfo& OutDamageInfo, bool bI
 	OutDamageInfo.bCanBeDodged = true;
 
 	UE_LOG(LogTemp, Log, TEXT("[CombatComponent] CalculateFinalDamage: %.1f (Crit: %s, Combo: %d/%d)"),
-		FinalDamage, bIsCritical ? TEXT("YES") : TEXT("NO"), CurrentComboIndex + 1, MaxComboCount);
+		FinalDamage, bIsCritical ? TEXT("YES") : TEXT("NO"), ActiveComboIndex + 1, MaxComboCount);
 
 	return FinalDamage;
 }
 
 // ========== 连击管理 ==========
+
+void UCombatComponent::StartAttack()
+{
+	// 记录本次攻击使用的索引
+	ActiveComboIndex = CurrentComboIndex;
+
+	// 然后递增（为下次攻击准备）
+	AdvanceCombo();
+
+	// 记录时间戳
+	RecordAttackTime();
+
+}
 
 void UCombatComponent::SetCurrentComboIndex(int32 NewIndex)
 {

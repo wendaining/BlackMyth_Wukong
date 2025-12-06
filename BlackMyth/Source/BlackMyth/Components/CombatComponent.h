@@ -35,6 +35,10 @@ public:
 protected:
 	virtual void BeginPlay() override;
 
+	/** 当前攻击实际使用的连击索引（在AdvanceCombo之前记录） */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Combat|Runtime")
+	int32 ActiveComboIndex = 0;
+
 public:
 	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 
@@ -63,6 +67,14 @@ public:
 	/** 设置当前连击索引 */
 	UFUNCTION(BlueprintCallable, Category = "Combat|Combo")
 	void SetCurrentComboIndex(int32 NewIndex);
+
+	/** 开始攻击时调用，记录当前索引并递增 */
+	UFUNCTION(BlueprintCallable, Category = "Combat|Combo")
+	void StartAttack();
+
+	/** 获取当前攻击使用的索引 */
+	UFUNCTION(BlueprintPure, Category = "Combat|Combo")
+	int32 GetActiveComboIndex() const { return ActiveComboIndex; }
 
 	/** 增加连击索引（自动循环） */
 	UFUNCTION(BlueprintCallable, Category = "Combat|Combo")

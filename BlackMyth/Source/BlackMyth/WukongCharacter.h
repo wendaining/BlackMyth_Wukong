@@ -121,10 +121,6 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UInputAction> AbilityAction;
 
-	// 战斗组件 - TODO: 等 Member C 实现 UCombatComponent 后取消注释
-	// UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Combat")
-	// TObjectPtr<UCombatComponent> CombatComponent;
-
 	// ========== 组件 ==========
 
 	/** 生命值组件 */
