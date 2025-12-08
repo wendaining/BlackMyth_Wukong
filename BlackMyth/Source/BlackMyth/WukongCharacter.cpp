@@ -362,8 +362,11 @@ void AWukongCharacter::BeginPlay()
     if (WeaponTraceHitbox)
     {
         // 设置武器骨骼
+        // 模型自带 weapon_r 骨骼，直接使用
         WeaponTraceHitbox->SetStartSocket(FName("weapon_r"));  // 握把位置（起点）
-        WeaponTraceHitbox->SetEndSocket(FName("weapon_B_front_r"));  // 武器前端（终点）
+        
+        // 模型自带 weapon_tou (头) 骨骼，作为射线检测终点
+        WeaponTraceHitbox->SetEndSocket(FName("weapon_tou"));  // 武器前端（终点）
 
         // 扫描半径（金箍棒粗细约5-10）
         WeaponTraceHitbox->SetTraceRadius(7.0f);
