@@ -10,7 +10,7 @@ class UInputAction;
 class UStaminaComponent;
 class UCombatComponent;
 class UHealthComponent;
-class UHitboxComponent;
+class UTraceHitboxComponent;
 struct FInputActionValue;
 
 // 角色状态枚举
@@ -137,7 +137,7 @@ protected:
 
 	/** 武器 Hitbox 组件（用于攻击判定） */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
-	TObjectPtr<UHitboxComponent> WeaponHitbox;
+	TObjectPtr<UTraceHitboxComponent> WeaponTraceHitbox;
 
 	// ========== 移动属性 ==========
 	
