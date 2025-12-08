@@ -2,12 +2,14 @@
 
 #include "CoreMinimal.h"
 #include "BlackMythCharacter.h"
+#include "Components/WidgetComponent.h"
 #include "EnemyBase.generated.h"
 
 class UBehaviorTree;
 class AAIController;
 class UHealthComponent;
 class UCombatComponent;
+class UEnemyHealthBarWidget;
 
 /**
  * 敌人状态枚举
@@ -118,6 +120,28 @@ protected:
 	bool IsDead();
 	bool IsEngaged();
 	bool InTargetRange(AActor* Target, double Radius);
+
+	// ========== 新增：头顶血条 ==========
+
+	// 血条 Widget 组件
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "UI")
+	TObjectPtr<UWidgetComponent> HealthBarWidgetComponent;
+
+	// 血条 Widget 类
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "UI")
+	TSubclassOf<UEnemyHealthBarWidget> HealthBarWidgetClass;
+
+	// 血条 Widget 实例引用
+	UPROPERTY()
+	TObjectPtr<UEnemyHealthBarWidget> HealthBarWidget;
+
+	// 血条距离头顶的高度偏移
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "UI")
+	float HealthBarHeightOffset = 120.0f;
+
+	// 是否始终显示血条（false = 仅战斗时显示）
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "UI")
+	bool bAlwaysShowHealthBar = false;
 
 protected:
 	// 基础属性

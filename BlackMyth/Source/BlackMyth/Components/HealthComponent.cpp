@@ -25,11 +25,11 @@ void UHealthComponent::TakeDamage(float Damage, AActor* Instigator)
 	}
 
 	float OldHealth = CurrentHealth;
-	CurrentHealth = FMath::Max(0.0f, CurrentHealth - Damage);
+	CurrentHealth = FMath::Clamp(CurrentHealth - Damage, 0.0f, MaxHealth);
 
 	// 广播受伤事件
-	OnDamageTaken.Broadcast(Damage, Instigator, CurrentHealth);
 	BroadcastHealthChange();
+	OnDamageTaken.Broadcast(Damage, Instigator, CurrentHealth);
 
 	// 重置恢复延迟
 	HealthRegenDelayTimer = HealthRegenDelay;

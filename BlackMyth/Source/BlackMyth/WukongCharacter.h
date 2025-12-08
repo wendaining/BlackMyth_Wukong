@@ -10,7 +10,7 @@ class UInputAction;
 class UStaminaComponent;
 class UCombatComponent;
 class UHealthComponent;
-class UHitboxComponent;
+class UTraceHitboxComponent;
 struct FInputActionValue;
 
 // 角色状态枚举
@@ -121,10 +121,6 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UInputAction> AbilityAction;
 
-	// 战斗组件 - TODO: 等 Member C 实现 UCombatComponent 后取消注释
-	// UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Combat")
-	// TObjectPtr<UCombatComponent> CombatComponent;
-
 	// ========== 组件 ==========
 
 	/** 生命值组件 */
@@ -141,7 +137,7 @@ protected:
 
 	/** 武器 Hitbox 组件（用于攻击判定） */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
-	TObjectPtr<UHitboxComponent> WeaponHitbox;
+	TObjectPtr<UTraceHitboxComponent> WeaponTraceHitbox;
 
 	// ========== 移动属性 ==========
 	
