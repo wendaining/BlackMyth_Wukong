@@ -174,12 +174,41 @@ void AWukongCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCom
         // Bind attack action
         if (AttackAction)
         {
-            EnhancedInputComponent->BindAction(AttackAction, ETriggerEvent::Started, this, &AWukongCharacter::Attack);
-            UE_LOG(LogTemp, Warning, TEXT("  Bound AttackAction to Attack"));
+            EnhancedInputComponent->BindAction(AttackAction, ETriggerEvent::Started, this, &AWukongCharacter::PerformAttack);
+            UE_LOG(LogTemp, Warning, TEXT("  Bound AttackAction to PerformAttack"));
         }
         else
         {
             UE_LOG(LogTemp, Error, TEXT("  AttackAction is NULL! Attack will not work!"));
+        }
+
+        // Bind heavy attack action
+        if (HeavyAttackAction)
+        {
+            EnhancedInputComponent->BindAction(HeavyAttackAction, ETriggerEvent::Started, this, &AWukongCharacter::PerformHeavyAttack);
+            UE_LOG(LogTemp, Warning, TEXT("  Bound HeavyAttackAction to PerformHeavyAttack"));
+        }
+
+        // Bind pole stance action
+        if (PoleStanceAction)
+        {
+            EnhancedInputComponent->BindAction(PoleStanceAction, ETriggerEvent::Started, this, &AWukongCharacter::PerformPoleStance);
+            UE_LOG(LogTemp, Warning, TEXT("  Bound PoleStanceAction to PerformPoleStance"));
+        }
+
+        // Bind staff spin action
+        if (StaffSpinAction)
+        {
+            EnhancedInputComponent->BindAction(StaffSpinAction, ETriggerEvent::Started, this, &AWukongCharacter::PerformStaffSpin);
+            EnhancedInputComponent->BindAction(StaffSpinAction, ETriggerEvent::Completed, this, &AWukongCharacter::PerformStaffSpin); // Handle release if needed
+            UE_LOG(LogTemp, Warning, TEXT("  Bound StaffSpinAction to PerformStaffSpin"));
+        }
+
+        // Bind item use action
+        if (UseItemAction)
+        {
+            EnhancedInputComponent->BindAction(UseItemAction, ETriggerEvent::Started, this, &AWukongCharacter::UseItem);
+            UE_LOG(LogTemp, Warning, TEXT("  Bound UseItemAction to UseItem"));
         }
 
         // Bind sprint action
@@ -194,7 +223,8 @@ void AWukongCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCom
             UE_LOG(LogTemp, Error, TEXT("  SprintAction is NULL! Sprint will not work!"));
         }
 
-        // Bind ability action (Q key)
+        // Bind ability action (Q key) - REMOVED in favor of specific skills
+        /*
         if (AbilityAction)
         {
             EnhancedInputComponent->BindAction(AbilityAction, ETriggerEvent::Started, this, &AWukongCharacter::OnAbilityPressed);
@@ -204,6 +234,7 @@ void AWukongCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCom
         {
             UE_LOG(LogTemp, Warning, TEXT("  AbilityAction is NULL - Q ability disabled (create IA_Ability asset)"));
         }
+        */
     }
     else
     {
@@ -735,65 +766,119 @@ void AWukongCharacter::PerformDodge()
 
     ChangeState(EWukongState::Dodging);
 
-    // Determine dodge direction
+    // Determine dodge direction relative to actor
     FVector InputDirection = GetMovementInputDirection();
-    if (InputDirection.IsNearlyZero())
+    UAnimMontage* MontageToPlay = DodgeFwdMontage; // Default to forward
+
+    if (!InputDirection.IsNearlyZero())
     {
-        DodgeDirection = GetActorForwardVector();
+        DodgeDirection = InputDirection;
+        
+        // Calculate dot product to determine direction relative to actor forward
+        FVector ActorForward = GetActorForwardVector();
+        FVector ActorRight = GetActorRightVector();
+        
+        float ForwardDot = FVector::DotProduct(ActorForward, InputDirection);
+        float RightDot = FVector::DotProduct(ActorRight, InputDirection);
+
+        if (ForwardDot > 0.707f) // Forward
+        {
+            MontageToPlay = DodgeFwdMontage;
+        }
+        else if (ForwardDot < -0.707f) // Backward
+        {
+            MontageToPlay = DodgeBwdMontage;
+        }
+        else if (RightDot > 0.0f) // Right
+        {
+            MontageToPlay = DodgeRightMontage;
+        }
+        else // Left
+        {
+            MontageToPlay = DodgeLeftMontage;
+        }
     }
     else
     {
-        DodgeDirection = InputDirection;
+        DodgeDirection = GetActorForwardVector();
+        MontageToPlay = DodgeFwdMontage; // No input, dodge forward (or backward?)
     }
 
     DodgeDirection.Normalize();
     bIsDodging = true;
 
     // Play dodge animation
-    if (UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance())
+    if (MontageToPlay)
     {
-        // Try to play montage first
+        PlayMontage(MontageToPlay);
+    }
+    else
+    {
+        // Fallback to old single montage if specific ones aren't set
+        /*
         if (DodgeMontage)
         {
-            // Log the montage's slot name for debugging
-            if (DodgeMontage->SlotAnimTracks.Num() > 0)
-            {
-                FName SlotName = DodgeMontage->SlotAnimTracks[0].SlotName;
-                UE_LOG(LogTemp, Warning, TEXT("PerformDodge: DodgeMontage=%s, uses Slot='%s'"), 
-                    *DodgeMontage->GetName(), *SlotName.ToString());
-            }
-            
-            float Duration = AnimInstance->Montage_Play(DodgeMontage, 1.0f);
-            UE_LOG(LogTemp, Warning, TEXT("PerformDodge: Montage_Play returned Duration=%f"), Duration);
-            
-            if (Duration <= 0.0f)
-            {
-                UE_LOG(LogTemp, Error, TEXT("PerformDodge: Montage failed to play! Check if AnimBP has matching Slot node!"));
-            }
+             PlayMontage(DodgeMontage);
         }
-        // If no montage, try to play sequence directly (less flexible but works)
-        else if (DodgeAnimation)
+        else */ 
+        if (DodgeAnimation)
         {
-            UE_LOG(LogTemp, Log, TEXT("PerformDodge: Trying dynamic montage from DodgeAnimation"));
-            // Try to play the dodge animation using several common slot names
-            // to improve compatibility with Paragon AnimBP slot naming.
-            float Played = PlayAnimationAsMontageDynamic(DodgeAnimation, FName("DefaultGroup.FullBody"), 1.0f);
-            if (Played <= 0.0f)
-            {
-                // Fallbacks
-                Played = PlayAnimationAsMontageDynamic(DodgeAnimation, FName("FullBody"), 1.0f);
-            }
-            if (Played <= 0.0f)
-            {
-                Played = PlayAnimationAsMontageDynamic(DodgeAnimation, FName("DefaultSlot"), 1.0f);
-            }
-        }
-        else
-        {
-            UE_LOG(LogTemp, Warning, TEXT("PerformDodge: No DodgeMontage or DodgeAnimation available!"));
+             PlayAnimationAsMontageDynamic(DodgeAnimation, FName("DefaultSlot"), 1.0f);
         }
     }
 }
+
+void AWukongCharacter::PerformHeavyAttack()
+{
+    if (HeavyAttackMontage)
+    {
+        ChangeState(EWukongState::Attacking);
+        PlayMontage(HeavyAttackMontage);
+    }
+}
+
+void AWukongCharacter::PerformStaffSpin()
+{
+    if (StaffSpinMontage)
+    {
+        ChangeState(EWukongState::Attacking); 
+        PlayMontage(StaffSpinMontage);
+    }
+}
+
+void AWukongCharacter::PerformPoleStance()
+{
+    if (PoleStanceMontage)
+    {
+        ChangeState(EWukongState::Attacking);
+        PlayMontage(PoleStanceMontage);
+    }
+}
+
+void AWukongCharacter::UseItem()
+{
+    if (DrinkGourdMontage)
+    {
+        PlayMontage(DrinkGourdMontage);
+    }
+}
+
+void AWukongCharacter::PlayMontage(UAnimMontage* MontageToPlay, FName SectionName)
+{
+    if (UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance())
+    {
+        if (MontageToPlay)
+        {
+            float Duration = AnimInstance->Montage_Play(MontageToPlay);
+            if (SectionName != NAME_None)
+            {
+                AnimInstance->Montage_JumpToSection(SectionName, MontageToPlay);
+            }
+            UE_LOG(LogTemp, Log, TEXT("PlayMontage: Playing %s, Duration=%f"), *MontageToPlay->GetName(), Duration);
+        }
+    }
+}
+
 
 void AWukongCharacter::UpdateDodgeMovement(float DeltaTime)
 {
