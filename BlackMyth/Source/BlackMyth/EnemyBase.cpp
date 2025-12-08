@@ -7,6 +7,8 @@
 #include "Navigation/PathFollowingComponent.h"
 #include "Components/HealthComponent.h"
 #include "Components/CombatComponent.h"
+#include "Components/WidgetComponent.h"
+#include "UI/EnemyHealthBarWidget.h"
 
 AEnemyBase::AEnemyBase()
 {
@@ -30,6 +32,15 @@ AEnemyBase::AEnemyBase()
 	GetCharacterMovement()->bOrientRotationToMovement = true;
 	GetCharacterMovement()->RotationRate = FRotator(0.0f, 500.0f, 0.0f);
 	GetCharacterMovement()->MaxWalkSpeed = PatrollingSpeed;
+
+	// ========== 新增：创建血条组件 ==========
+	HealthBarWidgetComponent = CreateDefaultSubobject<UWidgetComponent>(TEXT("HealthBarWidget"));
+	HealthBarWidgetComponent->SetupAttachment(GetRootComponent());
+	HealthBarWidgetComponent->SetRelativeLocation(FVector(0.0f, 0.0f, 120.0f));  // 头顶上方
+	HealthBarWidgetComponent->SetWidgetSpace(EWidgetSpace::Screen);  // 屏幕空间，始终面向摄像机
+	HealthBarWidgetComponent->SetDrawSize(FVector2D(150.0f, 20.0f));
+	HealthBarWidgetComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	HealthBarWidgetComponent->SetVisibility(false);  // 默认隐藏
 }
 
 void AEnemyBase::BeginPlay()
@@ -46,9 +57,30 @@ void AEnemyBase::BeginPlay()
 
 	// 初始化状态
 	StartPatrolling();
-	
-	// 隐藏血条 (如果实现了 UI)
-	HideHealthBar();
+
+	// ========== 新增：初始化血条 ==========
+	if (HealthBarWidgetComponent && HealthBarWidgetClass)
+	{
+		HealthBarWidgetComponent->SetWidgetClass(HealthBarWidgetClass);
+		HealthBarWidgetComponent->SetRelativeLocation(FVector(0.0f, 0.0f, HealthBarHeightOffset));
+
+		// 获取 Widget 实例并初始化
+		HealthBarWidget = Cast<UEnemyHealthBarWidget>(HealthBarWidgetComponent->GetWidget());
+		if (HealthBarWidget && HealthComponent)
+		{
+			HealthBarWidget->InitializeHealthBar(HealthComponent);
+		}
+	}
+
+	// 如果设置为始终显示，则显示血条
+	if (bAlwaysShowHealthBar)
+	{
+		ShowHealthBar();
+	}
+	else {
+		// 隐藏血条 (如果实现了 UI)
+		HideHealthBar();
+	}
 }
 
 void AEnemyBase::Tick(float DeltaTime)
@@ -173,14 +205,20 @@ void AEnemyBase::PatrolTimerFinished()
 	MoveToTarget(PatrolTarget);
 }
 
-void AEnemyBase::HideHealthBar()
-{
-	// TODO: 实现 UI 隐藏逻辑
-}
-
 void AEnemyBase::ShowHealthBar()
 {
-	// TODO: 实现 UI 显示逻辑
+	if (HealthBarWidgetComponent)
+	{
+		HealthBarWidgetComponent->SetVisibility(true);
+	}
+}
+
+void AEnemyBase::HideHealthBar()
+{
+	if (HealthBarWidgetComponent)
+	{
+		HealthBarWidgetComponent->SetVisibility(false);
+	}
 }
 
 void AEnemyBase::StartPatrolling()
