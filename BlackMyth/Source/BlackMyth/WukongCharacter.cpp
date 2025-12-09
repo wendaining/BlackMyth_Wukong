@@ -642,10 +642,39 @@ void AWukongCharacter::PerformAttack()
     // 检查是否有足够体力攻击
     if (!StaminaComponent || !StaminaComponent->HasEnoughStamina(StaminaComponent->AttackStaminaCost))
     {
-        UE_LOG(LogTemp, Log, TEXT("PerformAttack: Not enough stamina! Current=%f, Required=%f"), 
-            StaminaComponent ? StaminaComponent->GetCurrentStamina() : 0.0f, 
-            StaminaComponent ? StaminaComponent->AttackStaminaCost : 0.0f);
         return;
+    }
+
+    // ========== 攻击间隔保护 (基于动画进度) ==========
+    // 如果正在攻击，检查当前蒙太奇播放进度
+    if (CurrentState == EWukongState::Attacking)
+    {
+        if (UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance())
+        {
+            if (UAnimMontage* CurrentMontage = AnimInstance->GetCurrentActiveMontage())
+            {
+                // 获取当前播放位置和总长度
+                float CurrentPos = AnimInstance->Montage_GetPosition(CurrentMontage);
+                // 注意：GetPlayLength() 返回的是原始长度，不包含 RateScale。
+                // 但 Montage_GetPosition 也是基于原始时间的，所以直接比对即可。
+                float TotalLength = CurrentMontage->GetPlayLength();
+
+                // 设定允许连招的阈值：动作播放了 80% 之后才允许打断
+                // 这样配合 1.5倍速播放，既能看清动作，手感又不会太粘滞
+                const float ComboWindowThreshold = 0.8f;
+
+                if (TotalLength > 0.0f && (CurrentPos / TotalLength) < ComboWindowThreshold)
+                {
+                    // 还没播到 80%，缓冲输入
+                    if (InputBuffer.Num() == 0) 
+                    {
+                        InputBuffer.Add(TEXT("Attack"));
+                        UE_LOG(LogTemp, Log, TEXT("PerformAttack: Input Buffered (Progress: %.2f%% < 80%%)"), (CurrentPos / TotalLength) * 100.0f);
+                    }
+                    return;
+                }
+            }
+        }
     }
 
     // 消耗体力
