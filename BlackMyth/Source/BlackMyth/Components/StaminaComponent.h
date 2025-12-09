@@ -89,11 +89,11 @@ public:
 
 	/** 最大体力值 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stamina|Config")
-	float MaxStamina = 100.0f;
+	float MaxStamina = 300.0f;
 
 	/** 体力自动恢复速度（每秒恢复量） */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stamina|Config")
-	float StaminaRegenRate = 15.0f;
+	float StaminaRegenRate = 45.0f;
 
 	/** 体力恢复延迟（消耗体力后多久开始恢复） */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stamina|Config")

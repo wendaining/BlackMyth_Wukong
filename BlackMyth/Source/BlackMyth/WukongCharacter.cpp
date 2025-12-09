@@ -31,301 +31,8 @@ AWukongCharacter::AWukongCharacter()
     // 创建武器 Hitbox 组件（先挂载到 RootComponent，BeginPlay 时再附加到骨骼）
     WeaponTraceHitbox = CreateDefaultSubobject<UTraceHitboxComponent>(TEXT("WeaponTraceHitbox"));
 
-    // Auto-load Paragon Wukong skeletal mesh
-    static ConstructorHelpers::FObjectFinder<USkeletalMesh> WukongMeshAsset(
-        TEXT("/Game/ParagonSunWukong/Characters/Heroes/Wukong/Meshes/Wukong")
-    );
-    if (WukongMeshAsset.Succeeded() && GetMesh())
-    {
-        GetMesh()->SetSkeletalMesh(WukongMeshAsset.Object);
-        GetMesh()->SetRelativeLocation(FVector(0.0f, 0.0f, -90.0f));
-        GetMesh()->SetRelativeRotation(FRotator(0.0f, -90.0f, 0.0f));
-        
-        // 使用 Paragon 的动画蓝图（需要先 Reparent 到 WukongAnimInstance）
-        // 参见 Docs/ParagonAnimBP_Integration_Guide.md
-        static ConstructorHelpers::FClassFinder<UAnimInstance> AnimBPClass(
-            TEXT("/Game/ParagonSunWukong/Characters/Heroes/Wukong/SunWukong_AnimBlueprint")
-        );
-        if (AnimBPClass.Succeeded())
-        {
-            GetMesh()->SetAnimInstanceClass(AnimBPClass.Class);
-        }
-    }
-
-    // Auto-load attack montages
-    static ConstructorHelpers::FObjectFinder<UAnimMontage> Attack1Asset(
-        TEXT("/Game/ParagonSunWukong/Characters/Heroes/Wukong/Animations/Primary_Melee_A_Slow_Montage")
-    );
-    if (Attack1Asset.Succeeded())
-    {
-        AttackMontage1 = Attack1Asset.Object;
-        AttackMontages.Add(Attack1Asset.Object);
-    }
-
-    static ConstructorHelpers::FObjectFinder<UAnimMontage> Attack2Asset(
-        TEXT("/Game/ParagonSunWukong/Characters/Heroes/Wukong/Animations/Primary_Melee_B_Slow_Montage")
-    );
-    if (Attack2Asset.Succeeded())
-    {
-        AttackMontage2 = Attack2Asset.Object;
-        AttackMontages.Add(Attack2Asset.Object);
-    }
-
-    static ConstructorHelpers::FObjectFinder<UAnimMontage> Attack3Asset(
-        TEXT("/Game/ParagonSunWukong/Characters/Heroes/Wukong/Animations/Primary_Melee_C_Slow_Montage")
-    );
-    if (Attack3Asset.Succeeded())
-    {
-        AttackMontage3 = Attack3Asset.Object;
-        AttackMontages.Add(Attack3Asset.Object);
-    }
-
-    // Auto-load locomotion animations
-    static ConstructorHelpers::FObjectFinder<UAnimSequence> IdleAnimAsset(
-        TEXT("/Game/ParagonSunWukong/Characters/Heroes/Wukong/Animations/Idle")
-    );
-    if (IdleAnimAsset.Succeeded())
-    {
-        IdleAnimation = IdleAnimAsset.Object;
-    }
-
-    static ConstructorHelpers::FObjectFinder<UAnimSequence> WalkAnimAsset(
-        TEXT("/Game/ParagonSunWukong/Characters/Heroes/Wukong/Animations/Jog_Fwd")
-    );
-    if (WalkAnimAsset.Succeeded())
-    {
-        WalkForwardAnimation = WalkAnimAsset.Object;
-    }
-
-    // Note: Sprint uses the same Jog animation, speed will be controlled by AnimBP
-    SprintForwardAnimation = WalkForwardAnimation;
-
-    // Auto-load jump animations
-    static ConstructorHelpers::FObjectFinder<UAnimSequence> JumpStartAsset(
-        TEXT("/Game/ParagonSunWukong/Characters/Heroes/Wukong/Animations/Jump_Start")
-    );
-    if (JumpStartAsset.Succeeded())
-    {
-        JumpStartAnimation = JumpStartAsset.Object;
-    }
-
-    static ConstructorHelpers::FObjectFinder<UAnimSequence> JumpApexAsset(
-        TEXT("/Game/ParagonSunWukong/Characters/Heroes/Wukong/Animations/Jump_Apex")
-    );
-    if (JumpApexAsset.Succeeded())
-    {
-        JumpApexAnimation = JumpApexAsset.Object;
-    }
-
-    static ConstructorHelpers::FObjectFinder<UAnimSequence> JumpLandAsset(
-        TEXT("/Game/ParagonSunWukong/Characters/Heroes/Wukong/Animations/Jump_Land")
-    );
-    if (JumpLandAsset.Succeeded())
-    {
-        JumpLandAnimation = JumpLandAsset.Object;
-    }
-
-    // Auto-load dodge animation
-    static ConstructorHelpers::FObjectFinder<UAnimSequence> DodgeAnimAsset(
-        TEXT("/Game/ParagonSunWukong/Characters/Heroes/Wukong/Animations/RMB_Evade_CC")
-    );
-    if (DodgeAnimAsset.Succeeded())
-    {
-        DodgeAnimation = DodgeAnimAsset.Object;
-    }
-
-    // Also try to auto-load common dodge montages (if present) to ensure montage playback
-    static ConstructorHelpers::FObjectFinder<UAnimMontage> DodgeMontage1Asset(
-        TEXT("/Game/ParagonSunWukong/Characters/Heroes/Wukong/Animations/RMB_Evade_CC_Montage")
-    );
-    if (DodgeMontage1Asset.Succeeded())
-    {
-        DodgeMontage = DodgeMontage1Asset.Object;
-    }
-
-    static ConstructorHelpers::FObjectFinder<UAnimMontage> DodgeMontage2Asset(
-        TEXT("/Game/ParagonSunWukong/Characters/Heroes/Wukong/Animations/AM_Dodge")
-    );
-    if (DodgeMontage2Asset.Succeeded())
-    {
-        DodgeMontage = DodgeMontage2Asset.Object;
-    }
-
-    // Auto-load hit react animations
-    static ConstructorHelpers::FObjectFinder<UAnimSequence> HitFrontAsset(
-        TEXT("/Game/ParagonSunWukong/Characters/Heroes/Wukong/Animations/HitReact_Front")
-    );
-    if (HitFrontAsset.Succeeded())
-    {
-        HitReactFrontAnimation = HitFrontAsset.Object;
-    }
-
-    static ConstructorHelpers::FObjectFinder<UAnimSequence> HitBackAsset(
-        TEXT("/Game/ParagonSunWukong/Characters/Heroes/Wukong/Animations/HitReact_Back")
-    );
-    if (HitBackAsset.Succeeded())
-    {
-        HitReactBackAnimation = HitBackAsset.Object;
-    }
-
-    static ConstructorHelpers::FObjectFinder<UAnimSequence> HitLeftAsset(
-        TEXT("/Game/ParagonSunWukong/Characters/Heroes/Wukong/Animations/HitReact_Left")
-    );
-    if (HitLeftAsset.Succeeded())
-    {
-        HitReactLeftAnimation = HitLeftAsset.Object;
-    }
-
-    static ConstructorHelpers::FObjectFinder<UAnimSequence> HitRightAsset(
-        TEXT("/Game/ParagonSunWukong/Characters/Heroes/Wukong/Animations/HitReact_Right")
-    );
-    if (HitRightAsset.Succeeded())
-    {
-        HitReactRightAnimation = HitRightAsset.Object;
-    }
-
-    // Auto-load death animation
-    static ConstructorHelpers::FObjectFinder<UAnimSequence> DeathAsset(
-        TEXT("/Game/ParagonSunWukong/Characters/Heroes/Wukong/Animations/Death")
-    );
-    if (DeathAsset.Succeeded())
-    {
-        DeathAnimation = DeathAsset.Object;
-    }
-
-    // Auto-load knockback animation
-    static ConstructorHelpers::FObjectFinder<UAnimSequence> KnockbackAsset(
-        TEXT("/Game/ParagonSunWukong/Characters/Heroes/Wukong/Animations/Knockback")
-    );
-    if (KnockbackAsset.Succeeded())
-    {
-        KnockbackAnimation = KnockbackAsset.Object;
-    }
-
-    // Auto-load stun animations
-    static ConstructorHelpers::FObjectFinder<UAnimSequence> StunStartAsset(
-        TEXT("/Game/ParagonSunWukong/Characters/Heroes/Wukong/Animations/Stun_Start")
-    );
-    if (StunStartAsset.Succeeded())
-    {
-        StunStartAnimation = StunStartAsset.Object;
-    }
-
-    static ConstructorHelpers::FObjectFinder<UAnimSequence> StunLoopAsset(
-        TEXT("/Game/ParagonSunWukong/Characters/Heroes/Wukong/Animations/Stun_Loop")
-    );
-    if (StunLoopAsset.Succeeded())
-    {
-        StunLoopAnimation = StunLoopAsset.Object;
-    }
-
-    // Auto-load emote animations
-    static ConstructorHelpers::FObjectFinder<UAnimSequence> TauntAsset(
-        TEXT("/Game/ParagonSunWukong/Characters/Heroes/Wukong/Animations/Emote_MonkeyTaunt")
-    );
-    if (TauntAsset.Succeeded())
-    {
-        EmoteTauntAnimation = TauntAsset.Object;
-    }
-
-    static ConstructorHelpers::FObjectFinder<UAnimSequence> StaffSpinAsset(
-        TEXT("/Game/ParagonSunWukong/Characters/Heroes/Wukong/Animations/Emote_StaffSpin")
-    );
-    if (StaffSpinAsset.Succeeded())
-    {
-        EmoteStaffSpinAnimation = StaffSpinAsset.Object;
-    }
-
-    // Auto-load ability animations
-    static ConstructorHelpers::FObjectFinder<UAnimSequence> FlipFwdAsset(
-        TEXT("/Game/ParagonSunWukong/Characters/Heroes/Wukong/Animations/Q_Flip_Fwd")
-    );
-    if (FlipFwdAsset.Succeeded())
-    {
-        AbilityFlipForwardAnimation = FlipFwdAsset.Object;
-    }
-
-    static ConstructorHelpers::FObjectFinder<UAnimSequence> SlamAsset(
-        TEXT("/Game/ParagonSunWukong/Characters/Heroes/Wukong/Animations/Q_Slam")
-    );
-    if (SlamAsset.Succeeded())
-    {
-        AbilitySlamAnimation = SlamAsset.Object;
-    }
-
-    // Auto-load air attack animation
-    static ConstructorHelpers::FObjectFinder<UAnimSequence> AirAttackAsset(
-        TEXT("/Game/ParagonSunWukong/Characters/Heroes/Wukong/Animations/Primary_Melee_Air")
-    );
-    if (AirAttackAsset.Succeeded())
-    {
-        AirAttackAnimation = AirAttackAsset.Object;
-    }
-
-    // ========== Auto-load Input Actions ==========
-    // 加载输入动作资产，确保输入绑定能正常工作
-    static ConstructorHelpers::FObjectFinder<UInputAction> DodgeActionAsset(
-        TEXT("/Game/_BlackMythGame/Input/Actions/IA_Dodge")
-    );
-    if (DodgeActionAsset.Succeeded())
-    {
-        DodgeAction = DodgeActionAsset.Object;
-    }
-
-    static ConstructorHelpers::FObjectFinder<UInputAction> AttackActionAsset(
-        TEXT("/Game/_BlackMythGame/Input/Actions/IA_Attack")
-    );
-    if (AttackActionAsset.Succeeded())
-    {
-        AttackAction = AttackActionAsset.Object;
-    }
-
-    static ConstructorHelpers::FObjectFinder<UInputAction> SprintActionAsset(
-        TEXT("/Game/_BlackMythGame/Input/Actions/IA_Sprint")
-    );
-    if (SprintActionAsset.Succeeded())
-    {
-        SprintAction = SprintActionAsset.Object;
-    }
-
-    // 加载 Q 键战技输入动作
-    static ConstructorHelpers::FObjectFinder<UInputAction> AbilityActionAsset(
-        TEXT("/Game/_BlackMythGame/Input/Actions/IA_Ability")
-    );
-    if (AbilityActionAsset.Succeeded())
-    {
-        AbilityAction = AbilityActionAsset.Object;
-    }
-
-    // 加载地面战技蒙太奇（Q_Flip_Bwd - 后空翻）
-    static ConstructorHelpers::FObjectFinder<UAnimMontage> AbilityMontageAsset(
-        TEXT("/Game/ParagonSunWukong/Characters/Heroes/Wukong/Animations/Q_Flip_Bwd_Montage")
-    );
-    if (AbilityMontageAsset.Succeeded())
-    {
-        AbilityMontage = AbilityMontageAsset.Object;
-    }
-
-    // 加载空中战技蒙太奇（Q_Fall_Loop - 下坠攻击）
-    static ConstructorHelpers::FObjectFinder<UAnimMontage> AirAbilityMontageAsset(
-        TEXT("/Game/ParagonSunWukong/Characters/Heroes/Wukong/Animations/Q_Fall_Loop_Montage")
-    );
-    if (AirAbilityMontageAsset.Succeeded())
-    {
-        AirAbilityMontage = AirAbilityMontageAsset.Object;
-    }
-
-    // 加载空中攻击蒙太奇（Primary_Melee_Air）
-    static ConstructorHelpers::FObjectFinder<UAnimMontage> AirAttackMontageAsset(
-        TEXT("/Game/ParagonSunWukong/Characters/Heroes/Wukong/Animations/Primary_Melee_Air_Montage")
-    );
-    if (AirAttackMontageAsset.Succeeded())
-    {
-        AirAttackMontage = AirAttackMontageAsset.Object;
-    }
-
-    // Create Combat Component (will be implemented by Member C)
-    // CombatComponent = CreateDefaultSubobject<UCombatComponent>(TEXT("CombatComponent"));
+    // 注意：所有动画资产和输入动作现在都应在蓝图子类 (BP_Wukong_New) 中设置
+    // 不再在 C++ 构造函数中硬编码加载路径，以便于在编辑器中灵活配置
 }
 
 // Called when the game starts or when spawned
@@ -333,6 +40,19 @@ void AWukongCharacter::BeginPlay()
 {
     Super::BeginPlay();
     
+    // 确保 AttackMontages 数组已填充（兼容旧的单个属性设置方式）
+    if (AttackMontages.Num() == 0)
+    {
+        if (AttackMontage1) AttackMontages.Add(AttackMontage1);
+        if (AttackMontage2) AttackMontages.Add(AttackMontage2);
+        if (AttackMontage3) AttackMontages.Add(AttackMontage3);
+        
+        if (AttackMontages.Num() > 0)
+        {
+            UE_LOG(LogTemp, Log, TEXT("BeginPlay: Populated AttackMontages from individual properties. Count=%d"), AttackMontages.Num());
+        }
+    }
+
     CurrentState = EWukongState::Idle;
 
     // Configure movement speeds and physics
@@ -353,6 +73,10 @@ void AWukongCharacter::BeginPlay()
         
         // 跳跃初速度
         Movement->JumpZVelocity = JumpVelocity;
+
+        // 启用 Root Motion 时的强制位移处理
+        // 这可以防止某些动画播放完后角色被拉回原位
+        // 但更根本的解决方法是在动画资源中启用 Root Motion，并在 AnimBP 中设置 Root Motion Mode
     }
     
     UE_LOG(LogTemp, Log, TEXT("BeginPlay: WalkSpeed=%f, GravityScale=%f, AirControl=%f, BrakingDecelFalling=%f, JumpVelocity=%f"), 
@@ -362,8 +86,11 @@ void AWukongCharacter::BeginPlay()
     if (WeaponTraceHitbox)
     {
         // 设置武器骨骼
+        // 模型自带 weapon_r 骨骼，直接使用
         WeaponTraceHitbox->SetStartSocket(FName("weapon_r"));  // 握把位置（起点）
-        WeaponTraceHitbox->SetEndSocket(FName("weapon_B_front_r"));  // 武器前端（终点）
+        
+        // 模型自带 weapon_tou (头) 骨骼，作为射线检测终点
+        WeaponTraceHitbox->SetEndSocket(FName("weapon_tou"));  // 武器前端（终点）
 
         // 扫描半径（金箍棒粗细约5-10）
         WeaponTraceHitbox->SetTraceRadius(7.0f);
@@ -451,12 +178,41 @@ void AWukongCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCom
         // Bind attack action
         if (AttackAction)
         {
-            EnhancedInputComponent->BindAction(AttackAction, ETriggerEvent::Started, this, &AWukongCharacter::Attack);
-            UE_LOG(LogTemp, Warning, TEXT("  Bound AttackAction to Attack"));
+            EnhancedInputComponent->BindAction(AttackAction, ETriggerEvent::Started, this, &AWukongCharacter::PerformAttack);
+            UE_LOG(LogTemp, Warning, TEXT("  Bound AttackAction to PerformAttack"));
         }
         else
         {
             UE_LOG(LogTemp, Error, TEXT("  AttackAction is NULL! Attack will not work!"));
+        }
+
+        // Bind heavy attack action
+        if (HeavyAttackAction)
+        {
+            EnhancedInputComponent->BindAction(HeavyAttackAction, ETriggerEvent::Started, this, &AWukongCharacter::PerformHeavyAttack);
+            UE_LOG(LogTemp, Warning, TEXT("  Bound HeavyAttackAction to PerformHeavyAttack"));
+        }
+
+        // Bind pole stance action
+        if (PoleStanceAction)
+        {
+            EnhancedInputComponent->BindAction(PoleStanceAction, ETriggerEvent::Started, this, &AWukongCharacter::PerformPoleStance);
+            UE_LOG(LogTemp, Warning, TEXT("  Bound PoleStanceAction to PerformPoleStance"));
+        }
+
+        // Bind staff spin action
+        if (StaffSpinAction)
+        {
+            EnhancedInputComponent->BindAction(StaffSpinAction, ETriggerEvent::Started, this, &AWukongCharacter::PerformStaffSpin);
+            EnhancedInputComponent->BindAction(StaffSpinAction, ETriggerEvent::Completed, this, &AWukongCharacter::PerformStaffSpin); // Handle release if needed
+            UE_LOG(LogTemp, Warning, TEXT("  Bound StaffSpinAction to PerformStaffSpin"));
+        }
+
+        // Bind item use action
+        if (UseItemAction)
+        {
+            EnhancedInputComponent->BindAction(UseItemAction, ETriggerEvent::Started, this, &AWukongCharacter::UseItem);
+            UE_LOG(LogTemp, Warning, TEXT("  Bound UseItemAction to UseItem"));
         }
 
         // Bind sprint action
@@ -471,7 +227,8 @@ void AWukongCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCom
             UE_LOG(LogTemp, Error, TEXT("  SprintAction is NULL! Sprint will not work!"));
         }
 
-        // Bind ability action (Q key)
+        // Bind ability action (Q key) - REMOVED in favor of specific skills
+        /*
         if (AbilityAction)
         {
             EnhancedInputComponent->BindAction(AbilityAction, ETriggerEvent::Started, this, &AWukongCharacter::OnAbilityPressed);
@@ -481,6 +238,7 @@ void AWukongCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCom
         {
             UE_LOG(LogTemp, Warning, TEXT("  AbilityAction is NULL - Q ability disabled (create IA_Ability asset)"));
         }
+        */
     }
     else
     {
@@ -796,6 +554,9 @@ void AWukongCharacter::UpdateAttackingState(float DeltaTime)
 {
     AttackTimer -= DeltaTime;
 
+    // 攻击期间禁止移动输入生效（但允许转向，如果需要完全锁死转向，可以在 Move 函数里加判断）
+    // 注意：这里不需要额外代码，因为在 Move() 函数里我们已经判断了 IsAttacking 就不处理 AddMovementInput
+
     // Process input buffer during attack window
     if (AttackTimer < AttackDuration * 0.5f && InputBuffer.Num() > 0)
     {
@@ -881,10 +642,39 @@ void AWukongCharacter::PerformAttack()
     // 检查是否有足够体力攻击
     if (!StaminaComponent || !StaminaComponent->HasEnoughStamina(StaminaComponent->AttackStaminaCost))
     {
-        UE_LOG(LogTemp, Log, TEXT("PerformAttack: Not enough stamina! Current=%f, Required=%f"), 
-            StaminaComponent ? StaminaComponent->GetCurrentStamina() : 0.0f, 
-            StaminaComponent ? StaminaComponent->AttackStaminaCost : 0.0f);
         return;
+    }
+
+    // ========== 攻击间隔保护 (基于动画进度) ==========
+    // 如果正在攻击，检查当前蒙太奇播放进度
+    if (CurrentState == EWukongState::Attacking)
+    {
+        if (UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance())
+        {
+            if (UAnimMontage* CurrentMontage = AnimInstance->GetCurrentActiveMontage())
+            {
+                // 获取当前播放位置和总长度
+                float CurrentPos = AnimInstance->Montage_GetPosition(CurrentMontage);
+                // 注意：GetPlayLength() 返回的是原始长度，不包含 RateScale。
+                // 但 Montage_GetPosition 也是基于原始时间的，所以直接比对即可。
+                float TotalLength = CurrentMontage->GetPlayLength();
+
+                // 设定允许连招的阈值：动作播放了 80% 之后才允许打断
+                // 这样配合 1.5倍速播放，既能看清动作，手感又不会太粘滞
+                const float ComboWindowThreshold = 0.8f;
+
+                if (TotalLength > 0.0f && (CurrentPos / TotalLength) < ComboWindowThreshold)
+                {
+                    // 还没播到 80%，缓冲输入
+                    if (InputBuffer.Num() == 0) 
+                    {
+                        InputBuffer.Add(TEXT("Attack"));
+                        UE_LOG(LogTemp, Log, TEXT("PerformAttack: Input Buffered (Progress: %.2f%% < 80%%)"), (CurrentPos / TotalLength) * 100.0f);
+                    }
+                    return;
+                }
+            }
+        }
     }
 
     // 消耗体力
@@ -1012,69 +802,129 @@ void AWukongCharacter::PerformDodge()
 
     ChangeState(EWukongState::Dodging);
 
-    // Determine dodge direction
+    // Determine dodge direction relative to actor
     FVector InputDirection = GetMovementInputDirection();
-    if (InputDirection.IsNearlyZero())
+    UAnimMontage* MontageToPlay = DodgeFwdMontage; // Default to forward
+
+    if (!InputDirection.IsNearlyZero())
     {
-        DodgeDirection = GetActorForwardVector();
+        DodgeDirection = InputDirection;
+        
+        // Calculate dot product to determine direction relative to actor forward
+        FVector ActorForward = GetActorForwardVector();
+        FVector ActorRight = GetActorRightVector();
+        
+        float ForwardDot = FVector::DotProduct(ActorForward, InputDirection);
+        float RightDot = FVector::DotProduct(ActorRight, InputDirection);
+
+        if (ForwardDot > 0.707f) // Forward
+        {
+            MontageToPlay = DodgeFwdMontage;
+        }
+        else if (ForwardDot < -0.707f) // Backward
+        {
+            MontageToPlay = DodgeBwdMontage;
+        }
+        else if (RightDot > 0.0f) // Right
+        {
+            MontageToPlay = DodgeRightMontage;
+        }
+        else // Left
+        {
+            MontageToPlay = DodgeLeftMontage;
+        }
     }
     else
     {
-        DodgeDirection = InputDirection;
+        DodgeDirection = GetActorForwardVector();
+        MontageToPlay = DodgeFwdMontage; // No input, dodge forward (or backward?)
     }
 
     DodgeDirection.Normalize();
     bIsDodging = true;
 
     // Play dodge animation
-    if (UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance())
+    if (MontageToPlay)
     {
-        // Try to play montage first
+        PlayMontage(MontageToPlay);
+    }
+    else
+    {
+        // Fallback to old single montage if specific ones aren't set
+        /*
         if (DodgeMontage)
         {
-            // Log the montage's slot name for debugging
-            if (DodgeMontage->SlotAnimTracks.Num() > 0)
-            {
-                FName SlotName = DodgeMontage->SlotAnimTracks[0].SlotName;
-                UE_LOG(LogTemp, Warning, TEXT("PerformDodge: DodgeMontage=%s, uses Slot='%s'"), 
-                    *DodgeMontage->GetName(), *SlotName.ToString());
-            }
-            
-            float Duration = AnimInstance->Montage_Play(DodgeMontage, 1.0f);
-            UE_LOG(LogTemp, Warning, TEXT("PerformDodge: Montage_Play returned Duration=%f"), Duration);
-            
-            if (Duration <= 0.0f)
-            {
-                UE_LOG(LogTemp, Error, TEXT("PerformDodge: Montage failed to play! Check if AnimBP has matching Slot node!"));
-            }
+             PlayMontage(DodgeMontage);
         }
-        // If no montage, try to play sequence directly (less flexible but works)
-        else if (DodgeAnimation)
+        else */ 
+        if (DodgeAnimation)
         {
-            UE_LOG(LogTemp, Log, TEXT("PerformDodge: Trying dynamic montage from DodgeAnimation"));
-            // Try to play the dodge animation using several common slot names
-            // to improve compatibility with Paragon AnimBP slot naming.
-            float Played = PlayAnimationAsMontageDynamic(DodgeAnimation, FName("DefaultGroup.FullBody"), 1.0f);
-            if (Played <= 0.0f)
-            {
-                // Fallbacks
-                Played = PlayAnimationAsMontageDynamic(DodgeAnimation, FName("FullBody"), 1.0f);
-            }
-            if (Played <= 0.0f)
-            {
-                Played = PlayAnimationAsMontageDynamic(DodgeAnimation, FName("DefaultSlot"), 1.0f);
-            }
-        }
-        else
-        {
-            UE_LOG(LogTemp, Warning, TEXT("PerformDodge: No DodgeMontage or DodgeAnimation available!"));
+             PlayAnimationAsMontageDynamic(DodgeAnimation, FName("DefaultSlot"), 1.0f);
         }
     }
 }
 
+void AWukongCharacter::PerformHeavyAttack()
+{
+    if (HeavyAttackMontage)
+    {
+        ChangeState(EWukongState::Attacking);
+        PlayMontage(HeavyAttackMontage);
+    }
+}
+
+void AWukongCharacter::PerformStaffSpin()
+{
+    if (StaffSpinMontage)
+    {
+        ChangeState(EWukongState::Attacking); 
+        PlayMontage(StaffSpinMontage);
+    }
+}
+
+void AWukongCharacter::PerformPoleStance()
+{
+    if (PoleStanceMontage)
+    {
+        ChangeState(EWukongState::Attacking);
+        PlayMontage(PoleStanceMontage);
+    }
+}
+
+void AWukongCharacter::UseItem()
+{
+    if (DrinkGourdMontage)
+    {
+        PlayMontage(DrinkGourdMontage);
+    }
+}
+
+void AWukongCharacter::PlayMontage(UAnimMontage* MontageToPlay, FName SectionName)
+{
+    if (UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance())
+    {
+        if (MontageToPlay)
+        {
+            float Duration = AnimInstance->Montage_Play(MontageToPlay);
+            if (SectionName != NAME_None)
+            {
+                AnimInstance->Montage_JumpToSection(SectionName, MontageToPlay);
+            }
+            UE_LOG(LogTemp, Log, TEXT("PlayMontage: Playing %s, Duration=%f"), *MontageToPlay->GetName(), Duration);
+        }
+    }
+}
+
+
 void AWukongCharacter::UpdateDodgeMovement(float DeltaTime)
 {
     if (!bIsDodging)
+    {
+        return;
+    }
+
+    // 如果启用了 Root Motion，就不需要手动计算位移了
+    if (GetMesh()->IsPlayingRootMotion())
     {
         return;
     }
@@ -1216,6 +1066,32 @@ void AWukongCharacter::OnJumped_Implementation()
         StaminaComponent->ConsumeStamina(StaminaComponent->JumpStaminaCost);
         UE_LOG(LogTemp, Log, TEXT("OnJumped: Consumed %f stamina, remaining=%f"), 
             StaminaComponent->JumpStaminaCost, StaminaComponent->GetCurrentStamina());
+    }
+
+    // 播放跳跃蒙太奇
+    if (JumpMontage)
+    {
+        PlayAnimMontage(JumpMontage, 1.0f, FName("Start"));
+    }
+}
+
+void AWukongCharacter::Landed(const FHitResult& Hit)
+{
+    Super::Landed(Hit);
+
+    // 落地时跳转到 Land Section
+    if (JumpMontage)
+    {
+        UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
+        if (AnimInstance && AnimInstance->Montage_IsPlaying(JumpMontage))
+        {
+            AnimInstance->Montage_JumpToSection(FName("Land"), JumpMontage);
+        }
+        else
+        {
+             // 如果没在播（比如从高处直接掉下来），直接播 Land
+             PlayAnimMontage(JumpMontage, 1.0f, FName("Land"));
+        }
     }
 }
 

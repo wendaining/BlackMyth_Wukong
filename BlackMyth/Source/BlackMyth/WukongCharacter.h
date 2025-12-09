@@ -11,6 +11,7 @@ class UStaminaComponent;
 class UCombatComponent;
 class UHealthComponent;
 class UTraceHitboxComponent;
+class UWukongAnimInstance;
 struct FInputActionValue;
 
 // 角色状态枚举
@@ -34,6 +35,8 @@ class BLACKMYTH_API AWukongCharacter : public ABlackMythCharacter
 {
 	GENERATED_BODY()
 
+	friend class UWukongAnimInstance;
+
 public:
 	AWukongCharacter();
 
@@ -47,6 +50,7 @@ public:
 	// 重写跳跃函数以添加体力检查
 	virtual bool CanJumpInternal_Implementation() const override;
 	virtual void OnJumped_Implementation() override;
+	virtual void Landed(const FHitResult& Hit) override;
 
 	// ========== 公共接口 ==========
 	
@@ -105,21 +109,33 @@ public:
 protected:
 	// ========== 输入动作 ==========
 	
-	/** 翻滚输入动作 (C键) */
+	/** 翻滚输入动作 (Ctrl键) */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UInputAction> DodgeAction;
 
-	/** 攻击输入动作 (鼠标左键) */
+	/** 轻击输入动作 (鼠标左键) */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UInputAction> AttackAction;
+
+	/** 重击输入动作 (鼠标右键) */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input", meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<UInputAction> HeavyAttackAction;
 
 	/** 冲刺输入动作 (Shift键) */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UInputAction> SprintAction;
 
-	/** 战技输入动作 (Q键) */
+	/** 战技/立棍输入动作 (X键) */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input", meta = (AllowPrivateAccess = "true"))
-	TObjectPtr<UInputAction> AbilityAction;
+	TObjectPtr<UInputAction> PoleStanceAction;
+
+	/** 棍花输入动作 (V键) */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input", meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<UInputAction> StaffSpinAction;
+
+	/** 使用道具输入动作 (R键) */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input", meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<UInputAction> UseItemAction;
 
 	// ========== 组件 ==========
 
@@ -223,9 +239,45 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "Animation|Combat")
 	TObjectPtr<UAnimMontage> AttackMontage3;
 
-	/** 翻滚蒙太奇 */
+	/** 重击蒙太奇 */
+	UPROPERTY(EditDefaultsOnly, Category = "Animation|Combat")
+	TObjectPtr<UAnimMontage> HeavyAttackMontage;
+
+	/** 空中轻击蒙太奇 */
+	UPROPERTY(EditDefaultsOnly, Category = "Animation|Combat")
+	TObjectPtr<UAnimMontage> AirLightAttackMontage;
+
+	/** 棍花蒙太奇 */
+	UPROPERTY(EditDefaultsOnly, Category = "Animation|Skill")
+	TObjectPtr<UAnimMontage> StaffSpinMontage;
+
+	/** 立棍法蒙太奇 */
+	UPROPERTY(EditDefaultsOnly, Category = "Animation|Skill")
+	TObjectPtr<UAnimMontage> PoleStanceMontage;
+
+	/** 喝药蒙太奇 */
+	UPROPERTY(EditDefaultsOnly, Category = "Animation|Item")
+	TObjectPtr<UAnimMontage> DrinkGourdMontage;
+
+	/** 跳跃蒙太奇 (Start -> Loop -> Land) */
+	UPROPERTY(EditDefaultsOnly, Category = "Animation|Locomotion")
+	TObjectPtr<UAnimMontage> JumpMontage;
+
+	/** 翻滚蒙太奇 (前) */
 	UPROPERTY(EditDefaultsOnly, Category = "Animation|Movement")
-	TObjectPtr<UAnimMontage> DodgeMontage;
+	TObjectPtr<UAnimMontage> DodgeFwdMontage;
+
+	/** 翻滚蒙太奇 (后) */
+	UPROPERTY(EditDefaultsOnly, Category = "Animation|Movement")
+	TObjectPtr<UAnimMontage> DodgeBwdMontage;
+
+	/** 翻滚蒙太奇 (左) */
+	UPROPERTY(EditDefaultsOnly, Category = "Animation|Movement")
+	TObjectPtr<UAnimMontage> DodgeLeftMontage;
+
+	/** 翻滚蒙太奇 (右) */
+	UPROPERTY(EditDefaultsOnly, Category = "Animation|Movement")
+	TObjectPtr<UAnimMontage> DodgeRightMontage;
 
 	// ========== 移动动画序列 ==========
 	
@@ -240,18 +292,6 @@ protected:
 	/** 冲刺动画 */
 	UPROPERTY(EditDefaultsOnly, Category = "Animation|Locomotion")
 	TObjectPtr<UAnimSequence> SprintForwardAnimation;
-
-	/** 起跳动画 */
-	UPROPERTY(EditDefaultsOnly, Category = "Animation|Locomotion")
-	TObjectPtr<UAnimSequence> JumpStartAnimation;
-
-	/** 跳跃最高点动画 */
-	UPROPERTY(EditDefaultsOnly, Category = "Animation|Locomotion")
-	TObjectPtr<UAnimSequence> JumpApexAnimation;
-
-	/** 落地动画 */
-	UPROPERTY(EditDefaultsOnly, Category = "Animation|Locomotion")
-	TObjectPtr<UAnimSequence> JumpLandAnimation;
 
 	/** 翻滚动画序列 */
 	UPROPERTY(EditDefaultsOnly, Category = "Animation|Combat")
@@ -370,6 +410,7 @@ private:
 
 	// ========== 攻击状态 ==========
 	float LastAttackTime = 0.0f;       // 上次攻击时间
+	int32 ComboCount = 0;              // 当前连击段数
 	float AttackTimer = 0.0f;          // 攻击计时器
 	float AttackCooldownTimer = 0.0f;  // 攻击冷却计时器
 	float CachedMaxWalkSpeed = 0.0f;   // 攻击时缓存的最大速度
@@ -413,8 +454,15 @@ private:
 
 	// ========== 战斗函数 ==========
 	void PerformAttack();       // 执行攻击
+	void PerformHeavyAttack();  // 执行重击
+	void PerformStaffSpin();    // 执行棍花
+	void PerformPoleStance();   // 执行立棍
+	void UseItem();             // 使用物品
 	void ResetCombo();          // 重置连击
 	void ProcessInputBuffer();  // 处理输入缓冲
+
+	/** 播放蒙太奇辅助函数 */
+	void PlayMontage(UAnimMontage* MontageToPlay, FName SectionName = NAME_None);
 
 	// ========== 翻滚函数 ==========
 	void PerformDodge();                       // 执行翻滚

@@ -9,6 +9,18 @@
 class AWukongCharacter;
 class UCharacterMovementComponent;
 
+/** 
+ * 移动状态枚举 - 将状态机逻辑移至 C++
+ * 在 AnimGraph 中可以直接使用 "Blend Poses by Enum" 节点
+ */
+UENUM(BlueprintType)
+enum class ELocomotionState : uint8
+{
+	Idle        UMETA(DisplayName = "Idle"),
+	Walk        UMETA(DisplayName = "Walk"),
+	Run         UMETA(DisplayName = "Run")
+};
+
 /**
  * 悟空角色的动画实例类
  * 
@@ -77,6 +89,17 @@ protected:
     UPROPERTY(BlueprintReadOnly, Category = "Movement")
     float LocomotionPlayRate = 1.0f;
 
+    /** 当前移动状态 (C++ 计算，AnimGraph 直接使用) */
+    UPROPERTY(BlueprintReadOnly, Category = "Movement")
+    ELocomotionState LocomotionState = ELocomotionState::Idle;
+
+    /** 上一帧的移动状态，用于检测状态转换 */
+    ELocomotionState PreviousLocomotionState = ELocomotionState::Idle;
+
+    /** 跑步急停转走路的过渡蒙太奇 */
+    UPROPERTY(EditDefaultsOnly, Category = "Animation|Transitions")
+    UAnimMontage* RunToWalkMontage;
+
     // ========== 跳跃/下落状态 ==========
 
     /** 是否处于下落/腾空状态 */
@@ -123,9 +146,21 @@ protected:
     UPROPERTY(BlueprintReadOnly, Category = "State")
     bool bCanTransition = true;
 
-    // ========== 原动画蓝图中的瞄准/旋转变量 ==========
+    // ========== 动态动画引用 (从 Character 获取) ==========
     
-    /** Yaw 旋转角度（用于 Aim Offset） */
+    /** 待机动画 */
+    UPROPERTY(BlueprintReadOnly, Category = "Animation|Dynamic")
+    TObjectPtr<UAnimSequence> IdleAnimation;
+
+    /** 行走动画 */
+    UPROPERTY(BlueprintReadOnly, Category = "Animation|Dynamic")
+    TObjectPtr<UAnimSequence> WalkAnimation;
+
+	/** 冲刺动画 */
+	UPROPERTY(BlueprintReadOnly, Category = "Animation|Dynamic")
+	TObjectPtr<UAnimSequence> SprintAnimation;
+
+	// ========== 原动画蓝图中的瞄准/旋转变量 ==========    /** Yaw 旋转角度（用于 Aim Offset） */
     UPROPERTY(BlueprintReadOnly, Category = "AimOffset")
     float AimYaw = 0.0f;
 
@@ -183,11 +218,11 @@ private:
     /** 缓存移动组件引用 */
     TWeakObjectPtr<UCharacterMovementComponent> CachedMovementComponent;
 
+    /** 上一帧的 Yaw，用于计算 YawDelta */
+    float PreviousYaw = 0.0f;
+
     /** 上一帧是否在地面 */
     bool bWasGrounded = true;
-
-    /** 上一帧的 Yaw 角度（用于计算 YawDelta） */
-    float PreviousYaw = 0.0f;
 
     /** 刷新角色引用缓存 */
     void RefreshOwningCharacter();

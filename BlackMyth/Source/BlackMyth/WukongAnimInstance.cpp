@@ -61,6 +61,14 @@ void UWukongAnimInstance::UpdateMovementVariables()
         return;
     }
 
+    // 从 Character 获取动画引用 (如果尚未获取)
+    if (!IdleAnimation)
+    {
+        IdleAnimation = Wukong->IdleAnimation;
+        WalkAnimation = Wukong->WalkForwardAnimation;
+        SprintAnimation = Wukong->SprintForwardAnimation;
+    }
+
     // 获取速度
     const FVector Velocity = MovementComp->Velocity;
     FVector HorizontalVelocity = Velocity;
@@ -137,6 +145,47 @@ void UWukongAnimInstance::UpdateMovementVariables()
     
     // 垂直速度
     VerticalVelocity = Velocity.Z;
+
+    // ========== 计算 Locomotion State (状态机逻辑) ==========
+    if (bIsFalling)
+    {
+        // 空中状态现在由 Montage 接管，这里不需要特殊处理
+        // 或者可以保留一个 Idle 状态，防止 Montage 没播出来时 T-Pose
+        LocomotionState = ELocomotionState::Idle;
+    }
+    else // 地面
+    {
+        // 简单的落地检测逻辑：如果上一帧是空中，这一帧是地面，可以短暂切到 JumpEnd
+        // 但这里为了简化，直接根据速度判断
+        
+        if (Speed < 10.0f)
+        {
+            LocomotionState = ELocomotionState::Idle;
+        }
+        else if (Speed > 450.0f) // 跑步阈值
+        {
+            LocomotionState = ELocomotionState::Run;
+        }
+        else
+        {
+            LocomotionState = ELocomotionState::Walk;
+        }
+    }
+
+    // ========== 状态转换逻辑 (Montage 触发) ==========
+    // 检测 Run -> Walk 的转换，播放急停过渡动画
+    if (LocomotionState != PreviousLocomotionState)
+    {
+        if (PreviousLocomotionState == ELocomotionState::Run && LocomotionState == ELocomotionState::Walk)
+        {
+            // 只有在地面且没有播放其他 Montage 时才播放
+            if (!IsAnyMontagePlaying() && RunToWalkMontage)
+            {
+                Montage_Play(RunToWalkMontage);
+            }
+        }
+        PreviousLocomotionState = LocomotionState;
+    }
 
     // ===== 更新瞄准偏移变量（对应原蓝图 Set Roll Pitch and Yaw） =====
     // 这些变量用于 Aim Offset BlendSpace，让上半身跟随瞄准方向
