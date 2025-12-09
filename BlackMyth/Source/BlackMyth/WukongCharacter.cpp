@@ -73,6 +73,10 @@ void AWukongCharacter::BeginPlay()
         
         // 跳跃初速度
         Movement->JumpZVelocity = JumpVelocity;
+
+        // 启用 Root Motion 时的强制位移处理
+        // 这可以防止某些动画播放完后角色被拉回原位
+        // 但更根本的解决方法是在动画资源中启用 Root Motion，并在 AnimBP 中设置 Root Motion Mode
     }
     
     UE_LOG(LogTemp, Log, TEXT("BeginPlay: WalkSpeed=%f, GravityScale=%f, AirControl=%f, BrakingDecelFalling=%f, JumpVelocity=%f"), 
@@ -550,6 +554,9 @@ void AWukongCharacter::UpdateAttackingState(float DeltaTime)
 {
     AttackTimer -= DeltaTime;
 
+    // 攻击期间禁止移动输入生效（但允许转向，如果需要完全锁死转向，可以在 Move 函数里加判断）
+    // 注意：这里不需要额外代码，因为在 Move() 函数里我们已经判断了 IsAttacking 就不处理 AddMovementInput
+
     // Process input buffer during attack window
     if (AttackTimer < AttackDuration * 0.5f && InputBuffer.Num() > 0)
     {
@@ -887,6 +894,12 @@ void AWukongCharacter::UpdateDodgeMovement(float DeltaTime)
         return;
     }
 
+    // 如果启用了 Root Motion，就不需要手动计算位移了
+    if (GetMesh()->IsPlayingRootMotion())
+    {
+        return;
+    }
+
     // Calculate dodge velocity based on remaining time
     float DodgeSpeed = DodgeDistance / DodgeDuration;
     FVector DodgeVelocity = DodgeDirection * DodgeSpeed * DeltaTime;
@@ -1024,6 +1037,32 @@ void AWukongCharacter::OnJumped_Implementation()
         StaminaComponent->ConsumeStamina(StaminaComponent->JumpStaminaCost);
         UE_LOG(LogTemp, Log, TEXT("OnJumped: Consumed %f stamina, remaining=%f"), 
             StaminaComponent->JumpStaminaCost, StaminaComponent->GetCurrentStamina());
+    }
+
+    // 播放跳跃蒙太奇
+    if (JumpMontage)
+    {
+        PlayAnimMontage(JumpMontage, 1.0f, FName("Start"));
+    }
+}
+
+void AWukongCharacter::Landed(const FHitResult& Hit)
+{
+    Super::Landed(Hit);
+
+    // 落地时跳转到 Land Section
+    if (JumpMontage)
+    {
+        UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
+        if (AnimInstance && AnimInstance->Montage_IsPlaying(JumpMontage))
+        {
+            AnimInstance->Montage_JumpToSection(FName("Land"), JumpMontage);
+        }
+        else
+        {
+             // 如果没在播（比如从高处直接掉下来），直接播 Land
+             PlayAnimMontage(JumpMontage, 1.0f, FName("Land"));
+        }
     }
 }
 

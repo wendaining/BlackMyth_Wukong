@@ -61,6 +61,14 @@ void UWukongAnimInstance::UpdateMovementVariables()
         return;
     }
 
+    // 从 Character 获取动画引用 (如果尚未获取)
+    if (!IdleAnimation)
+    {
+        IdleAnimation = Wukong->IdleAnimation;
+        WalkAnimation = Wukong->WalkForwardAnimation;
+        SprintAnimation = Wukong->SprintForwardAnimation;
+    }
+
     // 获取速度
     const FVector Velocity = MovementComp->Velocity;
     FVector HorizontalVelocity = Velocity;
@@ -141,18 +149,9 @@ void UWukongAnimInstance::UpdateMovementVariables()
     // ========== 计算 Locomotion State (状态机逻辑) ==========
     if (bIsFalling)
     {
-        if (bJustJumped || VerticalVelocity > 100.0f)
-        {
-            LocomotionState = ELocomotionState::JumpStart;
-        }
-        else if (VerticalVelocity < -100.0f) // 下落
-        {
-            LocomotionState = ELocomotionState::JumpLoop;
-        }
-        else
-        {
-            LocomotionState = ELocomotionState::JumpLoop;
-        }
+        // 空中状态现在由 Montage 接管，这里不需要特殊处理
+        // 或者可以保留一个 Idle 状态，防止 Montage 没播出来时 T-Pose
+        LocomotionState = ELocomotionState::Idle;
     }
     else // 地面
     {

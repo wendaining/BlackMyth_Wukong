@@ -11,6 +11,7 @@ class UStaminaComponent;
 class UCombatComponent;
 class UHealthComponent;
 class UTraceHitboxComponent;
+class UWukongAnimInstance;
 struct FInputActionValue;
 
 // 角色状态枚举
@@ -34,6 +35,8 @@ class BLACKMYTH_API AWukongCharacter : public ABlackMythCharacter
 {
 	GENERATED_BODY()
 
+	friend class UWukongAnimInstance;
+
 public:
 	AWukongCharacter();
 
@@ -47,6 +50,7 @@ public:
 	// 重写跳跃函数以添加体力检查
 	virtual bool CanJumpInternal_Implementation() const override;
 	virtual void OnJumped_Implementation() override;
+	virtual void Landed(const FHitResult& Hit) override;
 
 	// ========== 公共接口 ==========
 	
@@ -255,6 +259,10 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "Animation|Item")
 	TObjectPtr<UAnimMontage> DrinkGourdMontage;
 
+	/** 跳跃蒙太奇 (Start -> Loop -> Land) */
+	UPROPERTY(EditDefaultsOnly, Category = "Animation|Locomotion")
+	TObjectPtr<UAnimMontage> JumpMontage;
+
 	/** 翻滚蒙太奇 (前) */
 	UPROPERTY(EditDefaultsOnly, Category = "Animation|Movement")
 	TObjectPtr<UAnimMontage> DodgeFwdMontage;
@@ -284,18 +292,6 @@ protected:
 	/** 冲刺动画 */
 	UPROPERTY(EditDefaultsOnly, Category = "Animation|Locomotion")
 	TObjectPtr<UAnimSequence> SprintForwardAnimation;
-
-	/** 起跳动画 */
-	UPROPERTY(EditDefaultsOnly, Category = "Animation|Locomotion")
-	TObjectPtr<UAnimSequence> JumpStartAnimation;
-
-	/** 跳跃最高点动画 */
-	UPROPERTY(EditDefaultsOnly, Category = "Animation|Locomotion")
-	TObjectPtr<UAnimSequence> JumpApexAnimation;
-
-	/** 落地动画 */
-	UPROPERTY(EditDefaultsOnly, Category = "Animation|Locomotion")
-	TObjectPtr<UAnimSequence> JumpLandAnimation;
 
 	/** 翻滚动画序列 */
 	UPROPERTY(EditDefaultsOnly, Category = "Animation|Combat")

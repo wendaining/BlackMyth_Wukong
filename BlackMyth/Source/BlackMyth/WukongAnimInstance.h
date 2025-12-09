@@ -18,10 +18,7 @@ enum class ELocomotionState : uint8
 {
 	Idle        UMETA(DisplayName = "Idle"),
 	Walk        UMETA(DisplayName = "Walk"),
-	Run         UMETA(DisplayName = "Run"),
-	JumpStart   UMETA(DisplayName = "Jump Start"),
-	JumpLoop    UMETA(DisplayName = "Jump Loop"),
-	JumpEnd     UMETA(DisplayName = "Jump End")
+	Run         UMETA(DisplayName = "Run")
 };
 
 /**
@@ -149,9 +146,21 @@ protected:
     UPROPERTY(BlueprintReadOnly, Category = "State")
     bool bCanTransition = true;
 
-    // ========== 原动画蓝图中的瞄准/旋转变量 ==========
+    // ========== 动态动画引用 (从 Character 获取) ==========
     
-    /** Yaw 旋转角度（用于 Aim Offset） */
+    /** 待机动画 */
+    UPROPERTY(BlueprintReadOnly, Category = "Animation|Dynamic")
+    TObjectPtr<UAnimSequence> IdleAnimation;
+
+    /** 行走动画 */
+    UPROPERTY(BlueprintReadOnly, Category = "Animation|Dynamic")
+    TObjectPtr<UAnimSequence> WalkAnimation;
+
+	/** 冲刺动画 */
+	UPROPERTY(BlueprintReadOnly, Category = "Animation|Dynamic")
+	TObjectPtr<UAnimSequence> SprintAnimation;
+
+	// ========== 原动画蓝图中的瞄准/旋转变量 ==========    /** Yaw 旋转角度（用于 Aim Offset） */
     UPROPERTY(BlueprintReadOnly, Category = "AimOffset")
     float AimYaw = 0.0f;
 
