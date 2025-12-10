@@ -106,6 +106,12 @@ void AEnemyAIController::OnPerceptionUpdated(const TArray<AActor*>& UpdatedActor
 							// 看到了玩家，更新黑板
 							BlackboardComp->SetValueAsObject(TEXT("TargetActor"), Actor);
 
+							// 通知 EnemyBase 播放发现动画
+							if (AEnemyBase* Enemy = Cast<AEnemyBase>(GetPawn()))
+							{
+								Enemy->OnTargetSensed(Actor);
+							}
+
 							// 如果是 Boss，显示血条
 							if (ABossEnemy* Boss = Cast<ABossEnemy>(GetPawn()))
 							{

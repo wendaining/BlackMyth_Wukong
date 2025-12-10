@@ -235,7 +235,22 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "Animation|Combat")
 	TObjectPtr<UAnimMontage> DeathMontage;
 
+	// 动画蒙太奇 - 发现敌人(咆哮)
+	UPROPERTY(EditDefaultsOnly, Category = "Animation|Combat")
+	TObjectPtr<UAnimMontage> AggroMontage;
+
 	// 动画蒙太奇 - 攻击
 	UPROPERTY(EditDefaultsOnly, Category = "Animation|Combat")
 	TObjectPtr<UAnimMontage> AttackMontage;
+
+public:
+	/** 发现目标时调用 */
+	void OnTargetSensed(AActor* Target);
+
+protected:
+	/** 咆哮结束，开始追击 */
+	void StartChasingAfterAggro();
+
+	bool bHasAggroed = false;
+	FTimerHandle AggroTimer;
 };

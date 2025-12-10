@@ -57,6 +57,7 @@ void AEnemyBase::BeginPlay()
 
 	// 初始化状态
 	StartPatrolling();
+	bHasAggroed = false;
 
 	// ========== 新增：初始化血条 ==========
 	if (HealthBarWidgetComponent && HealthBarWidgetClass)
@@ -89,7 +90,27 @@ void AEnemyBase::Tick(float DeltaTime)
 
 	if (IsDead()) return;
 
-	// 逻辑已移至行为树
+	// 如果处于追击状态，且有目标
+	if (EnemyState == EEnemyState::EES_Chasing && CombatTarget)
+	{
+		// 计算与目标的距离
+		double DistanceToTarget = (CombatTarget->GetActorLocation() - GetActorLocation()).Size();
+
+		// 如果距离大于攻击范围，继续移动
+		if (DistanceToTarget > AttackRadius)
+		{
+			MoveToTarget(CombatTarget);
+		}
+		// 如果进入攻击范围，且没有在攻击，尝试攻击
+		else if (DistanceToTarget <= AttackRadius && !IsAttacking())
+		{
+			// 停止移动
+			if (EnemyController) EnemyController->StopMovement();
+			
+			// 开始攻击 (这里简单直接调用，也可以用定时器)
+			StartAttackTimer();
+		}
+	}
 }
 
 void AEnemyBase::ReceiveDamage(float Damage, AActor* DamageInstigator)
@@ -389,4 +410,53 @@ bool AEnemyBase::InTargetRange(AActor* Target, double Radius)
 	if (Target == nullptr) return false;
 	const double DistanceToTarget = (Target->GetActorLocation() - GetActorLocation()).Size();
 	return DistanceToTarget <= Radius;
+}
+
+void AEnemyBase::OnTargetSensed(AActor* Target)
+{
+	// 如果已经发现过，或者已经死了，就不再处理
+	if (bHasAggroed || IsDead()) return;
+
+	bHasAggroed = true;
+	CombatTarget = Target;
+
+	// 停止移动
+	if (EnemyController)
+	{
+		EnemyController->StopMovement();
+	}
+
+	// 播放咆哮动画
+	float Duration = 0.0f;
+	if (AggroMontage)
+	{
+		Duration = PlayAnimMontage(AggroMontage);
+		EnemyState = EEnemyState::EES_Engaged; // 设为交战状态，防止其他逻辑干扰
+	}
+
+	// 如果没有动画，Duration 为 0，直接开始追击
+	// 如果有动画，等待动画播放完再追击
+	if (Duration > 0.0f)
+	{
+		GetWorldTimerManager().SetTimer(AggroTimer, this, &AEnemyBase::StartChasingAfterAggro, Duration, false);
+	}
+	else
+	{
+		StartChasingAfterAggro();
+	}
+}
+
+void AEnemyBase::StartChasingAfterAggro()
+{
+	// 切换到追击状态
+	EnemyState = EEnemyState::EES_Chasing;
+	
+	// 设置更快的速度
+	GetCharacterMovement()->MaxWalkSpeed = ChasingSpeed;
+	
+	// 确保朝向目标
+	if (CombatTarget)
+	{
+		ChaseTarget();
+	}
 }
