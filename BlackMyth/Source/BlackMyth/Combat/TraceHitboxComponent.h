@@ -212,7 +212,7 @@ protected:
 
 	/** 是否绘制调试信息 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TraceHitbox|Debug")
-	bool bDebugDraw = true;
+	bool bDebugDraw = false;
 
 	/** 调试颜色 - 未命中 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TraceHitbox|Debug")

@@ -111,6 +111,9 @@ void AEnemyBase::ReceiveDamage(float Damage, AActor* DamageInstigator)
 		ClearPatrolTimer();
 		ClearAttackTimer();
 		
+		// 计算并播放定向受击动画
+		PlayHitReactMontage(DamageInstigator->GetActorLocation());
+
 		// 如果在攻击范围内，尝试反击
 		if (IsInsideAttackRadius() && !IsAttacking())
 		{
@@ -122,16 +125,65 @@ void AEnemyBase::ReceiveDamage(float Damage, AActor* DamageInstigator)
 			ChaseTarget();
 		}
 	}
-
-	// 播放受击动画
-	if (HitReactMontage)
+	// 如果没有攻击者（例如环境伤害），只播放正面受击
+	else 
 	{
-		// 停止当前的攻击
-		StopAnimMontage(AttackMontage);
-		PlayAnimMontage(HitReactMontage);
+		PlayHitReactMontage(GetActorLocation() + GetActorForwardVector() * 100.f);
 	}
 
 	// Death is handled by HealthComponent delegate
+}
+
+void AEnemyBase::PlayHitReactMontage(const FVector& ImpactPoint)
+{
+	// 如果已经死亡，不播放
+	if (IsDead()) return;
+
+	// 停止当前的攻击动画
+	StopAnimMontage(AttackMontage);
+
+	// 计算攻击方向向量 (攻击者位置 - 自身位置)
+	const FVector ImpactLowered(ImpactPoint.X, ImpactPoint.Y, GetActorLocation().Z);
+	const FVector ToHit = (ImpactLowered - GetActorLocation()).GetSafeNormal();
+
+	// 获取角色正前方向量
+	const FVector Forward = GetActorForwardVector();
+	
+	// 使用点乘判断前后 (Cosθ)
+	// Forward · ToHit > 0 表示在前方，< 0 表示在后方
+	const double CosTheta = FVector::DotProduct(Forward, ToHit);
+	
+	// 使用叉乘判断左右
+	// (Forward x ToHit).Z > 0 表示在右侧，< 0 表示在左侧
+	const FVector CrossProduct = FVector::CrossProduct(Forward, ToHit);
+
+	UAnimMontage* MontageToPlay = nullptr;
+
+	if (CosTheta >= 0.5f) // 夹角在 60度以内，视为正面
+	{
+		MontageToPlay = HitReactMontage_Front;
+	}
+	else if (CosTheta <= -0.5f) // 夹角在 120度以外，视为背面
+	{
+		MontageToPlay = HitReactMontage_Back;
+	}
+	else // 侧面
+	{
+		if (CrossProduct.Z > 0)
+		{
+			MontageToPlay = HitReactMontage_Right;
+		}
+		else
+		{
+			MontageToPlay = HitReactMontage_Left;
+		}
+	}
+
+	// 播放选中的蒙太奇
+	if (MontageToPlay)
+	{
+		PlayAnimMontage(MontageToPlay);
+	}
 }
 
 void AEnemyBase::Die()

@@ -212,9 +212,24 @@ protected:
 	UPROPERTY(EditAnywhere, Category = "AI")
 	TObjectPtr<UBehaviorTree> BehaviorTree;
 
-	// 动画蒙太奇 - 受击
+	/** 
+	 * 根据攻击位置播放对应的受击动画 
+	 * @param ImpactPoint 攻击者的位置或击中点
+	 */
+	void PlayHitReactMontage(const FVector& ImpactPoint);
+
+	// 动画蒙太奇 - 受击 (定向)
 	UPROPERTY(EditDefaultsOnly, Category = "Animation|Combat")
-	TObjectPtr<UAnimMontage> HitReactMontage;
+	TObjectPtr<UAnimMontage> HitReactMontage_Front;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Animation|Combat")
+	TObjectPtr<UAnimMontage> HitReactMontage_Back;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Animation|Combat")
+	TObjectPtr<UAnimMontage> HitReactMontage_Left;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Animation|Combat")
+	TObjectPtr<UAnimMontage> HitReactMontage_Right;
 
 	// 动画蒙太奇 - 死亡
 	UPROPERTY(EditDefaultsOnly, Category = "Animation|Combat")

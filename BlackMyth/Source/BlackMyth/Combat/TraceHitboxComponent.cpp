@@ -157,33 +157,85 @@ void UTraceHitboxComponent::PerformTrace()
 	FVector CurrentStart = GetSocketLocation(StartSocketName);
 	FVector CurrentEnd = GetSocketLocation(EndSocketName);
 
-	// 确定扫描的起点
-	// 如果启用插值且有上一帧数据，从上一帧位置开始扫描以捕获快速移动
-	FVector TraceStart = (bUseInterpolation && bHasLastFrameData) ? LastStartLocation : CurrentStart;
-	FVector TraceEnd = CurrentEnd;
-
 	// 配置扫描参数
 	FCollisionQueryParams QueryParams;
 	QueryParams.AddIgnoredActor(GetOwner());
 	QueryParams.bTraceComplex = false;
 	QueryParams.bReturnPhysicalMaterial = false;
 
-	// 执行球形扫描
 	TArray<FHitResult> HitResults;
-	bool bHit = GetWorld()->SweepMultiByChannel(
-		HitResults,
-		TraceStart,
-		TraceEnd,
-		FQuat::Identity,
-		TraceChannel,
-		FCollisionShape::MakeSphere(TraceRadius),
-		QueryParams
-	);
+	bool bHit = false;
 
-	// 绘制调试
-	if (bDebugDraw)
+	// 如果启用插值且有上一帧数据，执行多步扫描以覆盖挥动轨迹
+	if (bUseInterpolation && bHasLastFrameData)
 	{
-		DrawDebugTrace(TraceStart, TraceEnd, bHit);
+		// 步数越多，检测越精确。5步通常足够覆盖快速挥动。
+		const int32 NumSteps = 5;
+		
+		for (int32 i = 0; i < NumSteps; ++i)
+		{
+			float AlphaStart = (float)i / (float)NumSteps;
+			float AlphaEnd = (float)(i + 1) / (float)NumSteps;
+
+			// 1. 扫描 Tip (最重要)
+			FVector TipStart = FMath::Lerp(LastEndLocation, CurrentEnd, AlphaStart);
+			FVector TipEnd = FMath::Lerp(LastEndLocation, CurrentEnd, AlphaEnd);
+			
+			TArray<FHitResult> StepHits;
+			if (GetWorld()->SweepMultiByChannel(StepHits, TipStart, TipEnd, FQuat::Identity, TraceChannel, FCollisionShape::MakeSphere(TraceRadius), QueryParams))
+			{
+				HitResults.Append(StepHits);
+				bHit = true;
+			}
+
+			// 2. 扫描 Mid (中间点)
+			FVector LastMid = (LastStartLocation + LastEndLocation) * 0.5f;
+			FVector CurrentMid = (CurrentStart + CurrentEnd) * 0.5f;
+			FVector MidStart = FMath::Lerp(LastMid, CurrentMid, AlphaStart);
+			FVector MidEnd = FMath::Lerp(LastMid, CurrentMid, AlphaEnd);
+
+			if (GetWorld()->SweepMultiByChannel(StepHits, MidStart, MidEnd, FQuat::Identity, TraceChannel, FCollisionShape::MakeSphere(TraceRadius), QueryParams))
+			{
+				HitResults.Append(StepHits);
+				bHit = true;
+			}
+
+			// 3. 扫描 Handle (握把附近)
+			FVector HandleStart = FMath::Lerp(LastStartLocation, CurrentStart, AlphaStart);
+			FVector HandleEnd = FMath::Lerp(LastStartLocation, CurrentStart, AlphaEnd);
+
+			if (GetWorld()->SweepMultiByChannel(StepHits, HandleStart, HandleEnd, FQuat::Identity, TraceChannel, FCollisionShape::MakeSphere(TraceRadius), QueryParams))
+			{
+				HitResults.Append(StepHits);
+				bHit = true;
+			}
+
+			// 调试绘制
+			if (bDebugDraw)
+			{
+				DrawDebugLine(GetWorld(), TipStart, TipEnd, bHit ? DebugColorHit : DebugColorMiss, false, DebugDrawDuration, 0, 2.0f);
+			}
+		}
+	}
+	else
+	{
+		// 没有上一帧数据，只扫描当前位置 (Handle -> Tip)
+		// 这实际上是检测当前棒身是否与物体重叠
+		bHit = GetWorld()->SweepMultiByChannel(
+			HitResults,
+			CurrentStart,
+			CurrentEnd,
+			FQuat::Identity,
+			TraceChannel,
+			FCollisionShape::MakeSphere(TraceRadius),
+			QueryParams
+		);
+
+		// 绘制调试
+		if (bDebugDraw)
+		{
+			DrawDebugTrace(CurrentStart, CurrentEnd, bHit);
+		}
 	}
 
 	// 处理命中结果
