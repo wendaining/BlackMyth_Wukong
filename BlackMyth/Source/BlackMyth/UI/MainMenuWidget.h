@@ -18,4 +18,6 @@ public:
     // °´Å¥µ÷ÓÃ
     UFUNCTION(BlueprintCallable, Category = "MainMenu")
     void StartGame();
+    void QuitGame();
+
 };
