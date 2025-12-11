@@ -6,6 +6,17 @@
 
 void UMainMenuWidget::StartGame()
 {
-    // 关卡名
+    // 1. 关闭菜单 UI
+    this->RemoveFromParent();
+
+    // 2. 恢复输入
+    APlayerController* PC = GetWorld()->GetFirstPlayerController();
+    if (PC)
+    {
+        PC->SetInputMode(FInputModeGameOnly());
+        PC->bShowMouseCursor = false;
+    }
+
+    // 3. 进入游戏关卡
     UGameplayStatics::OpenLevel(this, FName("/Game/ThirdPerson/Maps/ThirdPersonMap"));
 }
