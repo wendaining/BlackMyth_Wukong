@@ -4,6 +4,7 @@
 #include "../Components/HealthComponent.h"
 #include "../Components/CombatComponent.h"
 #include "../EnemyBase.h"
+#include "../WukongCharacter.h"
 #include "DrawDebugHelpers.h"
 #include "Engine/World.h"
 #include "GameFramework/Character.h"
@@ -452,6 +453,22 @@ void UTraceHitboxComponent::ApplyDamageToTarget(AActor* Target, const FHitResult
 			}
 			return;
 		}
+	}
+
+	// 优先处理 WukongCharacter (确保播放受击动画)
+	AWukongCharacter* Wukong = Cast<AWukongCharacter>(Target);
+	if (Wukong)
+	{
+		Wukong->ReceiveDamage(ActualDamage, GetOwner());
+
+		UE_LOG(LogTemp, Warning, TEXT("[TraceHitbox] Applied %.1f damage to Wukong %s via ReceiveDamage"),
+			ActualDamage, *Wukong->GetName());
+
+		if (CachedCombatComponent.IsValid())
+		{
+			CachedCombatComponent->OnDamageDealt.Broadcast(ActualDamage, Target, FinalDamageInfo.bIsCritical);
+		}
+		return;
 	}
 
 	// 通过 HealthComponent

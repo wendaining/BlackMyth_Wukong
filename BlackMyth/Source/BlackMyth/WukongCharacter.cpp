@@ -279,43 +279,7 @@ void AWukongCharacter::Attack()
     PerformAttack();
 }
 
-// Public Interface Implementation
-void AWukongCharacter::ReceiveDamage(float Damage, AActor* DamageInstigator)
-{
-    if (CurrentState == EWukongState::Dead)
-    {
-        return;
-    }
 
-    // 委托给生命组件处理
-    if (HealthComponent)
-    {
-        HealthComponent->TakeDamage(Damage, DamageInstigator);
-        
-        // 如果还活着，进入硬直状态
-        if (HealthComponent->IsAlive())
-        {
-            ChangeState(EWukongState::HitStun);
-            HitStunTimer = HitStunDuration;
-        }
-    }
-}
-
-void AWukongCharacter::SetInvincible(bool bInInvincible)
-{
-    bIsInvincible = bInInvincible;
-    
-    // 同步到生命组件
-    if (HealthComponent)
-    {
-        HealthComponent->SetInvincible(bInInvincible);
-    }
-    
-    if (!bIsInvincible)
-    {
-        InvincibilityTimer = 0.0f;
-    }
-}
 
 // Input Handlers
 void AWukongCharacter::OnDodgePressed()
@@ -402,6 +366,89 @@ void AWukongCharacter::OnSprintStopped()
         StaminaComponent->SetContinuousConsumption(false, 0.0f);
     }
     UpdateMovementSpeed();
+}
+
+void AWukongCharacter::ReceiveDamage(float Damage, AActor* DamageInstigator)
+{
+    // 如果已经死亡或处于无敌状态，不受到伤害
+    if (CurrentState == EWukongState::Dead || bIsInvincible)
+    {
+        return;
+    }
+
+    // 委托给生命组件扣血
+    if (HealthComponent)
+    {
+        HealthComponent->TakeDamage(Damage, DamageInstigator);
+        
+        if (HealthComponent->IsDead())
+        {
+            Die();
+            return;
+        }
+    }
+
+    // 计算受击方向并播放对应动画
+    UAnimSequence* HitAnim = HitReactFrontAnimation;
+    
+    if (DamageInstigator)
+    {
+        // 计算攻击来源方向（相对于角色的方向）
+        FVector HitDir = (DamageInstigator->GetActorLocation() - GetActorLocation()).GetSafeNormal();
+        FVector Forward = GetActorForwardVector();
+        FVector Right = GetActorRightVector();
+
+        float ForwardDot = FVector::DotProduct(Forward, HitDir);
+        float RightDot = FVector::DotProduct(Right, HitDir);
+
+        // 判定受击方向
+        // 注意：这里是判断攻击来源。如果攻击来自前方，Dot > 0。
+        if (ForwardDot >= 0.5f) // 攻击来自前方
+        {
+            HitAnim = HitReactFrontAnimation;
+        }
+        else if (ForwardDot <= -0.5f) // 攻击来自后方
+        {
+            HitAnim = HitReactBackAnimation;
+        }
+        else // 侧面
+        {
+            if (RightDot > 0.0f) // 攻击来自右侧
+            {
+                HitAnim = HitReactRightAnimation;
+            }
+            else // 攻击来自左侧
+            {
+                HitAnim = HitReactLeftAnimation;
+            }
+        }
+    }
+
+    // 播放受击动画（作为动态蒙太奇）
+    if (HitAnim)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("ReceiveDamage: Playing HitAnim '%s'"), *HitAnim->GetName());
+        // 优先使用 DefaultSlot
+        float Duration = PlayAnimationAsMontageDynamic(HitAnim, FName("DefaultSlot"), 1.0f);
+        HitStunTimer = (Duration > 0.0f) ? Duration : HitStunDuration;
+    }
+    else
+    {
+        UE_LOG(LogTemp, Warning, TEXT("ReceiveDamage: HitAnim is NULL!"));
+        HitStunTimer = HitStunDuration;
+    }
+
+    // 进入受击硬直状态
+    ChangeState(EWukongState::HitStun);
+}
+
+void AWukongCharacter::SetInvincible(bool bInInvincible)
+{
+    this->bIsInvincible = bInInvincible;
+    if (HealthComponent)
+    {
+        HealthComponent->SetInvincible(bInInvincible);
+    }
 }
 
 // State Management
