@@ -86,7 +86,7 @@ void AEnemyBase::BeginPlay()
 	// 统计场景中的敌人数量
 	TArray<AActor*> AllEnemies;
 	UGameplayStatics::GetAllActorsOfClass(this, AEnemyBase::StaticClass(), AllEnemies);
-	UE_LOG(LogTemp, Warning, TEXT("AEnemyBase::BeginPlay - Total Enemies in World: %d. I am: %s"), AllEnemies.Num(), *GetName());
+	UE_LOG(LogTemp, Warning, TEXT("AEnemyBase::BeginPlay - Total Enemies: %d. I am: %s. AttackRadius: %f"), AllEnemies.Num(), *GetName(), AttackRadius);
 
 	// 初始化状态
 	StartPatrolling();
@@ -103,6 +103,34 @@ void AEnemyBase::BeginPlay()
 		if (HealthBarWidget && HealthComponent)
 		{
 			HealthBarWidget->InitializeHealthBar(HealthComponent);
+		}
+	}
+
+	// 尝试自动配置 TraceHitbox 的 Socket
+	if (TraceHitboxComponent && GetMesh())
+	{
+		// 尝试常见的武器骨骼名称
+		const TArray<FName> PossibleStartSockets = { FName("weapon_r"), FName("hand_r"), FName("fx_trail_01") };
+		const TArray<FName> PossibleEndSockets = { FName("weapon_t"), FName("weapon_tip"), FName("fx_trail_02"), FName("middle_01_r") };
+
+		for (const FName& Name : PossibleStartSockets)
+		{
+			if (GetMesh()->DoesSocketExist(Name) || GetMesh()->GetBoneIndex(Name) != INDEX_NONE)
+			{
+				TraceHitboxComponent->SetStartSocket(Name);
+				UE_LOG(LogTemp, Warning, TEXT("AEnemyBase::BeginPlay - Auto-configured StartSocket: %s"), *Name.ToString());
+				break;
+			}
+		}
+
+		for (const FName& Name : PossibleEndSockets)
+		{
+			if (GetMesh()->DoesSocketExist(Name) || GetMesh()->GetBoneIndex(Name) != INDEX_NONE)
+			{
+				TraceHitboxComponent->SetEndSocket(Name);
+				UE_LOG(LogTemp, Warning, TEXT("AEnemyBase::BeginPlay - Auto-configured EndSocket: %s"), *Name.ToString());
+				break;
+			}
 		}
 	}
 
@@ -126,6 +154,20 @@ void AEnemyBase::Tick(float DeltaTime)
 	if (CombatTarget)
 	{
 		const double DistanceToTarget = (CombatTarget->GetActorLocation() - GetActorLocation()).Size();
+
+		// 始终面向目标 (当不移动时)
+		// 解决“乱转”问题：当敌人停止移动准备攻击时，平滑旋转朝向目标
+		if (!IsChasing() && !GetCharacterMovement()->IsFalling())
+		{
+			FVector Direction = CombatTarget->GetActorLocation() - GetActorLocation();
+			Direction.Z = 0.0f; // 只在水平面旋转
+			if (!Direction.IsNearlyZero())
+			{
+				FRotator TargetRot = Direction.Rotation();
+				FRotator NewRot = FMath::RInterpTo(GetActorRotation(), TargetRot, DeltaTime, 5.0f);
+				SetActorRotation(NewRot);
+			}
+		}
 
 		// 如果处于追击状态
 		if (EnemyState == EEnemyState::EES_Chasing)
@@ -308,6 +350,13 @@ void AEnemyBase::Attack()
 	if (AttackMontage)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("[%s] AEnemyBase::Attack - Playing Montage: %s"), *GetName(), *AttackMontage->GetName());
+		
+		// 开启攻击判定 (保底机制：如果蒙太奇里没有加 Notify，这里强制开启)
+		if (TraceHitboxComponent)
+		{
+			TraceHitboxComponent->ActivateTrace();
+		}
+
 		const float Duration = PlayAnimMontage(AttackMontage);
 		if (Duration <= 0.0f)
 		{
@@ -331,6 +380,12 @@ void AEnemyBase::AttackEnd()
 {
 	UE_LOG(LogTemp, Warning, TEXT("[%s] AEnemyBase::AttackEnd - Attack Finished"), *GetName());
 	
+	// 关闭攻击判定
+	if (TraceHitboxComponent)
+	{
+		TraceHitboxComponent->DeactivateTrace();
+	}
+
 	// 清除保底计时器（如果是通过 AnimNotify 调用的，就不需要计时器了）
 	GetWorldTimerManager().ClearTimer(AttackEndTimer);
 
@@ -405,6 +460,13 @@ void AEnemyBase::StartPatrolling()
 {
 	EnemyState = EEnemyState::EES_Patrolling;
 	GetCharacterMovement()->MaxWalkSpeed = PatrollingSpeed;
+	
+	// 停止注视目标
+	if (EnemyController)
+	{
+		EnemyController->ClearFocus(EAIFocusPriority::Gameplay);
+	}
+	
 	MoveToTarget(PatrolTarget);
 }
 
@@ -417,6 +479,8 @@ void AEnemyBase::ChaseTarget()
 	if (EnemyController)
 	{
 		EnemyController->StopMovement();
+		// 锁定注视目标，防止乱转
+		EnemyController->SetFocus(CombatTarget);
 	}
 	
 	MoveToTarget(CombatTarget);
@@ -428,8 +492,11 @@ void AEnemyBase::MoveToTarget(AActor* Target)
 	
 	FAIMoveRequest MoveRequest;
 	MoveRequest.SetGoalActor(Target);
-	// 增大接受半径，避免敌人试图与玩家重叠 (AttackRadius 是 200，这里设为 60 比较合适)
-	MoveRequest.SetAcceptanceRadius(60.0f); 
+	
+	// 动态调整接受半径：目标是进入攻击范围，而不是贴脸
+	// 留出 50.0f 的余量，确保能触发 IsInsideAttackRadius，同时避免挤在一起导致原地打转
+	const float AcceptanceRadius = FMath::Max((float)AttackRadius - 50.0f, 50.0f);
+	MoveRequest.SetAcceptanceRadius(AcceptanceRadius); 
 	
 	FNavPathSharedPtr NavPath;
 	EnemyController->MoveTo(MoveRequest, &NavPath);

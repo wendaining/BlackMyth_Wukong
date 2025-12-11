@@ -380,6 +380,13 @@ bool UTraceHitboxComponent::IsValidTarget(AActor* Target) const
 	if (!TargetHealth)
 	{
 		// 没有 HealthComponent 的不是可攻击目标（如地形、道具等）
+		// 增加调试日志，帮助排查为什么玩家不扣血
+		static bool bWarnedOnce = false;
+		if (!bWarnedOnce && Target->GetName().Contains("Wukong"))
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[TraceHitbox] Target %s REJECTED: No HealthComponent found!"), *Target->GetName());
+			bWarnedOnce = true;
+		}
 		return false;
 	}
 
