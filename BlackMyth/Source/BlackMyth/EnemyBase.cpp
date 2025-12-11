@@ -7,8 +7,12 @@
 #include "Navigation/PathFollowingComponent.h"
 #include "Components/HealthComponent.h"
 #include "Components/CombatComponent.h"
+#include "Combat/TraceHitboxComponent.h"
 #include "Components/WidgetComponent.h"
 #include "UI/EnemyHealthBarWidget.h"
+#include "Engine/SkeletalMesh.h"
+#include "Animation/Skeleton.h"
+#include "Animation/AnimInstance.h"
 
 AEnemyBase::AEnemyBase()
 {
@@ -17,6 +21,9 @@ AEnemyBase::AEnemyBase()
 	// 创建组件
 	HealthComponent = CreateDefaultSubobject<UHealthComponent>(TEXT("HealthComponent"));
 	CombatComponent = CreateDefaultSubobject<UCombatComponent>(TEXT("CombatComponent"));
+	TraceHitboxComponent = CreateDefaultSubobject<UTraceHitboxComponent>(TEXT("TraceHitboxComponent"));
+	// TraceHitboxComponent 是 ActorComponent，不需要 SetupAttachment
+	// TraceHitboxComponent->SetupAttachment(GetRootComponent());
 
 	// 设置默认 AI 控制器
 	AIControllerClass = AEnemyAIController::StaticClass();
@@ -32,6 +39,9 @@ AEnemyBase::AEnemyBase()
 	GetCharacterMovement()->bOrientRotationToMovement = true;
 	GetCharacterMovement()->RotationRate = FRotator(0.0f, 500.0f, 0.0f);
 	GetCharacterMovement()->MaxWalkSpeed = PatrollingSpeed;
+
+	// 默认攻击范围 (稍微加大一点，避免贴得太近)
+	AttackRadius = 200.0f;
 
 	// ========== 新增：创建血条组件 ==========
 	HealthBarWidgetComponent = CreateDefaultSubobject<UWidgetComponent>(TEXT("HealthBarWidget"));
@@ -54,6 +64,29 @@ void AEnemyBase::BeginPlay()
 	{
 		HealthComponent->OnDeath.AddDynamic(this, &AEnemyBase::HandleDeath);
 	}
+
+	// 调试日志：检查蒙太奇是否正确加载
+	if (AttackMontage)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("AEnemyBase::BeginPlay - AttackMontage is SET: %s"), *AttackMontage->GetName());
+	}
+	else
+	{
+		UE_LOG(LogTemp, Error, TEXT("AEnemyBase::BeginPlay - AttackMontage is NULL! Please check Blueprint assignment."));
+	}
+
+	if (AggroMontage)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("AEnemyBase::BeginPlay - AggroMontage is SET: %s"), *AggroMontage->GetName());
+	}
+
+	// 强制应用巡逻速度，确保蓝图配置生效
+	GetCharacterMovement()->MaxWalkSpeed = PatrollingSpeed;
+
+	// 统计场景中的敌人数量
+	TArray<AActor*> AllEnemies;
+	UGameplayStatics::GetAllActorsOfClass(this, AEnemyBase::StaticClass(), AllEnemies);
+	UE_LOG(LogTemp, Warning, TEXT("AEnemyBase::BeginPlay - Total Enemies in World: %d. I am: %s"), AllEnemies.Num(), *GetName());
 
 	// 初始化状态
 	StartPatrolling();
@@ -90,28 +123,47 @@ void AEnemyBase::Tick(float DeltaTime)
 
 	if (IsDead()) return;
 
-	// 如果处于追击状态，且有目标
-	if (EnemyState == EEnemyState::EES_Chasing && CombatTarget)
+	if (CombatTarget)
 	{
-		// 计算与目标的距离
-		double DistanceToTarget = (CombatTarget->GetActorLocation() - GetActorLocation()).Size();
+		const double DistanceToTarget = (CombatTarget->GetActorLocation() - GetActorLocation()).Size();
 
-		// 如果距离大于攻击范围，继续移动
-		if (DistanceToTarget > AttackRadius)
+		// 如果处于追击状态
+		if (EnemyState == EEnemyState::EES_Chasing)
 		{
-			MoveToTarget(CombatTarget);
+			// 如果距离大于攻击范围，继续移动
+			if (DistanceToTarget > AttackRadius)
+			{
+				// 优化：只有在没有移动时才请求移动，避免每帧调用 MoveTo 重置路径
+				if (EnemyController && EnemyController->GetMoveStatus() == EPathFollowingStatus::Idle)
+				{
+					MoveToTarget(CombatTarget);
+				}
+			}
+			// 如果进入攻击范围，准备攻击
+			else
+			{
+				// 停止移动
+				if (EnemyController) EnemyController->StopMovement();
+				
+				// 开始攻击计时
+				StartAttackTimer();
+			}
 		}
-		// 如果进入攻击范围，且没有在攻击，尝试攻击
-		else if (DistanceToTarget <= AttackRadius && !IsAttacking())
+		// 如果处于等待攻击状态 (EES_Attacking)
+		else if (EnemyState == EEnemyState::EES_Attacking)
 		{
-			// 停止移动
-			if (EnemyController) EnemyController->StopMovement();
-			
-			// 开始攻击 (这里简单直接调用，也可以用定时器)
-			StartAttackTimer();
+			// 如果在等待攻击时目标跑远了，取消攻击并重新追击
+			// 增加 50.0f 的缓冲距离 (Hysteresis)，防止在边缘反复切换状态
+			if (DistanceToTarget > (AttackRadius + 50.0f))
+			{
+				UE_LOG(LogTemp, Warning, TEXT("[%s] AEnemyBase::Tick - Target too far (%.2f > %.2f), Canceling Attack"), *GetName(), DistanceToTarget, AttackRadius + 50.0f);
+				ClearAttackTimer();
+				ChaseTarget();
+			}
 		}
 	}
 }
+
 
 void AEnemyBase::ReceiveDamage(float Damage, AActor* DamageInstigator)
 {
@@ -249,23 +301,78 @@ void AEnemyBase::Attack()
 {
 	if (CombatTarget == nullptr || IsDead()) return;
 	
+	UE_LOG(LogTemp, Warning, TEXT("[%s] AEnemyBase::Attack - Attacking Target"), *GetName());
 	EnemyState = EEnemyState::EES_Engaged;
 	
+	// 强制打印 AttackMontage 的状态
 	if (AttackMontage)
 	{
-		PlayAnimMontage(AttackMontage);
+		UE_LOG(LogTemp, Warning, TEXT("[%s] AEnemyBase::Attack - Playing Montage: %s"), *GetName(), *AttackMontage->GetName());
+		const float Duration = PlayAnimMontage(AttackMontage);
+		if (Duration <= 0.0f)
+		{
+			UE_LOG(LogTemp, Error, TEXT("[%s] AEnemyBase::Attack - Montage failed to play! Duration=0. Forcing AttackEnd."), *GetName());
+			AttackEnd();
+		}
+		else
+		{
+			// 设置保底计时器：如果动画蓝图没有发送 AttackEnd 通知，我们就在动画播放完毕后强制结束攻击
+			GetWorldTimerManager().SetTimer(AttackEndTimer, this, &AEnemyBase::AttackEnd, Duration, false);
+		}
+	}
+	else
+	{
+		UE_LOG(LogTemp, Error, TEXT("[%s] AEnemyBase::Attack - No AttackMontage assigned! (Ptr is NULL)"), *GetName());
+		AttackEnd();
 	}
 }
 
 void AEnemyBase::AttackEnd()
 {
-	EnemyState = EEnemyState::EES_NoState;
+	UE_LOG(LogTemp, Warning, TEXT("[%s] AEnemyBase::AttackEnd - Attack Finished"), *GetName());
+	
+	// 清除保底计时器（如果是通过 AnimNotify 调用的，就不需要计时器了）
+	GetWorldTimerManager().ClearTimer(AttackEndTimer);
+
+	// 修复：攻击结束后，先将状态设为 Chasing，这样如果 CheckCombatTarget 决定不攻击，
+	// Tick 函数也能接管移动逻辑。
+	EnemyState = EEnemyState::EES_Chasing;
+	
 	CheckCombatTarget();
 }
 
 void AEnemyBase::CheckCombatTarget()
 {
-	// 逻辑移至行为树
+	if (IsDead()) return;
+
+	if (CombatTarget)
+	{
+		// 如果有目标，且不在攻击范围内，继续追击
+		if (!IsInsideAttackRadius())
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[%s] AEnemyBase::CheckCombatTarget - Target out of range, Chasing"), *GetName());
+			// 清除攻击计时器，防止重复攻击
+			ClearAttackTimer();
+			
+			// 重新开始追击
+			ChaseTarget();
+		}
+		// 如果还在攻击范围内，且没有在攻击，准备下一次攻击
+		else if (!IsAttacking())
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[%s] AEnemyBase::CheckCombatTarget - Target in range, Preparing Attack"), *GetName());
+			// 确保没有移动
+			if (EnemyController) EnemyController->StopMovement();
+			
+			StartAttackTimer();
+		}
+	}
+	else
+	{
+		// 丢失目标，回到巡逻
+		ClearAttackTimer();
+		StartPatrolling();
+	}
 }
 
 void AEnemyBase::CheckPatrolTarget()
@@ -305,6 +412,13 @@ void AEnemyBase::ChaseTarget()
 {
 	EnemyState = EEnemyState::EES_Chasing;
 	GetCharacterMovement()->MaxWalkSpeed = ChasingSpeed;
+	
+	// 强制停止当前移动，确保新的 MoveTo 请求能生效
+	if (EnemyController)
+	{
+		EnemyController->StopMovement();
+	}
+	
 	MoveToTarget(CombatTarget);
 }
 
@@ -314,8 +428,14 @@ void AEnemyBase::MoveToTarget(AActor* Target)
 	
 	FAIMoveRequest MoveRequest;
 	MoveRequest.SetGoalActor(Target);
-	MoveRequest.SetAcceptanceRadius(15.0f); // 稍微小一点的接受半径
-	EnemyController->MoveTo(MoveRequest);
+	// 增大接受半径，避免敌人试图与玩家重叠 (AttackRadius 是 200，这里设为 60 比较合适)
+	MoveRequest.SetAcceptanceRadius(60.0f); 
+	
+	FNavPathSharedPtr NavPath;
+	EnemyController->MoveTo(MoveRequest, &NavPath);
+	
+	// 简单的调试日志，检查移动请求是否发出
+	// UE_LOG(LogTemp, Log, TEXT("MoveToTarget: %s"), *Target->GetName());
 }
 
 AActor* AEnemyBase::ChoosePatrolTarget()
@@ -342,6 +462,7 @@ void AEnemyBase::StartAttackTimer()
 {
 	EnemyState = EEnemyState::EES_Attacking;
 	const float AttackTime = FMath::RandRange(AttackMin, AttackMax);
+	UE_LOG(LogTemp, Warning, TEXT("[%s] AEnemyBase::StartAttackTimer - Next attack in %f seconds"), *GetName(), AttackTime);
 	GetWorldTimerManager().SetTimer(AttackTimer, this, &AEnemyBase::Attack, AttackTime);
 }
 
@@ -420,6 +541,8 @@ void AEnemyBase::OnTargetSensed(AActor* Target)
 	bHasAggroed = true;
 	CombatTarget = Target;
 
+	UE_LOG(LogTemp, Warning, TEXT("AEnemyBase::OnTargetSensed - Target Sensed: %s"), *Target->GetName());
+
 	// 停止移动
 	if (EnemyController)
 	{
@@ -430,8 +553,13 @@ void AEnemyBase::OnTargetSensed(AActor* Target)
 	float Duration = 0.0f;
 	if (AggroMontage)
 	{
+		UE_LOG(LogTemp, Warning, TEXT("AEnemyBase::OnTargetSensed - Playing AggroMontage: %s"), *AggroMontage->GetName());
 		Duration = PlayAnimMontage(AggroMontage);
 		EnemyState = EEnemyState::EES_Engaged; // 设为交战状态，防止其他逻辑干扰
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("AEnemyBase::OnTargetSensed - No AggroMontage assigned."));
 	}
 
 	// 如果没有动画，Duration 为 0，直接开始追击

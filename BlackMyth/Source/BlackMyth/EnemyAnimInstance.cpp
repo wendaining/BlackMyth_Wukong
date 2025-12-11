@@ -1,6 +1,7 @@
 #include "EnemyAnimInstance.h"
 #include "GameFramework/Character.h"
 #include "GameFramework/CharacterMovementComponent.h"
+#include "EnemyBase.h"
 
 void UEnemyAnimInstance::NativeInitializeAnimation()
 {
@@ -8,6 +9,7 @@ void UEnemyAnimInstance::NativeInitializeAnimation()
 
 	// 获取拥有该动画的角色
 	OwnerCharacter = Cast<ACharacter>(TryGetPawnOwner());
+	Enemy = Cast<AEnemyBase>(OwnerCharacter);
 }
 
 void UEnemyAnimInstance::NativeUpdateAnimation(float DeltaTime)
@@ -18,6 +20,7 @@ void UEnemyAnimInstance::NativeUpdateAnimation(float DeltaTime)
 	if (OwnerCharacter == nullptr)
 	{
 		OwnerCharacter = Cast<ACharacter>(TryGetPawnOwner());
+		Enemy = Cast<AEnemyBase>(OwnerCharacter);
 	}
 
 	if (OwnerCharacter)

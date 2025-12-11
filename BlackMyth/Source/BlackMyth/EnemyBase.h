@@ -9,6 +9,7 @@ class UBehaviorTree;
 class AAIController;
 class UHealthComponent;
 class UCombatComponent;
+class UTraceHitboxComponent;
 class UEnemyHealthBarWidget;
 
 /**
@@ -157,6 +158,9 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	TObjectPtr<UCombatComponent> CombatComponent;
 
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
+	TObjectPtr<UTraceHitboxComponent> TraceHitboxComponent;
+
 	// 状态
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "State")
 	EEnemyState EnemyState = EEnemyState::EES_Patrolling;
@@ -207,6 +211,8 @@ protected:
 	// 计时器句柄
 	FTimerHandle PatrolTimer;
 	FTimerHandle AttackTimer;
+	FTimerHandle AggroTimer;
+	FTimerHandle AttackEndTimer; // 攻击结束计时器（保底机制）
 
 	// 行为树 (保留，以备后续扩展)
 	UPROPERTY(EditAnywhere, Category = "AI")
@@ -236,11 +242,11 @@ protected:
 	TObjectPtr<UAnimMontage> DeathMontage;
 
 	// 动画蒙太奇 - 发现敌人(咆哮)
-	UPROPERTY(EditDefaultsOnly, Category = "Animation|Combat")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Animation|Combat")
 	TObjectPtr<UAnimMontage> AggroMontage;
 
 	// 动画蒙太奇 - 攻击
-	UPROPERTY(EditDefaultsOnly, Category = "Animation|Combat")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Animation|Combat")
 	TObjectPtr<UAnimMontage> AttackMontage;
 
 public:
@@ -252,5 +258,4 @@ protected:
 	void StartChasingAfterAggro();
 
 	bool bHasAggroed = false;
-	FTimerHandle AggroTimer;
 };

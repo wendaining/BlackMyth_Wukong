@@ -28,7 +28,11 @@ protected:
 	UPROPERTY(BlueprintReadOnly, Category = "Movement")
 	bool bIsMoving;
 
-	/** 拥有的角色引用 */
-	UPROPERTY(BlueprintReadOnly, Category = "References")
+	/** 拥有该动画的角色 */
+	UPROPERTY(BlueprintReadOnly, Category = "Reference")
 	class ACharacter* OwnerCharacter;
+
+	/** 敌人的引用 */
+	UPROPERTY(BlueprintReadOnly, Category = "Reference")
+	class AEnemyBase* Enemy;
 };
