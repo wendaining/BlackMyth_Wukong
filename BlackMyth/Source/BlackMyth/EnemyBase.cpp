@@ -297,7 +297,12 @@ void AEnemyBase::PlayHitReactMontage(const FVector& ImpactPoint)
 	// 播放选中的蒙太奇
 	if (MontageToPlay)
 	{
+		UE_LOG(LogTemp, Warning, TEXT("[%s] PlayHitReactMontage - Playing: %s"), *GetName(), *MontageToPlay->GetName());
 		PlayAnimMontage(MontageToPlay);
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[%s] PlayHitReactMontage - No Montage found for this direction!"), *GetName());
 	}
 }
 
