@@ -7,50 +7,43 @@
 
 void UMainMenuWidget::StartGame()
 {
-    // 1. 关闭菜单 UI
-    this->RemoveFromParent();
+    // 1. 关闭主菜单 UI
+    RemoveFromParent();
 
-    // 2. 恢复输入
-    APlayerController* PC = GetWorld()->GetFirstPlayerController();
-    if (PC)
-    {
-        PC->SetInputMode(FInputModeGameOnly());
-        PC->bShowMouseCursor = false;
+    // 2. 恢复游戏输入，隐藏鼠标
+    if (UWorld* world = GetWorld()) {
+        if (APlayerController* pc = world->GetFirstPlayerController()) {
+            pc->SetInputMode(FInputModeGameOnly());
+            pc->bShowMouseCursor = false;
+        }
     }
-
-    // 3. 进入游戏关卡
-    UGameplayStatics::OpenLevel(this, FName("/Game/ThirdPerson/Maps/ThirdPersonMap"));
+    // 3. 进入游戏地图
+    UGameplayStatics::OpenLevel(this, FName(TEXT("/Game/ThirdPerson/Maps/ThirdPersonMap")));
 }
 
 void UMainMenuWidget::QuitGame()
 {
     APlayerController* PC = GetWorld()->GetFirstPlayerController();
+    // 关闭 UI（可选）并退出游戏
+    RemoveFromParent();
 
-    // 关闭 UI（可选，但建议加）
-    this->RemoveFromParent();
-
-    // 退出游戏
-    UKismetSystemLibrary::QuitGame(
-        this,
-        PC,
-        EQuitPreference::Quit,
-        true
-    );
+    UKismetSystemLibrary::QuitGame(this, PC, EQuitPreference::Quit, true);
 }
 
 void UMainMenuWidget::OpenSettings()
 {
     UWorld* World = GetWorld();
     if (!World) return;
-
-    UClass* SettingsWidgetClass = LoadClass<UUserWidget>(
+    UClass* settings_widget_class = LoadClass<UUserWidget>(
         nullptr,
-        TEXT("/Game/_BlackMythGame/Blueprints/Menu/WBP_SettingsMenu.WBP_SettingsMenu_C")
-    );
+        TEXT("/Game/_BlackMythGame/Blueprints/Menu/WBP_SettingsMenu.WBP_SettingsMenu_C"));
 
-    UUserWidget* SettingsUI = CreateWidget<UUserWidget>(World, SettingsWidgetClass);
-    if (SettingsUI)
-    {
-        SettingsUI->AddToViewport();
+    if (settings_widget_class == nullptr) {
+        return;
+    }
+
+    // 创建并显示设置界面
+    if (UUserWidget* settings_ui = CreateWidget<UUserWidget>(World, settings_widget_class)) {
+        settings_ui->AddToViewport();
     }
 }

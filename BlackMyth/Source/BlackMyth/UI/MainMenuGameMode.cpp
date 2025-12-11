@@ -10,19 +10,18 @@ void AMainMenuGameMode::BeginPlay()
 {
     Super::BeginPlay();
 
-    APlayerController* PC = GetWorld()->GetFirstPlayerController();
-    if (PC)
-    {
-        PC->SetInputMode(FInputModeUIOnly());
-        PC->bShowMouseCursor = true;
+    // 在 BeginPlay 中创建主菜单并设置输入为仅 UI。
+    if (UWorld* world = GetWorld()) {
+        APlayerController* pc = world->GetFirstPlayerController();
+        if (pc != nullptr) {
+            pc->SetInputMode(FInputModeUIOnly());
+            pc->bShowMouseCursor = true;
 
-        if (MainMenuWidgetClass)
-        {
-            MainMenuWidget = CreateWidget<UUserWidget>(PC, MainMenuWidgetClass);
-
-            if (MainMenuWidget)
-            {
-                MainMenuWidget->AddToViewport();
+            if (MainMenuWidgetClass != nullptr) {
+                MainMenuWidget = CreateWidget<UUserWidget>(pc, MainMenuWidgetClass);
+                if (MainMenuWidget != nullptr) {
+                    MainMenuWidget->AddToViewport();
+                }
             }
         }
     }
