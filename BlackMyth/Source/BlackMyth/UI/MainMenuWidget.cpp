@@ -37,3 +37,20 @@ void UMainMenuWidget::QuitGame()
         true
     );
 }
+
+void UMainMenuWidget::OpenSettings()
+{
+    UWorld* World = GetWorld();
+    if (!World) return;
+
+    UClass* SettingsWidgetClass = LoadClass<UUserWidget>(
+        nullptr,
+        TEXT("/Game/_BlackMythGame/Blueprints/Menu/WBP_SettingsMenu.WBP_SettingsMenu_C")
+    );
+
+    UUserWidget* SettingsUI = CreateWidget<UUserWidget>(World, SettingsWidgetClass);
+    if (SettingsUI)
+    {
+        SettingsUI->AddToViewport();
+    }
+}
