@@ -226,6 +226,12 @@ void AEnemyBase::ReceiveDamage(float Damage, AActor* DamageInstigator)
 		ClearPatrolTimer();
 		ClearAttackTimer();
 		
+		// 播放受击音效
+		if (HitSound)
+		{
+			UGameplayStatics::PlaySoundAtLocation(this, HitSound, GetActorLocation());
+		}
+
 		// 计算并播放定向受击动画
 		PlayHitReactMontage(DamageInstigator->GetActorLocation());
 
@@ -312,6 +318,12 @@ void AEnemyBase::Die()
 	
 	EnemyState = EEnemyState::EES_Dead;
 
+	// 播放死亡音效
+	if (DeathSound)
+	{
+		UGameplayStatics::PlaySoundAtLocation(this, DeathSound, GetActorLocation());
+	}
+
 	// 播放死亡动画
 	if (DeathMontage)
 	{
@@ -356,6 +368,12 @@ void AEnemyBase::Attack()
 	{
 		UE_LOG(LogTemp, Warning, TEXT("[%s] AEnemyBase::Attack - Playing Montage: %s"), *GetName(), *AttackMontage->GetName());
 		
+		// 播放攻击音效
+		if (AttackSound)
+		{
+			UGameplayStatics::PlaySoundAtLocation(this, AttackSound, GetActorLocation());
+		}
+
 		// 开启攻击判定 (保底机制：如果蒙太奇里没有加 Notify，这里强制开启)
 		if (TraceHitboxComponent)
 		{
@@ -623,6 +641,12 @@ void AEnemyBase::OnTargetSensed(AActor* Target)
 	if (EnemyController)
 	{
 		EnemyController->StopMovement();
+	}
+
+	// 播放发现音效
+	if (AggroSound)
+	{
+		UGameplayStatics::PlaySoundAtLocation(this, AggroSound, GetActorLocation());
 	}
 
 	// 播放咆哮动画

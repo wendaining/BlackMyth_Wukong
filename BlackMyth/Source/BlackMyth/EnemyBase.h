@@ -249,6 +249,24 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Animation|Combat")
 	TObjectPtr<UAnimMontage> AttackMontage;
 
+	// ========== 音效 (SFX) ==========
+
+	// 发现敌人时的咆哮声
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Audio")
+	TObjectPtr<USoundBase> AggroSound;
+
+	// 攻击时的挥舞声/吼叫声
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Audio")
+	TObjectPtr<USoundBase> AttackSound;
+
+	// 受击时的声音
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Audio")
+	TObjectPtr<USoundBase> HitSound;
+
+	// 死亡时的声音
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Audio")
+	TObjectPtr<USoundBase> DeathSound;
+
 public:
 	/** 发现目标时调用 */
 	void OnTargetSensed(AActor* Target);
