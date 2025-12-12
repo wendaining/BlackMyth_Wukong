@@ -107,6 +107,42 @@ void AEnemyBase::BeginPlay()
 		}
 	}
 
+	// ========== 新增：生成武器 ==========
+	if (WeaponClass)
+	{
+		FActorSpawnParameters SpawnParams;
+		SpawnParams.Owner = this;
+		SpawnParams.Instigator = this;
+		SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+
+		CurrentWeapon = GetWorld()->SpawnActor<AActor>(WeaponClass, GetActorTransform(), SpawnParams);
+		if (CurrentWeapon)
+		{
+			// 附加到插槽
+			CurrentWeapon->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetIncludingScale, WeaponSocketName);
+			UE_LOG(LogTemp, Warning, TEXT("[%s] Spawned Weapon: %s attached to %s"), *GetName(), *CurrentWeapon->GetName(), *WeaponSocketName.ToString());
+
+			// 尝试查找武器的 Mesh 组件，用于 Hitbox 扫描
+			// 优先查找 SkeletalMesh (如复杂武器)，其次查找 StaticMesh (如简单武器)
+			USceneComponent* WeaponMesh = CurrentWeapon->FindComponentByClass<USkeletalMeshComponent>();
+			if (!WeaponMesh)
+			{
+				WeaponMesh = CurrentWeapon->FindComponentByClass<UStaticMeshComponent>();
+			}
+
+			// 如果找到了武器 Mesh，更新 Hitbox 组件的引用
+			if (WeaponMesh && TraceHitboxComponent)
+			{
+				TraceHitboxComponent->SetMeshToTrace(WeaponMesh);
+				UE_LOG(LogTemp, Log, TEXT("[%s] Updated TraceHitbox to use Weapon Mesh: %s"), *GetName(), *WeaponMesh->GetName());
+			}
+			else
+			{
+				UE_LOG(LogTemp, Warning, TEXT("[%s] Weapon spawned but no Mesh found for Hitbox!"), *GetName());
+			}
+		}
+	}
+
 	// 尝试自动配置 TraceHitbox 的 Socket
 	if (TraceHitboxComponent && GetMesh())
 	{

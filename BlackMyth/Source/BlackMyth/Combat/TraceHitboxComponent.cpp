@@ -287,6 +287,15 @@ void UTraceHitboxComponent::PerformTrace()
 	bHasLastFrameData = true;
 }
 
+void UTraceHitboxComponent::SetMeshToTrace(USceneComponent* NewMesh)
+{
+	if (NewMesh)
+	{
+		CachedMesh = NewMesh;
+		UE_LOG(LogTemp, Log, TEXT("[TraceHitbox] SetMeshToTrace: %s"), *NewMesh->GetName());
+	}
+}
+
 bool UTraceHitboxComponent::DoesBoneOrSocketExist(FName Name) const
 {
 	if (!CachedMesh.IsValid())
@@ -300,18 +309,29 @@ bool UTraceHitboxComponent::DoesBoneOrSocketExist(FName Name) const
 		return true;
 	}
 
-	// 再检查是否为 Bone
-	int32 BoneIndex = CachedMesh->GetBoneIndex(Name);
-	return BoneIndex != INDEX_NONE;
+	// 再检查是否为 Bone (仅 SkinnedMeshComponent 有)
+	if (USkinnedMeshComponent* SkinnedMesh = Cast<USkinnedMeshComponent>(CachedMesh.Get()))
+	{
+		int32 BoneIndex = SkinnedMesh->GetBoneIndex(Name);
+		return BoneIndex != INDEX_NONE;
+	}
+	
+	return false;
 }
 
 FVector UTraceHitboxComponent::GetSocketLocation(FName SocketName) const
 {
 	if (CachedMesh.IsValid())
 	{
-		// 检查 Socket 或 Bone 是否存在
+		// 检查 Socket 是否存在
 		bool bIsSocket = CachedMesh->DoesSocketExist(SocketName);
-		bool bIsBone = CachedMesh->GetBoneIndex(SocketName) != INDEX_NONE;
+		bool bIsBone = false;
+
+		// 检查 Bone 是否存在
+		if (USkinnedMeshComponent* SkinnedMesh = Cast<USkinnedMeshComponent>(CachedMesh.Get()))
+		{
+			bIsBone = SkinnedMesh->GetBoneIndex(SocketName) != INDEX_NONE;
+		}
 
 		if (bIsSocket || bIsBone)
 		{
@@ -319,26 +339,34 @@ FVector UTraceHitboxComponent::GetSocketLocation(FName SocketName) const
 			return CachedMesh->GetSocketLocation(SocketName);
 		}
 
-		// 回退：基于手部骨骼计算偏移
-		bool bHandIsSocket = CachedMesh->DoesSocketExist(HandBoneName);
-		bool bHandIsBone = CachedMesh->GetBoneIndex(HandBoneName) != INDEX_NONE;
-
-		if (bHandIsSocket || bHandIsBone)
+		// 回退：基于手部骨骼计算偏移 (仅当 Mesh 是 SkinnedMesh 时有效，或者是 Character 的 Mesh)
+		if (USkinnedMeshComponent* SkinnedMesh = Cast<USkinnedMeshComponent>(CachedMesh.Get()))
 		{
-			FTransform HandTransform = CachedMesh->GetSocketTransform(HandBoneName);
-			FVector HandLocation = HandTransform.GetLocation();
-			FVector HandForward = HandTransform.GetRotation().GetForwardVector();
+			bool bHandIsSocket = SkinnedMesh->DoesSocketExist(HandBoneName);
+			bool bHandIsBone = SkinnedMesh->GetBoneIndex(HandBoneName) != INDEX_NONE;
 
-			if (SocketName == StartSocketName)
+			if (bHandIsSocket || bHandIsBone)
 			{
-				// 起点在手部位置
-				return HandLocation;
+				FTransform HandTransform = SkinnedMesh->GetSocketTransform(HandBoneName);
+				FVector HandLocation = HandTransform.GetLocation();
+				FVector HandForward = HandTransform.GetRotation().GetForwardVector();
+
+				if (SocketName == StartSocketName)
+				{
+					// 起点在手部位置
+					return HandLocation;
+				}
+				else if (SocketName == EndSocketName)
+				{
+					// 终点在前方 WeaponLength 单位
+					return HandLocation + HandForward * WeaponLength;
+				}
 			}
-			else if (SocketName == EndSocketName)
-			{
-				// 终点在前方 WeaponLength 单位
-				return HandLocation + HandForward * WeaponLength;
-			}
+		}
+		else
+		{
+			// 如果是 StaticMesh 且找不到 Socket，直接返回组件位置
+			return CachedMesh->GetComponentLocation();
 		}
 	}
 

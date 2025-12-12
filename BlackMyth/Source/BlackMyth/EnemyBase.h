@@ -302,6 +302,20 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Audio")
 	TObjectPtr<USoundBase> AttackImpactSound;
 
+	// ========== 武器系统 (Weapon) ==========
+
+	/** 武器蓝图类 (可选) - 如果设置，将在 BeginPlay 时生成并附加到手中 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat|Weapon")
+	TSubclassOf<AActor> WeaponClass;
+
+	/** 武器附加的 Socket 名称 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat|Weapon")
+	FName WeaponSocketName = FName("weapon_r");
+
+	/** 当前持有的武器实例 */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Combat|Weapon")
+	TObjectPtr<AActor> CurrentWeapon;
+
 public:
 	/** 发现目标时调用 */
 	void OnTargetSensed(AActor* Target);

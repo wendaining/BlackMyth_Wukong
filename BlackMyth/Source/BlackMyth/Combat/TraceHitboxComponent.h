@@ -232,6 +232,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TraceHitbox|Audio")
 	TObjectPtr<USoundBase> HitImpactSound;
 
+	/** 设置要进行扫描的网格体组件 (支持 StaticMesh 或 SkeletalMesh) */
+	UFUNCTION(BlueprintCallable, Category = "TraceHitbox|Config")
+	void SetMeshToTrace(USceneComponent* NewMesh);
+
 private:
 	/** 是否正在扫描 */
 	bool bIsActive = false;
@@ -253,7 +257,7 @@ private:
 	UPROPERTY()
 	TWeakObjectPtr<UCombatComponent> CachedCombatComponent;
 
-	/** 缓存的骨骼网格体组件 */
+	/** 缓存的网格体组件 (改为 SceneComponent 以支持 StaticMesh) */
 	UPROPERTY()
-	TWeakObjectPtr<USkeletalMeshComponent> CachedMesh;
+	TWeakObjectPtr<USceneComponent> CachedMesh;
 };
