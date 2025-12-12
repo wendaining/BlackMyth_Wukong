@@ -22,7 +22,7 @@ public:
     UFUNCTION(BlueprintCallable, Category = "MainMenu")
     void QuitGame();
 
-    /** 打开设置（绑定到设置按钮）。 */
+    /** 打开读档（绑定到读档按钮）。 */
     UFUNCTION(BlueprintCallable, Category = "MainMenu")
-    void OpenSettings();
+    void LoadGame();
 };

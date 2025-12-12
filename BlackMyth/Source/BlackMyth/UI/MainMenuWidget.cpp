@@ -30,20 +30,20 @@ void UMainMenuWidget::QuitGame()
     UKismetSystemLibrary::QuitGame(this, PC, EQuitPreference::Quit, true);
 }
 
-void UMainMenuWidget::OpenSettings()
+void UMainMenuWidget::LoadGame()
 {
     UWorld* World = GetWorld();
     if (!World) return;
-    UClass* settings_widget_class = LoadClass<UUserWidget>(
+    UClass* load_widget_class = LoadClass<UUserWidget>(
         nullptr,
-        TEXT("/Game/_BlackMythGame/Blueprints/Menu/WBP_SettingsMenu.WBP_SettingsMenu_C"));
+        TEXT("/Game/_BlackMythGame/Blueprints/Menu/WBP_LoadMenu.WBP_LoadMenu_C"));
 
-    if (settings_widget_class == nullptr) {
+    if (load_widget_class == nullptr) {
         return;
     }
 
     // 创建并显示设置界面
-    if (UUserWidget* settings_ui = CreateWidget<UUserWidget>(World, settings_widget_class)) {
-        settings_ui->AddToViewport();
+    if (UUserWidget* load_ui = CreateWidget<UUserWidget>(World, load_widget_class)) {
+        load_ui->AddToViewport();
     }
 }
