@@ -4,6 +4,7 @@
 #include "EnemyAIController.h"
 #include "Kismet/GameplayStatics.h"
 #include "AIController.h"
+#include "BrainComponent.h"
 #include "Navigation/PathFollowingComponent.h"
 #include "Components/HealthComponent.h"
 #include "Components/CombatComponent.h"
@@ -642,11 +643,20 @@ void AEnemyBase::OnTargetSensed(AActor* Target)
 
 	UE_LOG(LogTemp, Warning, TEXT("AEnemyBase::OnTargetSensed - Target Sensed: %s"), *Target->GetName());
 
-	// 停止移动
+	// 停止移动 (防止滑步)
 	if (EnemyController)
 	{
 		EnemyController->StopMovement();
+		// 停止行为树逻辑 (防止行为树继续下发移动指令，导致“去别的地方”或“滑步”)
+		if (UBrainComponent* Brain = EnemyController->GetBrainComponent())
+		{
+			Brain->StopLogic("Aggro Sensed");
+		}
 	}
+	GetCharacterMovement()->StopMovementImmediately();
+
+	// 清除巡逻计时器 (防止在吼叫时触发巡逻移动，导致“去别的地方再冲过来”的 Bug)
+	ClearPatrolTimer();
 
 	// 播放发现音效
 	if (AggroSound)
@@ -681,6 +691,8 @@ void AEnemyBase::OnTargetSensed(AActor* Target)
 
 void AEnemyBase::StartChasingAfterAggro()
 {
+	if (IsDead()) return;
+
 	// 切换到追击状态
 	EnemyState = EEnemyState::EES_Chasing;
 	
