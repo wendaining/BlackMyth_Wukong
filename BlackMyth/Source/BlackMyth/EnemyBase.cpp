@@ -5,6 +5,7 @@
 #include "Kismet/GameplayStatics.h"
 #include "AIController.h"
 #include "BrainComponent.h"
+#include "BehaviorTree/BlackboardComponent.h"
 #include "Navigation/PathFollowingComponent.h"
 #include "Components/HealthComponent.h"
 #include "Components/CombatComponent.h"
@@ -122,6 +123,21 @@ void AEnemyBase::BeginPlay()
 			CurrentWeapon->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetIncludingScale, WeaponSocketName);
 			UE_LOG(LogTemp, Warning, TEXT("[%s] Spawned Weapon: %s attached to %s"), *GetName(), *CurrentWeapon->GetName(), *WeaponSocketName.ToString());
 
+			// 关键修复：让武器忽略持有者的碰撞，防止被弹飞
+			// 遍历武器的所有 PrimitiveComponent (如 CollisionSphere, StaticMesh 等)
+			TArray<UPrimitiveComponent*> WeaponComps;
+			CurrentWeapon->GetComponents(WeaponComps);
+			for (auto* Comp : WeaponComps)
+			{
+				if (Comp)
+				{
+					// 让武器组件忽略角色
+					Comp->IgnoreActorWhenMoving(this, true);
+					// 让角色胶囊体忽略武器组件
+					GetCapsuleComponent()->IgnoreComponentWhenMoving(Comp, true);
+				}
+			}
+
 			// 尝试查找武器的 Mesh 组件，用于 Hitbox 扫描
 			// 优先查找 SkeletalMesh (如复杂武器)，其次查找 StaticMesh (如简单武器)
 			USceneComponent* WeaponMesh = CurrentWeapon->FindComponentByClass<USkeletalMeshComponent>();
@@ -225,16 +241,23 @@ void AEnemyBase::Tick(float DeltaTime)
 			if (DistanceToTarget > AttackRadius)
 			{
 				// 优化：只有在没有移动时才请求移动，避免每帧调用 MoveTo 重置路径
+				// [Fix] 移除 C++ 直接移动逻辑，交由行为树处理，防止“透视”Bug
+				/*
 				if (EnemyController && EnemyController->GetMoveStatus() == EPathFollowingStatus::Idle)
 				{
 					MoveToTarget(CombatTarget);
 				}
+				*/
 			}
 			// 如果进入攻击范围，准备攻击
 			else
 			{
-				// 停止移动
-				if (EnemyController) EnemyController->StopMovement();
+				// [Fix] 不要在这里调用 StopMovement()！
+				// 如果在这里强制停止移动，会导致行为树里的 MoveTo 任务被判定为 Failed (Aborted)。
+				// 一旦 MoveTo 失败，行为树的 Combat Sequence 就会中断，导致 AI 回退到 Patrol 分支，
+				// 表现为“走到面前突然转身跑远”。
+				// 我们应该信任行为树会自己走到目的地停下，或者在 Attack() 真正开始时再停止。
+				// if (EnemyController) EnemyController->StopMovement();
 				
 				// 开始攻击计时
 				StartAttackTimer();
@@ -244,10 +267,11 @@ void AEnemyBase::Tick(float DeltaTime)
 		else if (EnemyState == EEnemyState::EES_Attacking)
 		{
 			// 如果在等待攻击时目标跑远了，取消攻击并重新追击
-			// 增加 50.0f 的缓冲距离 (Hysteresis)，防止在边缘反复切换状态
-			if (DistanceToTarget > (AttackRadius + 50.0f))
+			// 增加 100.0f 的缓冲距离 (Hysteresis)，防止在边缘反复切换状态
+			// 之前是 50.0f，可能太小了，导致稍微一动就取消攻击
+			if (DistanceToTarget > (AttackRadius + 100.0f))
 			{
-				UE_LOG(LogTemp, Warning, TEXT("[%s] AEnemyBase::Tick - Target too far (%.2f > %.2f), Canceling Attack"), *GetName(), DistanceToTarget, AttackRadius + 50.0f);
+				UE_LOG(LogTemp, Warning, TEXT("[%s] AEnemyBase::Tick - Target too far (%.2f > %.2f), Canceling Attack"), *GetName(), DistanceToTarget, AttackRadius + 100.0f);
 				ClearAttackTimer();
 				ChaseTarget();
 			}
@@ -275,6 +299,16 @@ void AEnemyBase::ReceiveDamage(float Damage, AActor* DamageInstigator)
 	if (DamageInstigator)
 	{
 		CombatTarget = DamageInstigator;
+		
+		// [Fix] 同步更新黑板，确保行为树知道目标是谁
+		if (EnemyController)
+		{
+			if (UBlackboardComponent* BB = EnemyController->GetBlackboardComponent())
+			{
+				BB->SetValueAsObject(TEXT("TargetActor"), CombatTarget);
+			}
+		}
+
 		ClearPatrolTimer();
 		ClearAttackTimer();
 		
@@ -517,6 +551,10 @@ void AEnemyBase::Attack()
 	if (CombatTarget == nullptr || IsDead()) return;
 	if (IsStunned()) return; // [Fix] 眩晕状态下禁止攻击
 	
+	// [Fix] 在攻击真正开始时停止移动，防止滑步
+	// 此时就算行为树中断也没关系，因为攻击动作已经接管了表现
+	if (EnemyController) EnemyController->StopMovement();
+
 	UE_LOG(LogTemp, Warning, TEXT("[%s] AEnemyBase::Attack - Attacking Target"), *GetName());
 	EnemyState = EEnemyState::EES_Engaged;
 	
@@ -626,7 +664,7 @@ void AEnemyBase::CheckPatrolTarget()
 
 void AEnemyBase::PatrolTimerFinished()
 {
-	MoveToTarget(PatrolTarget);
+	// MoveToTarget(PatrolTarget); // [Fix] 移除直接移动，交由行为树
 }
 
 void AEnemyBase::ShowHealthBar()
@@ -662,7 +700,7 @@ void AEnemyBase::StartPatrolling()
 		EnemyController->ClearFocus(EAIFocusPriority::Gameplay);
 	}
 	
-	MoveToTarget(PatrolTarget);
+	// MoveToTarget(PatrolTarget); // [Fix] 移除直接移动，交由行为树
 }
 
 void AEnemyBase::ChaseTarget()
@@ -675,12 +713,12 @@ void AEnemyBase::ChaseTarget()
 	// 强制停止当前移动，确保新的 MoveTo 请求能生效
 	if (EnemyController)
 	{
-		EnemyController->StopMovement();
+		// EnemyController->StopMovement(); // [Fix] 不要停止移动，让行为树接管
 		// 锁定注视目标，防止乱转
 		EnemyController->SetFocus(CombatTarget);
 	}
 	
-	MoveToTarget(CombatTarget);
+	// MoveToTarget(CombatTarget); // [Fix] 移除直接移动，交由行为树
 }
 
 void AEnemyBase::MoveToTarget(AActor* Target)
@@ -885,6 +923,15 @@ void AEnemyBase::StartChasingAfterAggro()
 	
 	// 设置更快的速度
 	GetCharacterMovement()->MaxWalkSpeed = ChasingSpeed;
+
+	// [Fix] 重新启动行为树逻辑，否则敌人会一直发呆
+	if (EnemyController)
+	{
+		if (UBrainComponent* Brain = EnemyController->GetBrainComponent())
+		{
+			Brain->RestartLogic();
+		}
+	}
 	
 	// 确保朝向目标
 	if (CombatTarget)

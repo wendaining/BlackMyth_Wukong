@@ -46,7 +46,7 @@ void ARangedEnemy::Attack()
 		else
 		{
 			// 设置保底计时器
-			GetWorldTimerManager().SetTimer(AttackEndTimer, this, &AEnemyBase::AttackEnd, Duration, false);
+			GetWorldTimerManager().SetTimer(AttackEndTimer, this, &ARangedEnemy::AttackEnd, Duration, false);
 		}
 	}
 	else

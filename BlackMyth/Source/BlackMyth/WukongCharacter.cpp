@@ -368,6 +368,26 @@ void AWukongCharacter::OnSprintStopped()
     UpdateMovementSpeed();
 }
 
+float AWukongCharacter::TakeDamage(float DamageAmount, FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser)
+{
+    // 调用父类逻辑 (虽然父类可能没做什么，但保持好习惯)
+    float ActualDamage = Super::TakeDamage(DamageAmount, DamageEvent, EventInstigator, DamageCauser);
+
+    // 将通用伤害转发给我们的自定义伤害处理函数
+    // 注意：EventInstigator 是 Controller，DamageCauser 是造成伤害的 Actor (如 Projectile)
+    // ReceiveDamage 期望的是 DamageInstigator (通常是 Enemy 本身)
+    // 如果 DamageCauser 是 Projectile，它的 Owner 通常是 Enemy
+    AActor* InstigatorActor = DamageCauser;
+    if (DamageCauser && DamageCauser->GetOwner())
+    {
+        InstigatorActor = DamageCauser->GetOwner();
+    }
+    
+    ReceiveDamage(ActualDamage, InstigatorActor);
+
+    return ActualDamage;
+}
+
 void AWukongCharacter::ReceiveDamage(float Damage, AActor* DamageInstigator)
 {
     // 如果已经死亡或处于无敌状态，不受到伤害
