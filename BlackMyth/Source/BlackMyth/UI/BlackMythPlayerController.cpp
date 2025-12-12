@@ -82,18 +82,24 @@ void ABlackMythPlayerController::TogglePauseMenu(const FInputActionValue& /*Valu
             input_mode.SetWidgetToFocus(PauseMenuInstance->TakeWidget());
             input_mode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
             SetInputMode(input_mode);
-        } else {
-            SetInputMode(FInputModeUIOnly());
         }
     } else {
         // Òþ²ØÔÝÍ£½çÃæ£¬»Ö¸´ÓÎÏ·ÊäÈë¡£
-        if (PauseMenuInstance != nullptr) {
-            PauseMenuInstance->RemoveFromParent();
-        }
-
-        UGameplayStatics::SetGamePaused(world, false);
-        bShowMouseCursor = false;
-        SetInputMode(FInputModeGameOnly());
+        ContinueGame();
     }
 }
 
+void ABlackMythPlayerController::ContinueGame() {
+    UWorld* world = GetWorld();
+    if (world == nullptr) {
+        return;
+    }
+
+    if (PauseMenuInstance != nullptr) {
+        PauseMenuInstance->RemoveFromParent();
+    }
+
+    UGameplayStatics::SetGamePaused(world, false);
+    bShowMouseCursor = false;
+    SetInputMode(FInputModeGameOnly());
+}

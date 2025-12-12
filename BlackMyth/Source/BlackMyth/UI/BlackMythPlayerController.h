@@ -35,6 +35,8 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
     UInputAction* PauseAction;
 
+    /** 继续游戏。 */
+    void ContinueGame();
 protected:
     /** 在 BeginPlay 中为本地玩家添加增强输入映射上下文。 */
     virtual void BeginPlay() override;
@@ -52,4 +54,5 @@ protected:
 
     /** 当 PauseAction 触发时切换暂停菜单的显示状态。 */
     void TogglePauseMenu(const FInputActionValue& Value);
+
 };
