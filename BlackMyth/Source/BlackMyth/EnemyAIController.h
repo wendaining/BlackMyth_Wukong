@@ -42,4 +42,10 @@ protected:
 	/** 攻击范围 (用于行为树判断) */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AI")
 	float AttackRange = 150.0f;
+
+	/** 丢失仇恨的计时器句柄 */
+	FTimerHandle LoseAggroTimer;
+
+	/** 丢失仇恨后的处理函数 */
+	void HandleLostAggro();
 };

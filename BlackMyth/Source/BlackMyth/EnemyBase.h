@@ -9,6 +9,7 @@ class UBehaviorTree;
 class AAIController;
 class UHealthComponent;
 class UCombatComponent;
+class UTraceHitboxComponent;
 class UEnemyHealthBarWidget;
 
 /**
@@ -21,6 +22,7 @@ enum class EEnemyState : uint8
 	EES_Chasing UMETA(DisplayName = "Chasing"),
 	EES_Attacking UMETA(DisplayName = "Attacking"),
 	EES_Engaged UMETA(DisplayName = "Engaged"),
+	EES_Stunned UMETA(DisplayName = "Stunned"),
 	EES_Dead UMETA(DisplayName = "Dead"),
 	EES_NoState UMETA(DisplayName = "NoState")
 };
@@ -62,6 +64,9 @@ public:
 	/** 获取行为树资源 */
 	UBehaviorTree* GetBehaviorTree() const { return BehaviorTree; }
 
+	/** 开始巡逻 (公开给 AIController 调用) */
+	void StartPatrolling();
+
 protected:
 	/** 死亡处理 */
 	virtual void Die();
@@ -90,9 +95,6 @@ protected:
 	void HideHealthBar();
 	void ShowHealthBar();
 	
-	/** 开始巡逻 */
-	void StartPatrolling();
-	
 	/** 追逐目标 */
 	void ChaseTarget();
 	
@@ -117,9 +119,11 @@ protected:
 	bool IsInsideAttackRadius();
 	bool IsChasing();
 	bool IsAttacking();
-	bool IsDead();
 	bool IsEngaged();
 	bool InTargetRange(AActor* Target, double Radius);
+
+public:
+	bool IsDead();
 
 	// ========== 新增：头顶血条 ==========
 
@@ -156,6 +160,9 @@ protected:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	TObjectPtr<UCombatComponent> CombatComponent;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
+	TObjectPtr<UTraceHitboxComponent> TraceHitboxComponent;
 
 	// 状态
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "State")
@@ -207,20 +214,120 @@ protected:
 	// 计时器句柄
 	FTimerHandle PatrolTimer;
 	FTimerHandle AttackTimer;
+	FTimerHandle AggroTimer;
+	FTimerHandle AttackEndTimer; // 攻击结束计时器（保底机制）
 
 	// 行为树 (保留，以备后续扩展)
 	UPROPERTY(EditAnywhere, Category = "AI")
 	TObjectPtr<UBehaviorTree> BehaviorTree;
 
-	// 动画蒙太奇 - 受击
+	/** 
+	 * 根据攻击位置播放对应的受击动画 
+	 * @param ImpactPoint 攻击者的位置或击中点
+	 */
+	void PlayHitReactMontage(const FVector& ImpactPoint);
+
+	// 动画蒙太奇 - 受击 (定向)
 	UPROPERTY(EditDefaultsOnly, Category = "Animation|Combat")
-	TObjectPtr<UAnimMontage> HitReactMontage;
+	TObjectPtr<UAnimMontage> HitReactMontage_Front;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Animation|Combat")
+	TObjectPtr<UAnimMontage> HitReactMontage_Back;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Animation|Combat")
+	TObjectPtr<UAnimMontage> HitReactMontage_Left;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Animation|Combat")
+	TObjectPtr<UAnimMontage> HitReactMontage_Right;
 
 	// 动画蒙太奇 - 死亡
 	UPROPERTY(EditDefaultsOnly, Category = "Animation|Combat")
 	TObjectPtr<UAnimMontage> DeathMontage;
 
+	// 动画蒙太奇 - 发现敌人(咆哮)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Animation|Combat")
+	TObjectPtr<UAnimMontage> AggroMontage;
+
 	// 动画蒙太奇 - 攻击
-	UPROPERTY(EditDefaultsOnly, Category = "Animation|Combat")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Animation|Combat")
 	TObjectPtr<UAnimMontage> AttackMontage;
+
+	// 动画蒙太奇 - 眩晕 (Stunned)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Animation|Combat")
+	TObjectPtr<UAnimMontage> StunMontage;
+
+	// ========== 韧性系统 (Poise) ==========
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stats|Poise")
+	float MaxPoise = 50.0f;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Stats|Poise")
+	float CurrentPoise;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stats|Poise")
+	float PoiseRecoveryRate = 10.0f; // 每秒恢复量
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stats|Poise")
+	float StunDuration = 3.0f; // 眩晕持续时间
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stats|Poise")
+	float PoiseRecoveryDelay = 3.0f; // 受击后多久开始恢复韧性
+
+	FTimerHandle StunTimer;
+	double LastHitTime = 0.0; // 上次受击时间
+
+	// ========== 音效 (SFX) ==========
+
+	// 眩晕时的音效
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Audio")
+	TObjectPtr<USoundBase> StunSound;
+
+	// 发现敌人时的咆哮声
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Audio")
+	TObjectPtr<USoundBase> AggroSound;
+
+	// 攻击时的挥舞声/吼叫声
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Audio")
+	TObjectPtr<USoundBase> AttackSound;
+
+	// 受击时的声音
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Audio")
+	TObjectPtr<USoundBase> HitSound;
+
+	// 死亡时的声音
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Audio")
+	TObjectPtr<USoundBase> DeathSound;
+
+	// 攻击命中时的声音 (Impact)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Audio")
+	TObjectPtr<USoundBase> AttackImpactSound;
+
+	// ========== 武器系统 (Weapon) ==========
+
+	/** 武器蓝图类 (可选) - 如果设置，将在 BeginPlay 时生成并附加到手中 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat|Weapon")
+	TSubclassOf<AActor> WeaponClass;
+
+	/** 武器附加的 Socket 名称 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat|Weapon")
+	FName WeaponSocketName = FName("weapon_r");
+
+	/** 当前持有的武器实例 */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Combat|Weapon")
+	TObjectPtr<AActor> CurrentWeapon;
+
+public:
+	/** 发现目标时调用 */
+	void OnTargetSensed(AActor* Target);
+
+	bool IsStunned();
+
+protected:
+	/** 咆哮结束，开始追击 */
+	void StartChasingAfterAggro();
+
+	/** 眩晕结束 */
+	void StunEnd();
+
+	bool bHasAggroed = false;
 };

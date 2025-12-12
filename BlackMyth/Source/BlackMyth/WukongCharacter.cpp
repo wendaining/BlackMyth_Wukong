@@ -279,43 +279,7 @@ void AWukongCharacter::Attack()
     PerformAttack();
 }
 
-// Public Interface Implementation
-void AWukongCharacter::ReceiveDamage(float Damage, AActor* DamageInstigator)
-{
-    if (CurrentState == EWukongState::Dead)
-    {
-        return;
-    }
 
-    // 委托给生命组件处理
-    if (HealthComponent)
-    {
-        HealthComponent->TakeDamage(Damage, DamageInstigator);
-        
-        // 如果还活着，进入硬直状态
-        if (HealthComponent->IsAlive())
-        {
-            ChangeState(EWukongState::HitStun);
-            HitStunTimer = HitStunDuration;
-        }
-    }
-}
-
-void AWukongCharacter::SetInvincible(bool bInInvincible)
-{
-    bIsInvincible = bInInvincible;
-    
-    // 同步到生命组件
-    if (HealthComponent)
-    {
-        HealthComponent->SetInvincible(bInInvincible);
-    }
-    
-    if (!bIsInvincible)
-    {
-        InvincibilityTimer = 0.0f;
-    }
-}
 
 // Input Handlers
 void AWukongCharacter::OnDodgePressed()
@@ -402,6 +366,118 @@ void AWukongCharacter::OnSprintStopped()
         StaminaComponent->SetContinuousConsumption(false, 0.0f);
     }
     UpdateMovementSpeed();
+}
+
+float AWukongCharacter::TakeDamage(float DamageAmount, FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser)
+{
+    // 调用父类逻辑 (虽然父类可能没做什么，但保持好习惯)
+    float ActualDamage = Super::TakeDamage(DamageAmount, DamageEvent, EventInstigator, DamageCauser);
+
+    // 将通用伤害转发给我们的自定义伤害处理函数
+    // 注意：EventInstigator 是 Controller，DamageCauser 是造成伤害的 Actor (如 Projectile)
+    // ReceiveDamage 期望的是 DamageInstigator (通常是 Enemy 本身)
+    // 如果 DamageCauser 是 Projectile，它的 Owner 通常是 Enemy
+    AActor* InstigatorActor = DamageCauser;
+    if (DamageCauser && DamageCauser->GetOwner())
+    {
+        InstigatorActor = DamageCauser->GetOwner();
+    }
+    
+    ReceiveDamage(ActualDamage, InstigatorActor);
+
+    return ActualDamage;
+}
+
+void AWukongCharacter::ReceiveDamage(float Damage, AActor* DamageInstigator)
+{
+    // 如果已经死亡或处于无敌状态，不受到伤害
+    if (CurrentState == EWukongState::Dead || bIsInvincible)
+    {
+        return;
+    }
+
+    // 委托给生命组件扣血
+    if (HealthComponent)
+    {
+        HealthComponent->TakeDamage(Damage, DamageInstigator);
+        
+        if (HealthComponent->IsDead())
+        {
+            Die();
+            return;
+        }
+    }
+
+    // 计算受击方向并播放对应动画
+    UAnimSequence* HitAnim = HitReactFrontAnimation;
+    float HitAnimPlayRate = 1.0f; // 默认播放速度
+    
+    if (DamageInstigator)
+    {
+        // 计算攻击来源方向（相对于角色的方向）
+        FVector HitDir = (DamageInstigator->GetActorLocation() - GetActorLocation()).GetSafeNormal();
+        FVector Forward = GetActorForwardVector();
+        FVector Right = GetActorRightVector();
+
+        float ForwardDot = FVector::DotProduct(Forward, HitDir);
+        float RightDot = FVector::DotProduct(Right, HitDir);
+
+        // 判定受击方向
+        // 注意：这里是判断攻击来源。如果攻击来自前方，Dot > 0。
+        if (ForwardDot >= 0.5f) // 攻击来自前方
+        {
+            HitAnim = HitReactFrontAnimation;
+        }
+        else if (ForwardDot <= -0.5f) // 攻击来自后方
+        {
+            HitAnim = HitReactBackAnimation;
+        }
+        else // 侧面
+        {
+            // 侧面受击动画通常比较长，稍微加快一点播放速度
+            HitAnimPlayRate = 1.6f; 
+
+            if (RightDot > 0.0f) // 攻击来自右侧
+            {
+                HitAnim = HitReactRightAnimation;
+            }
+            else // 攻击来自左侧
+            {
+                HitAnim = HitReactLeftAnimation;
+            }
+        }
+    }
+
+    // 播放受击动画（作为动态蒙太奇）
+    if (HitAnim)
+    {
+        // 修复：强制启用根运动 (Root Motion)，防止角色受击移动后瞬移回原位
+        // 这会让胶囊体跟随动画的位移
+        HitAnim->bEnableRootMotion = true;
+        HitAnim->bForceRootLock = true; // 确保根骨骼被锁定，位移应用到胶囊体
+
+        UE_LOG(LogTemp, Warning, TEXT("ReceiveDamage: Playing HitAnim '%s' with Rate %.2f"), *HitAnim->GetName(), HitAnimPlayRate);
+        // 优先使用 DefaultSlot
+        float Duration = PlayAnimationAsMontageDynamic(HitAnim, FName("DefaultSlot"), HitAnimPlayRate);
+        HitStunTimer = (Duration > 0.0f) ? Duration : HitStunDuration;
+    }
+    else
+    {
+        UE_LOG(LogTemp, Warning, TEXT("ReceiveDamage: HitAnim is NULL!"));
+        HitStunTimer = HitStunDuration;
+    }
+
+    // 进入受击硬直状态
+    ChangeState(EWukongState::HitStun);
+}
+
+void AWukongCharacter::SetInvincible(bool bInInvincible)
+{
+    this->bIsInvincible = bInInvincible;
+    if (HealthComponent)
+    {
+        HealthComponent->SetInvincible(bInInvincible);
+    }
 }
 
 // State Management

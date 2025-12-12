@@ -52,6 +52,9 @@ public:
 	virtual void OnJumped_Implementation() override;
 	virtual void Landed(const FHitResult& Hit) override;
 
+	// 重写 TakeDamage 以支持通用伤害系统 (如 ApplyDamage)
+	virtual float TakeDamage(float DamageAmount, struct FDamageEvent const& DamageEvent, class AController* EventInstigator, AActor* DamageCauser) override;
+
 	// ========== 公共接口 ==========
 	
 	/** 受到伤害（委托给HealthComponent） */

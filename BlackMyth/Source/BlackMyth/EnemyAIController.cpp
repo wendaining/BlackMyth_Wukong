@@ -22,7 +22,7 @@ AEnemyAIController::AEnemyAIController()
 	{
 		SightConfig->SightRadius = 1500.0f;
 		SightConfig->LoseSightRadius = 2000.0f;
-		SightConfig->PeripheralVisionAngleDegrees = 60.0f;
+		SightConfig->PeripheralVisionAngleDegrees = 180.0f; // 扩大视野角度，防止近战时玩家绕背导致丢失仇恨
 		SightConfig->DetectionByAffiliation.bDetectEnemies = true;
 		SightConfig->DetectionByAffiliation.bDetectNeutrals = true;
 		SightConfig->DetectionByAffiliation.bDetectFriendlies = true;
@@ -64,6 +64,12 @@ void AEnemyAIController::Tick(float DeltaTime)
 		{
 			if (APawn* ControlledPawn = GetPawn())
 			{
+				// 修复：如果控制的 Pawn 已经死亡或眩晕，不再执行旋转逻辑
+				if (AEnemyBase* Enemy = Cast<AEnemyBase>(ControlledPawn))
+				{
+					if (Enemy->IsDead() || Enemy->IsStunned()) return;
+				}
+
 				FVector Direction = Target->GetActorLocation() - ControlledPawn->GetActorLocation();
 				Direction.Z = 0.0f; // 忽略高度差
 				
@@ -103,8 +109,17 @@ void AEnemyAIController::OnPerceptionUpdated(const TArray<AActor*>& UpdatedActor
 					{
 						if (Stimulus.WasSuccessfullySensed())
 						{
-							// 看到了玩家，更新黑板
+							// 看到了玩家，清除丢失仇恨的计时器
+							GetWorldTimerManager().ClearTimer(LoseAggroTimer);
+
+							// 更新黑板
 							BlackboardComp->SetValueAsObject(TEXT("TargetActor"), Actor);
+
+							// 通知 EnemyBase 播放发现动画
+							if (AEnemyBase* Enemy = Cast<AEnemyBase>(GetPawn()))
+							{
+								Enemy->OnTargetSensed(Actor);
+							}
 
 							// 如果是 Boss，显示血条
 							if (ABossEnemy* Boss = Cast<ABossEnemy>(GetPawn()))
@@ -115,20 +130,37 @@ void AEnemyAIController::OnPerceptionUpdated(const TArray<AActor*>& UpdatedActor
 						else
 						{
 							// 丢失视野：记录最后位置，进入搜寻模式
-							BlackboardComp->SetValueAsVector(TEXT("TargetLocation"), Actor->GetActorLocation());
+							// 修复：使用 Stimulus.StimulusLocation 获取最后一次被感知的位置，而不是 Actor 的当前位置
+							BlackboardComp->SetValueAsVector(TEXT("TargetLocation"), Stimulus.StimulusLocation);
 							BlackboardComp->SetValueAsBool(TEXT("IsInvestigating"), true);
-							BlackboardComp->ClearValue(TEXT("TargetActor"));
 							
-							// 如果是 Boss，丢失视野后隐藏血条 (可选)
-							// if (ABossEnemy* Boss = Cast<ABossEnemy>(GetPawn()))
-							// {
-							// 	Boss->SetBossHealthVisibility(false);
-							// }
+							// [Fix] 不要立即清除 TargetActor，否则怪会立刻转头走人
+							// BlackboardComp->ClearValue(TEXT("TargetActor"));
+							
+							// 启动丢失仇恨计时器 (例如 5秒后彻底放弃)
+							// 只有当计时器触发时，才真正清除 TargetActor
+							GetWorldTimerManager().SetTimer(LoseAggroTimer, this, &AEnemyAIController::HandleLostAggro, 5.0f, false);
 						}
 					}
 				}
 			}
 		}
+	}
+}
+
+void AEnemyAIController::HandleLostAggro()
+{
+	// 真正丢失仇恨：清除黑板上的目标
+	if (UBlackboardComponent* BlackboardComp = GetBlackboardComponent())
+	{
+		BlackboardComp->ClearValue(TEXT("TargetActor"));
+	}
+
+	if (AEnemyBase* Enemy = Cast<AEnemyBase>(GetPawn()))
+	{
+		// 调用 EnemyBase 的重置逻辑
+		Enemy->StartPatrolling();
+		UE_LOG(LogTemp, Warning, TEXT("AEnemyAIController::HandleLostAggro - Lost aggro (Timer Expired), returning to patrol."));
 	}
 }
 

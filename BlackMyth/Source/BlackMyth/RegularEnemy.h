@@ -14,4 +14,7 @@ class BLACKMYTH_API ARegularEnemy : public AEnemyBase
 	
 public:
 	ARegularEnemy();
+
+protected:
+	virtual void BeginPlay() override;
 };
