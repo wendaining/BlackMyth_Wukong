@@ -370,6 +370,13 @@ bool UTraceHitboxComponent::IsValidTarget(AActor* Target) const
 		return false;
 	}
 
+	// 修复：防止敌人之间互相伤害 (Friendly Fire)
+	// 如果攻击者是敌人，且目标也是敌人，则判定为无效目标
+	if (GetOwner()->IsA(AEnemyBase::StaticClass()) && Target->IsA(AEnemyBase::StaticClass()))
+	{
+		return false;
+	}
+
 	// 不重复攻击
 	if (HitActors.Contains(Target))
 	{
