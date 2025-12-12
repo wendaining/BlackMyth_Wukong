@@ -427,6 +427,11 @@ void AWukongCharacter::ReceiveDamage(float Damage, AActor* DamageInstigator)
     // 播放受击动画（作为动态蒙太奇）
     if (HitAnim)
     {
+        // 修复：强制启用根运动 (Root Motion)，防止角色受击移动后瞬移回原位
+        // 这会让胶囊体跟随动画的位移
+        HitAnim->bEnableRootMotion = true;
+        HitAnim->bForceRootLock = true; // 确保根骨骼被锁定，位移应用到胶囊体
+
         UE_LOG(LogTemp, Warning, TEXT("ReceiveDamage: Playing HitAnim '%s'"), *HitAnim->GetName());
         // 优先使用 DefaultSlot
         float Duration = PlayAnimationAsMontageDynamic(HitAnim, FName("DefaultSlot"), 1.0f);
