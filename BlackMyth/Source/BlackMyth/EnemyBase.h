@@ -63,6 +63,9 @@ public:
 	/** 获取行为树资源 */
 	UBehaviorTree* GetBehaviorTree() const { return BehaviorTree; }
 
+	/** 开始巡逻 (公开给 AIController 调用) */
+	void StartPatrolling();
+
 protected:
 	/** 死亡处理 */
 	virtual void Die();
@@ -90,9 +93,6 @@ protected:
 	/** 隐藏/显示血条 (预留接口) */
 	void HideHealthBar();
 	void ShowHealthBar();
-	
-	/** 开始巡逻 */
-	void StartPatrolling();
 	
 	/** 追逐目标 */
 	void ChaseTarget();

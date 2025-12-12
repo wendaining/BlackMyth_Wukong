@@ -103,7 +103,10 @@ void AEnemyAIController::OnPerceptionUpdated(const TArray<AActor*>& UpdatedActor
 					{
 						if (Stimulus.WasSuccessfullySensed())
 						{
-							// 看到了玩家，更新黑板
+							// 看到了玩家，清除丢失仇恨的计时器
+							GetWorldTimerManager().ClearTimer(LoseAggroTimer);
+
+							// 更新黑板
 							BlackboardComp->SetValueAsObject(TEXT("TargetActor"), Actor);
 
 							// 通知 EnemyBase 播放发现动画
@@ -125,16 +128,23 @@ void AEnemyAIController::OnPerceptionUpdated(const TArray<AActor*>& UpdatedActor
 							BlackboardComp->SetValueAsBool(TEXT("IsInvestigating"), true);
 							BlackboardComp->ClearValue(TEXT("TargetActor"));
 							
-							// 如果是 Boss，丢失视野后隐藏血条 (可选)
-							// if (ABossEnemy* Boss = Cast<ABossEnemy>(GetPawn()))
-							// {
-							// 	Boss->SetBossHealthVisibility(false);
-							// }
+							// 启动丢失仇恨计时器 (例如 2秒后彻底放弃)
+							GetWorldTimerManager().SetTimer(LoseAggroTimer, this, &AEnemyAIController::HandleLostAggro, 2.0f, false);
 						}
 					}
 				}
 			}
 		}
+	}
+}
+
+void AEnemyAIController::HandleLostAggro()
+{
+	if (AEnemyBase* Enemy = Cast<AEnemyBase>(GetPawn()))
+	{
+		// 调用 EnemyBase 的重置逻辑
+		Enemy->StartPatrolling();
+		UE_LOG(LogTemp, Warning, TEXT("AEnemyAIController::HandleLostAggro - Lost aggro, returning to patrol."));
 	}
 }
 

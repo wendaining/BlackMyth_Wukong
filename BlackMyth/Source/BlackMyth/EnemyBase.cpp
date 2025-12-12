@@ -466,6 +466,10 @@ void AEnemyBase::StartPatrolling()
 	EnemyState = EEnemyState::EES_Patrolling;
 	GetCharacterMovement()->MaxWalkSpeed = PatrollingSpeed;
 	
+	// 修复：重置仇恨状态，这样下次发现玩家时可以再次播放 AggroMontage
+	bHasAggroed = false;
+	CombatTarget = nullptr;
+
 	// 停止注视目标
 	if (EnemyController)
 	{
