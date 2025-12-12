@@ -377,6 +377,11 @@ void AEnemyBase::Attack()
 		// 开启攻击判定 (保底机制：如果蒙太奇里没有加 Notify，这里强制开启)
 		if (TraceHitboxComponent)
 		{
+			// 将攻击命中音效传递给 Hitbox 组件
+			if (AttackImpactSound)
+			{
+				TraceHitboxComponent->HitImpactSound = AttackImpactSound;
+			}
 			TraceHitboxComponent->ActivateTrace();
 		}
 

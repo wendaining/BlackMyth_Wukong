@@ -267,6 +267,10 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Audio")
 	TObjectPtr<USoundBase> DeathSound;
 
+	// 攻击命中时的声音 (Impact)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Audio")
+	TObjectPtr<USoundBase> AttackImpactSound;
+
 public:
 	/** 发现目标时调用 */
 	void OnTargetSensed(AActor* Target);

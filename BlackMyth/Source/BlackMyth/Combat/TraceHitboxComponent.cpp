@@ -259,6 +259,12 @@ void UTraceHitboxComponent::PerformTrace()
 			// 添加到已命中列表
 			HitActors.Add(HitActor);
 
+			// 播放命中音效
+			if (HitImpactSound)
+			{
+				UGameplayStatics::PlaySoundAtLocation(this, HitImpactSound, Hit.ImpactPoint);
+			}
+
 			UE_LOG(LogTemp, Warning, TEXT("[TraceHitbox] %s HIT: %s at (%.1f, %.1f, %.1f)"),
 				*GetOwner()->GetName(),
 				*HitActor->GetName(),
