@@ -390,6 +390,7 @@ void AWukongCharacter::ReceiveDamage(float Damage, AActor* DamageInstigator)
 
     // 计算受击方向并播放对应动画
     UAnimSequence* HitAnim = HitReactFrontAnimation;
+    float HitAnimPlayRate = 1.0f; // 默认播放速度
     
     if (DamageInstigator)
     {
@@ -413,6 +414,9 @@ void AWukongCharacter::ReceiveDamage(float Damage, AActor* DamageInstigator)
         }
         else // 侧面
         {
+            // 侧面受击动画通常比较长，稍微加快一点播放速度
+            HitAnimPlayRate = 1.6f; 
+
             if (RightDot > 0.0f) // 攻击来自右侧
             {
                 HitAnim = HitReactRightAnimation;
@@ -432,9 +436,9 @@ void AWukongCharacter::ReceiveDamage(float Damage, AActor* DamageInstigator)
         HitAnim->bEnableRootMotion = true;
         HitAnim->bForceRootLock = true; // 确保根骨骼被锁定，位移应用到胶囊体
 
-        UE_LOG(LogTemp, Warning, TEXT("ReceiveDamage: Playing HitAnim '%s'"), *HitAnim->GetName());
+        UE_LOG(LogTemp, Warning, TEXT("ReceiveDamage: Playing HitAnim '%s' with Rate %.2f"), *HitAnim->GetName(), HitAnimPlayRate);
         // 优先使用 DefaultSlot
-        float Duration = PlayAnimationAsMontageDynamic(HitAnim, FName("DefaultSlot"), 1.0f);
+        float Duration = PlayAnimationAsMontageDynamic(HitAnim, FName("DefaultSlot"), HitAnimPlayRate);
         HitStunTimer = (Duration > 0.0f) ? Duration : HitStunDuration;
     }
     else
