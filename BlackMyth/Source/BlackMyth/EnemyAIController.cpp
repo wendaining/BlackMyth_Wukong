@@ -64,6 +64,12 @@ void AEnemyAIController::Tick(float DeltaTime)
 		{
 			if (APawn* ControlledPawn = GetPawn())
 			{
+				// 修复：如果控制的 Pawn 已经死亡，不再执行旋转逻辑
+				if (AEnemyBase* Enemy = Cast<AEnemyBase>(ControlledPawn))
+				{
+					if (Enemy->IsDead()) return;
+				}
+
 				FVector Direction = Target->GetActorLocation() - ControlledPawn->GetActorLocation();
 				Direction.Z = 0.0f; // 忽略高度差
 				

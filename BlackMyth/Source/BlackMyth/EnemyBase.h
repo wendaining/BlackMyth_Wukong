@@ -118,9 +118,11 @@ protected:
 	bool IsInsideAttackRadius();
 	bool IsChasing();
 	bool IsAttacking();
-	bool IsDead();
 	bool IsEngaged();
 	bool InTargetRange(AActor* Target, double Radius);
+
+public:
+	bool IsDead();
 
 	// ========== 新增：头顶血条 ==========
 

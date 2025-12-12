@@ -217,6 +217,9 @@ void AEnemyBase::ReceiveDamage(float Damage, AActor* DamageInstigator)
 		HealthComponent->TakeDamage(Damage, DamageInstigator);
 	}
 
+	// 如果受到伤害后死亡，立即停止后续逻辑
+	if (IsDead()) return;
+
 	// 显示血条
 	ShowHealthBar();
 
@@ -337,6 +340,8 @@ void AEnemyBase::Die()
 	// 清除计时器
 	ClearAttackTimer();
 	ClearPatrolTimer();
+	GetWorldTimerManager().ClearTimer(AggroTimer);
+	GetWorldTimerManager().ClearTimer(AttackEndTimer);
 
 	// 禁用碰撞
 	GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
@@ -351,6 +356,32 @@ void AEnemyBase::Die()
 	if (EnemyController)
 	{
 		EnemyController->StopMovement();
+		if (UBrainComponent* Brain = EnemyController->GetBrainComponent())
+		{
+			Brain->StopLogic("Dead");
+		}
+	}
+
+	// 强制关闭攻击判定 (防止死后还能造成伤害)
+	if (TraceHitboxComponent)
+	{
+		TraceHitboxComponent->DeactivateTrace();
+	}
+
+	// 冻结动画 (防止蒙太奇播放完后瞬移回 Idle)
+	// 我们设置一个计时器，在蒙太奇播放完的那一刻暂停动画
+	if (DeathMontage)
+	{
+		const float DeathDuration = DeathMontage->GetPlayLength();
+		FTimerHandle DeathFreezeTimer;
+		GetWorldTimerManager().SetTimer(DeathFreezeTimer, [this]()
+		{
+			if (GetMesh())
+			{
+				GetMesh()->bPauseAnims = true;
+				GetMesh()->SetComponentTickEnabled(false);
+			}
+		}, DeathDuration - 0.1f, false); // 提前 0.1秒冻结，确保停在最后一帧
 	}
 
 	// 设置销毁定时器（例如 5 秒后消失）
@@ -407,6 +438,8 @@ void AEnemyBase::Attack()
 
 void AEnemyBase::AttackEnd()
 {
+	if (IsDead()) return;
+
 	UE_LOG(LogTemp, Warning, TEXT("[%s] AEnemyBase::AttackEnd - Attack Finished"), *GetName());
 	
 	// 关闭攻击判定
@@ -487,6 +520,8 @@ void AEnemyBase::HideHealthBar()
 
 void AEnemyBase::StartPatrolling()
 {
+	if (IsDead()) return;
+
 	EnemyState = EEnemyState::EES_Patrolling;
 	GetCharacterMovement()->MaxWalkSpeed = PatrollingSpeed;
 	
@@ -505,6 +540,8 @@ void AEnemyBase::StartPatrolling()
 
 void AEnemyBase::ChaseTarget()
 {
+	if (IsDead()) return;
+
 	EnemyState = EEnemyState::EES_Chasing;
 	GetCharacterMovement()->MaxWalkSpeed = ChasingSpeed;
 	
@@ -560,6 +597,8 @@ AActor* AEnemyBase::ChoosePatrolTarget()
 
 void AEnemyBase::StartAttackTimer()
 {
+	if (IsDead()) return;
+
 	EnemyState = EEnemyState::EES_Attacking;
 	const float AttackTime = FMath::RandRange(AttackMin, AttackMax);
 	UE_LOG(LogTemp, Warning, TEXT("[%s] AEnemyBase::StartAttackTimer - Next attack in %f seconds"), *GetName(), AttackTime);
