@@ -23,5 +23,9 @@ public:
     void OnLoadClicked();
 
     UFUNCTION(BlueprintCallable)
+    void OnSaveClicked();
+
+    UFUNCTION(BlueprintCallable)
     void OnQuitClicked();
+
 };

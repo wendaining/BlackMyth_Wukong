@@ -36,17 +36,30 @@ void UPauseMenuWidget::OnLoadClicked()
         TEXT("/Game/_BlackMythGame/Blueprints/Menu/WBP_LoadMenu.WBP_LoadMenu_C")
     );
 
-    if (LoadWidgetClass == nullptr) {
-        UE_LOG(LogTemp, Warning, TEXT("Failed to load WBP_LoadMenu class."));
-        return;
-    }
-
     // 创建并显示读档界面
     if (UUserWidget* LoadUI = CreateWidget<UUserWidget>(World, LoadWidgetClass)) {
         LoadUI->AddToViewport();
     }
 }
 
+void UPauseMenuWidget::OnSaveClicked()
+{
+    UWorld* World = GetWorld();
+    if (!World) {
+        return;
+    }
+
+    // 加载存档界面蓝图类
+    UClass* SaveWidgetClass = LoadClass<UUserWidget>(
+        nullptr,
+        TEXT("/Game/_BlackMythGame/Blueprints/Menu/WBP_SaveMenu.WBP_SaveMenu_C")
+    );
+
+    // 创建并显示存档界面
+    if (UUserWidget* SaveUI = CreateWidget<UUserWidget>(World, SaveWidgetClass)) {
+        SaveUI->AddToViewport();
+    }
+}
 
 void UPauseMenuWidget::OnQuitClicked()
 {
