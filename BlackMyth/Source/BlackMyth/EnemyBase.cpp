@@ -144,6 +144,10 @@ void AEnemyBase::BeginPlay()
 		// 隐藏血条 (如果实现了 UI)
 		HideHealthBar();
 	}
+
+	// 初始化韧性
+	CurrentPoise = MaxPoise;
+	LastHitTime = -100.0; // 确保一开始就能恢复
 }
 
 void AEnemyBase::Tick(float DeltaTime)
@@ -152,13 +156,21 @@ void AEnemyBase::Tick(float DeltaTime)
 
 	if (IsDead()) return;
 
+	// 韧性恢复逻辑：只有当 (当前时间 - 上次受击时间) > 恢复延迟时，才开始恢复
+	const double TimeSinceLastHit = GetWorld()->GetTimeSeconds() - LastHitTime;
+	if (!IsStunned() && CurrentPoise < MaxPoise && TimeSinceLastHit > PoiseRecoveryDelay)
+	{
+		CurrentPoise = FMath::Min(CurrentPoise + PoiseRecoveryRate * DeltaTime, MaxPoise);
+	}
+
 	if (CombatTarget)
 	{
 		const double DistanceToTarget = (CombatTarget->GetActorLocation() - GetActorLocation()).Size();
 
 		// 始终面向目标 (当不移动时)
 		// 解决“乱转”问题：当敌人停止移动准备攻击时，平滑旋转朝向目标
-		if (!IsChasing() && !GetCharacterMovement()->IsFalling())
+		// [修复] 增加 !IsStunned() 检查，防止眩晕时还在转
+		if (!IsChasing() && !GetCharacterMovement()->IsFalling() && !IsStunned())
 		{
 			FVector Direction = CombatTarget->GetActorLocation() - GetActorLocation();
 			Direction.Z = 0.0f; // 只在水平面旋转
@@ -236,18 +248,94 @@ void AEnemyBase::ReceiveDamage(float Damage, AActor* DamageInstigator)
 			UGameplayStatics::PlaySoundAtLocation(this, HitSound, GetActorLocation());
 		}
 
-		// 计算并播放定向受击动画
-		PlayHitReactMontage(DamageInstigator->GetActorLocation());
+		// [新增] 物理击退逻辑
+		// 计算击退方向：从攻击者指向受击者
+		FVector KnockbackDirection = (GetActorLocation() - DamageInstigator->GetActorLocation()).GetSafeNormal();
+		KnockbackDirection.Z = 0.0f; // 保持水平，不飞天
+		
+		// 击退力度 (您可以调整这个数值，比如 500, 800, 1000)
+		const float KnockbackStrength = 800.0f; 
+		
+		// 施加力 (LaunchCharacter 是 Character 类的内置函数)
+		LaunchCharacter(KnockbackDirection * KnockbackStrength, true, true);
 
-		// 如果在攻击范围内，尝试反击
-		if (IsInsideAttackRadius() && !IsAttacking())
+		// [新增] 韧性扣除逻辑
+		CurrentPoise -= Damage; // 假设伤害值等于削韧值，也可以单独传参
+		LastHitTime = GetWorld()->GetTimeSeconds(); // 记录受击时间
+		
+		// 调试日志：打印当前韧性
+		UE_LOG(LogTemp, Warning, TEXT("[%s] Took %.1f Damage. Poise: %.1f / %.1f"), *GetName(), Damage, CurrentPoise, MaxPoise);
+
+		if (CurrentPoise <= 0.0f)
 		{
-			StartAttackTimer();
+			// 记录之前的状态，用于判断是否是新触发的眩晕
+			const bool bWasStunned = IsStunned();
+
+			// 触发大硬直 (Stun)
+			CurrentPoise = 0.0f; // 归零
+			
+			// 停止移动和攻击
+			if (EnemyController) EnemyController->StopMovement();
+			ClearAttackTimer();
+			GetWorldTimerManager().ClearTimer(AttackEndTimer); // [Fix] 必须清除攻击结束计时器，否则它会重置状态
+			
+			// 强制停止当前的攻击蒙太奇 (如果正在攻击)
+			if (IsAttacking() && AttackMontage)
+			{
+				StopAnimMontage(AttackMontage);
+			}
+			// 强制关闭攻击判定框 (防止眩晕时武器还有伤害)
+			if (TraceHitboxComponent)
+			{
+				TraceHitboxComponent->DeactivateTrace();
+			}
+
+			// 切换状态
+			EnemyState = EEnemyState::EES_Stunned;
+
+			// 播放眩晕音效 (仅在初次进入眩晕时播放，避免连续攻击时太吵)
+			if (StunSound && !bWasStunned)
+			{
+				UGameplayStatics::PlaySoundAtLocation(this, StunSound, GetActorLocation());
+			}
+			
+			// 播放眩晕动画 (每次受击都重播，实现连续控制)
+			if (StunMontage)
+			{
+				PlayAnimMontage(StunMontage);
+				// 设置恢复计时器
+				GetWorldTimerManager().SetTimer(StunTimer, this, &AEnemyBase::StunEnd, StunDuration, false);
+				UE_LOG(LogTemp, Warning, TEXT("[%s] Stunned! Poise Broken."), *GetName());
+			}
+			else
+			{
+				// 如果没有眩晕动画，就只播放普通受击，并重置韧性
+				CurrentPoise = MaxPoise;
+				PlayHitReactMontage(DamageInstigator->GetActorLocation());
+			}
 		}
-		// 否则追击
-		else if (IsOutsideAttackRadius())
+		else
 		{
-			ChaseTarget();
+			// 韧性未破，只播放普通受击
+			// [Fix] 如果已经眩晕，不要播放受击动画，否则会打断眩晕动画导致“秒醒”
+			if (!IsStunned())
+			{
+				PlayHitReactMontage(DamageInstigator->GetActorLocation());
+			}
+		}
+
+		// 如果在攻击范围内，尝试反击 (仅在未眩晕时)
+		if (!IsStunned())
+		{
+			if (IsInsideAttackRadius() && !IsAttacking())
+			{
+				StartAttackTimer();
+			}
+			// 否则追击
+			else if (IsOutsideAttackRadius())
+			{
+				ChaseTarget();
+			}
 		}
 	}
 	// 如果没有攻击者（例如环境伤害），只播放正面受击
@@ -391,6 +479,7 @@ void AEnemyBase::Die()
 void AEnemyBase::Attack()
 {
 	if (CombatTarget == nullptr || IsDead()) return;
+	if (IsStunned()) return; // [Fix] 眩晕状态下禁止攻击
 	
 	UE_LOG(LogTemp, Warning, TEXT("[%s] AEnemyBase::Attack - Attacking Target"), *GetName());
 	EnemyState = EEnemyState::EES_Engaged;
@@ -439,6 +528,7 @@ void AEnemyBase::Attack()
 void AEnemyBase::AttackEnd()
 {
 	if (IsDead()) return;
+	if (IsStunned()) return; // [Fix] 眩晕状态下禁止执行攻击结束逻辑（防止重置状态）
 
 	UE_LOG(LogTemp, Warning, TEXT("[%s] AEnemyBase::AttackEnd - Attack Finished"), *GetName());
 	
@@ -461,6 +551,7 @@ void AEnemyBase::AttackEnd()
 void AEnemyBase::CheckCombatTarget()
 {
 	if (IsDead()) return;
+	if (IsStunned()) return; // [Fix] 眩晕状态下禁止检测目标
 
 	if (CombatTarget)
 	{
@@ -648,6 +739,27 @@ bool AEnemyBase::IsDead()
 bool AEnemyBase::IsEngaged()
 {
 	return EnemyState == EEnemyState::EES_Engaged;
+}
+
+bool AEnemyBase::IsStunned()
+{
+	return EnemyState == EEnemyState::EES_Stunned;
+}
+
+void AEnemyBase::StunEnd()
+{
+	if (IsDead()) return;
+	
+	UE_LOG(LogTemp, Warning, TEXT("[%s] Stun Recovered."), *GetName());
+	
+	// 恢复韧性
+	CurrentPoise = MaxPoise;
+	
+	// 恢复状态
+	EnemyState = EEnemyState::EES_Chasing;
+	
+	// 重新开始追击
+	CheckCombatTarget();
 }
 
 float AEnemyBase::GetCurrentHealth() const

@@ -22,6 +22,7 @@ enum class EEnemyState : uint8
 	EES_Chasing UMETA(DisplayName = "Chasing"),
 	EES_Attacking UMETA(DisplayName = "Attacking"),
 	EES_Engaged UMETA(DisplayName = "Engaged"),
+	EES_Stunned UMETA(DisplayName = "Stunned"),
 	EES_Dead UMETA(DisplayName = "Dead"),
 	EES_NoState UMETA(DisplayName = "NoState")
 };
@@ -251,7 +252,35 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Animation|Combat")
 	TObjectPtr<UAnimMontage> AttackMontage;
 
+	// 动画蒙太奇 - 眩晕 (Stunned)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Animation|Combat")
+	TObjectPtr<UAnimMontage> StunMontage;
+
+	// ========== 韧性系统 (Poise) ==========
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stats|Poise")
+	float MaxPoise = 50.0f;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Stats|Poise")
+	float CurrentPoise;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stats|Poise")
+	float PoiseRecoveryRate = 10.0f; // 每秒恢复量
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stats|Poise")
+	float StunDuration = 3.0f; // 眩晕持续时间
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stats|Poise")
+	float PoiseRecoveryDelay = 3.0f; // 受击后多久开始恢复韧性
+
+	FTimerHandle StunTimer;
+	double LastHitTime = 0.0; // 上次受击时间
+
 	// ========== 音效 (SFX) ==========
+
+	// 眩晕时的音效
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Audio")
+	TObjectPtr<USoundBase> StunSound;
 
 	// 发现敌人时的咆哮声
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Audio")
@@ -277,9 +306,14 @@ public:
 	/** 发现目标时调用 */
 	void OnTargetSensed(AActor* Target);
 
+	bool IsStunned();
+
 protected:
 	/** 咆哮结束，开始追击 */
 	void StartChasingAfterAggro();
+
+	/** 眩晕结束 */
+	void StunEnd();
 
 	bool bHasAggroed = false;
 };
