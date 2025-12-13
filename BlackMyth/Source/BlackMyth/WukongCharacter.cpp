@@ -4,6 +4,7 @@
 #include "Components/StaminaComponent.h"
 #include "Components/CombatComponent.h"
 #include "Components/HealthComponent.h"
+#include "Components/CapsuleComponent.h"
 #include "Combat/TraceHitboxComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "EnhancedInputComponent.h"
@@ -715,6 +716,12 @@ void AWukongCharacter::UpdateDeadState(float DeltaTime)
 // Combat Methods
 void AWukongCharacter::PerformAttack()
 {
+    // 检查死亡状态 - 死亡后不能攻击
+    if (CurrentState == EWukongState::Dead)
+    {
+        return;
+    }
+
     // 检查是否有足够体力攻击
     if (!StaminaComponent || !StaminaComponent->HasEnoughStamina(StaminaComponent->AttackStaminaCost))
     {
@@ -835,6 +842,13 @@ void AWukongCharacter::ResetCombo()
 
 void AWukongCharacter::ProcessInputBuffer()
 {
+    // 死亡状态下不处理任何输入缓冲
+    if (CurrentState == EWukongState::Dead)
+    {
+        InputBuffer.Empty();
+        return;
+    }
+
     if (InputBuffer.Num() == 0)
     {
         return;
@@ -942,6 +956,12 @@ void AWukongCharacter::PerformDodge()
 
 void AWukongCharacter::PerformHeavyAttack()
 {
+    // 死亡状态下不能重击
+    if (CurrentState == EWukongState::Dead)
+    {
+        return;
+    }
+
     if (HeavyAttackMontage)
     {
         ChangeState(EWukongState::Attacking);
@@ -951,6 +971,12 @@ void AWukongCharacter::PerformHeavyAttack()
 
 void AWukongCharacter::PerformStaffSpin()
 {
+    // 死亡状态下不能使用棍花
+    if (CurrentState == EWukongState::Dead)
+    {
+        return;
+    }
+
     if (StaffSpinMontage)
     {
         ChangeState(EWukongState::Attacking); 
@@ -960,6 +986,12 @@ void AWukongCharacter::PerformStaffSpin()
 
 void AWukongCharacter::PerformPoleStance()
 {
+    // 死亡状态下不能使用立棍法
+    if (CurrentState == EWukongState::Dead)
+    {
+        return;
+    }
+
     if (PoleStanceMontage)
     {
         ChangeState(EWukongState::Attacking);
@@ -1174,10 +1206,61 @@ void AWukongCharacter::Landed(const FHitResult& Hit)
 // Helper Methods
 void AWukongCharacter::Die()
 {
-    ChangeState(EWukongState::Dead);
-    // 生命组件会广播死亡事件
+    // 防止重复调用
+    if (CurrentState == EWukongState::Dead)
+    {
+        return;
+    }
 
-    // TODO: Trigger death animation and respawn logic
+    UE_LOG(LogTemp, Warning, TEXT("Die: Character dying..."));
+
+    ChangeState(EWukongState::Dead);
+    
+    USkeletalMeshComponent* MeshComp = GetMesh();
+    if (!MeshComp)
+    {
+        UE_LOG(LogTemp, Error, TEXT("Die: No Mesh Component!"));
+        return;
+    }
+
+    // 如果有死亡动画，直接让 Mesh 播放（不通过动画蓝图）
+    if (DeathAnimation)
+    {
+        UE_LOG(LogTemp, Log, TEXT("Die: Playing death animation directly: %s"), *DeathAnimation->GetName());
+        
+        // 停止动画蓝图，切换到直接播放动画模式
+        MeshComp->SetAnimationMode(EAnimationMode::AnimationSingleNode);
+        MeshComp->PlayAnimation(DeathAnimation, false); // false = 不循环
+        
+        // 获取死亡动画时长
+        float AnimDuration = DeathAnimation->GetPlayLength();
+        UE_LOG(LogTemp, Log, TEXT("Die: Death animation duration=%f"), AnimDuration);
+    }
+    else
+    {
+        UE_LOG(LogTemp, Warning, TEXT("Die: No DeathAnimation set in Blueprint!"));
+        
+        // 如果没有死亡动画，至少让角色停在当前帧
+        if (UAnimInstance* AnimInstance = MeshComp->GetAnimInstance())
+        {
+            AnimInstance->StopAllMontages(0.0f);
+        }
+    }
+
+    // 禁用角色碰撞（防止死亡后阻挡其他角色或继续被攻击）
+    if (GetCapsuleComponent())
+    {
+        GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+    }
+
+    // 禁用玩家输入
+    if (APlayerController* PC = Cast<APlayerController>(GetController()))
+    {
+        DisableInput(PC);
+        UE_LOG(LogTemp, Log, TEXT("Die: Player input disabled"));
+    }
+
+    UE_LOG(LogTemp, Warning, TEXT("Die: Character has died"));
 }
 
 void AWukongCharacter::UpdateMovementSpeed()

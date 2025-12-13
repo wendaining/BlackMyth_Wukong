@@ -73,6 +73,10 @@ public:
 	UFUNCTION(BlueprintPure, Category = "State")
 	EWukongState GetCurrentState() const { return CurrentState; }
 
+	/** 检查角色是否已死亡 */
+	UFUNCTION(BlueprintPure, Category = "State")
+	bool IsDead() const { return CurrentState == EWukongState::Dead; }
+
 	// ========== 动画访问器 ==========
 	
 	/** 获取当前连击索引 */

@@ -3,6 +3,7 @@
 #include "GameFramework/Character.h"
 #include "EnemyBase.h"
 #include "BossEnemy.h"
+#include "WukongCharacter.h"
 #include "BehaviorTree/BehaviorTree.h"
 #include "BehaviorTree/BlackboardComponent.h"
 #include "Perception/AIPerceptionComponent.h"
@@ -62,6 +63,24 @@ void AEnemyAIController::Tick(float DeltaTime)
 	{
 		if (AActor* Target = Cast<AActor>(BlackboardComp->GetValueAsObject(TEXT("TargetActor"))))
 		{
+			// 检查目标是否已经死亡
+			if (AWukongCharacter* WukongTarget = Cast<AWukongCharacter>(Target))
+			{
+				if (WukongTarget->IsDead())
+				{
+					// 玩家已死亡，清除目标
+					BlackboardComp->ClearValue(TEXT("TargetActor"));
+					BlackboardComp->SetValueAsBool(TEXT("IsInvestigating"), false);
+					
+					if (AEnemyBase* Enemy = Cast<AEnemyBase>(GetPawn()))
+					{
+						Enemy->StartPatrolling();
+					}
+					UE_LOG(LogTemp, Log, TEXT("Tick: Target is dead, clearing aggro"));
+					return;
+				}
+			}
+
 			if (APawn* ControlledPawn = GetPawn())
 			{
 				// 修复：如果控制的 Pawn 已经死亡或眩晕，不再执行旋转逻辑
@@ -107,6 +126,23 @@ void AEnemyAIController::OnPerceptionUpdated(const TArray<AActor*>& UpdatedActor
 					APawn* SensedPawn = Cast<APawn>(Actor);
 					if (SensedPawn && SensedPawn->IsPlayerControlled()) 
 					{
+						// 检查玩家是否已经死亡
+						AWukongCharacter* WukongChar = Cast<AWukongCharacter>(SensedPawn);
+						if (WukongChar && WukongChar->IsDead())
+						{
+							// 玩家已死亡，清除目标并停止追击
+							BlackboardComp->ClearValue(TEXT("TargetActor"));
+							BlackboardComp->SetValueAsBool(TEXT("IsInvestigating"), false);
+							GetWorldTimerManager().ClearTimer(LoseAggroTimer);
+							
+							if (AEnemyBase* Enemy = Cast<AEnemyBase>(GetPawn()))
+							{
+								Enemy->StartPatrolling();
+							}
+							UE_LOG(LogTemp, Log, TEXT("OnPerceptionUpdated: Target is dead, clearing aggro"));
+							continue;
+						}
+
 						if (Stimulus.WasSuccessfullySensed())
 						{
 							// 看到了玩家，清除丢失仇恨的计时器
