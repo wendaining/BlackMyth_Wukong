@@ -1,10 +1,12 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
 #include "WukongCharacter.h"
+#include "WukongClone.h"
 #include "Components/StaminaComponent.h"
 #include "Components/CombatComponent.h"
 #include "Components/HealthComponent.h"
 #include "Components/CapsuleComponent.h"
+#include "Components/TeamComponent.h"
 #include "Combat/TraceHitboxComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "EnhancedInputComponent.h"
@@ -31,6 +33,10 @@ AWukongCharacter::AWukongCharacter()
 
     // 创建武器 Hitbox 组件（先挂载到 RootComponent，BeginPlay 时再附加到骨骼）
     WeaponTraceHitbox = CreateDefaultSubobject<UTraceHitboxComponent>(TEXT("WeaponTraceHitbox"));
+
+    // 创建阵营组件（默认为玩家阵营）
+    TeamComponent = CreateDefaultSubobject<UTeamComponent>(TEXT("TeamComponent"));
+    TeamComponent->SetTeam(ETeam::Player);
 
     // 注意：所有动画资产和输入动作现在都应在蓝图子类 (BP_Wukong_New) 中设置
     // 不再在 C++ 构造函数中硬编码加载路径，以便于在编辑器中灵活配置
@@ -214,6 +220,13 @@ void AWukongCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCom
         {
             EnhancedInputComponent->BindAction(UseItemAction, ETriggerEvent::Started, this, &AWukongCharacter::UseItem);
             UE_LOG(LogTemp, Warning, TEXT("  Bound UseItemAction to UseItem"));
+        }
+
+        // Bind shadow clone action (F key)
+        if (ShadowCloneAction)
+        {
+            EnhancedInputComponent->BindAction(ShadowCloneAction, ETriggerEvent::Started, this, &AWukongCharacter::PerformShadowClone);
+            UE_LOG(LogTemp, Warning, TEXT("  Bound ShadowCloneAction to PerformShadowClone"));
         }
 
         // Bind sprint action
@@ -956,10 +969,35 @@ void AWukongCharacter::PerformDodge()
 
 void AWukongCharacter::PerformHeavyAttack()
 {
-    // 死亡状态下不能重击
-    if (CurrentState == EWukongState::Dead)
+    // 死亡、翻滚、硬直状态下不能重击
+    if (CurrentState == EWukongState::Dead ||
+        CurrentState == EWukongState::Dodging ||
+        CurrentState == EWukongState::HitStun)
     {
         return;
+    }
+
+    // 如果已经在攻击中，检查当前动画进度
+    // 只有动画播放超过一定比例后才允许再次重击
+    if (CurrentState == EWukongState::Attacking)
+    {
+        if (UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance())
+        {
+            if (UAnimMontage* CurrentMontage = AnimInstance->GetCurrentActiveMontage())
+            {
+                float CurrentPos = AnimInstance->Montage_GetPosition(CurrentMontage);
+                float TotalLength = CurrentMontage->GetPlayLength();
+                
+                // 动画播放未超过 70% 时，忽略重击输入
+                const float HeavyAttackWindowThreshold = 0.7f;
+                if (TotalLength > 0.0f && (CurrentPos / TotalLength) < HeavyAttackWindowThreshold)
+                {
+                    UE_LOG(LogTemp, Log, TEXT("PerformHeavyAttack: Blocked - animation at %.1f%%, need %.1f%%"), 
+                        (CurrentPos / TotalLength) * 100.0f, HeavyAttackWindowThreshold * 100.0f);
+                    return;
+                }
+            }
+        }
     }
 
     // 检查是否有足够体力重击
@@ -971,6 +1009,12 @@ void AWukongCharacter::PerformHeavyAttack()
 
     if (HeavyAttackMontage)
     {
+        // 停止当前正在播放的蒙太奇（如果有的话）
+        if (UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance())
+        {
+            AnimInstance->StopAllMontages(0.1f);
+        }
+        
         // 消耗体力
         StaminaComponent->ConsumeStamina(StaminaComponent->HeavyAttackStaminaCost);
         
@@ -981,14 +1025,51 @@ void AWukongCharacter::PerformHeavyAttack()
 
 void AWukongCharacter::PerformStaffSpin()
 {
-    // 死亡状态下不能使用棍花
-    if (CurrentState == EWukongState::Dead)
+    // 死亡、翻滚、硬直状态下不能使用棍花
+    if (CurrentState == EWukongState::Dead ||
+        CurrentState == EWukongState::Dodging ||
+        CurrentState == EWukongState::HitStun)
     {
+        return;
+    }
+
+    // 如果已经在攻击中，检查当前动画进度
+    if (CurrentState == EWukongState::Attacking)
+    {
+        if (UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance())
+        {
+            if (UAnimMontage* CurrentMontage = AnimInstance->GetCurrentActiveMontage())
+            {
+                float CurrentPos = AnimInstance->Montage_GetPosition(CurrentMontage);
+                float TotalLength = CurrentMontage->GetPlayLength();
+                
+                const float SkillWindowThreshold = 0.7f;
+                if (TotalLength > 0.0f && (CurrentPos / TotalLength) < SkillWindowThreshold)
+                {
+                    return;
+                }
+            }
+        }
+    }
+
+    // 检查是否有足够体力使用棍花
+    if (!StaminaComponent || !StaminaComponent->HasEnoughStamina(StaminaComponent->StaffSpinStaminaCost))
+    {
+        UE_LOG(LogTemp, Log, TEXT("PerformStaffSpin: Not enough stamina!"));
         return;
     }
 
     if (StaffSpinMontage)
     {
+        // 停止当前正在播放的蒙太奇
+        if (UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance())
+        {
+            AnimInstance->StopAllMontages(0.1f);
+        }
+        
+        // 消耗体力
+        StaminaComponent->ConsumeStamina(StaminaComponent->StaffSpinStaminaCost);
+        
         ChangeState(EWukongState::Attacking); 
         PlayMontage(StaffSpinMontage);
     }
@@ -996,10 +1077,31 @@ void AWukongCharacter::PerformStaffSpin()
 
 void AWukongCharacter::PerformPoleStance()
 {
-    // 死亡状态下不能使用立棍法
-    if (CurrentState == EWukongState::Dead)
+    // 死亡、翻滚、硬直状态下不能使用立棍法
+    if (CurrentState == EWukongState::Dead ||
+        CurrentState == EWukongState::Dodging ||
+        CurrentState == EWukongState::HitStun)
     {
         return;
+    }
+
+    // 如果已经在攻击中，检查当前动画进度
+    if (CurrentState == EWukongState::Attacking)
+    {
+        if (UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance())
+        {
+            if (UAnimMontage* CurrentMontage = AnimInstance->GetCurrentActiveMontage())
+            {
+                float CurrentPos = AnimInstance->Montage_GetPosition(CurrentMontage);
+                float TotalLength = CurrentMontage->GetPlayLength();
+                
+                const float SkillWindowThreshold = 0.7f;
+                if (TotalLength > 0.0f && (CurrentPos / TotalLength) < SkillWindowThreshold)
+                {
+                    return;
+                }
+            }
+        }
     }
 
     // 检查是否有足够体力使用立棍法
@@ -1011,6 +1113,12 @@ void AWukongCharacter::PerformPoleStance()
 
     if (PoleStanceMontage)
     {
+        // 停止当前正在播放的蒙太奇
+        if (UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance())
+        {
+            AnimInstance->StopAllMontages(0.1f);
+        }
+        
         // 消耗体力
         StaminaComponent->ConsumeStamina(StaminaComponent->PoleStanceStaminaCost);
         
@@ -1024,6 +1132,105 @@ void AWukongCharacter::UseItem()
     if (DrinkGourdMontage)
     {
         PlayMontage(DrinkGourdMontage);
+    }
+}
+
+void AWukongCharacter::PerformShadowClone()
+{
+    // 死亡、翻滚、硬直状态下不能使用影分身
+    if (CurrentState == EWukongState::Dead ||
+        CurrentState == EWukongState::Dodging ||
+        CurrentState == EWukongState::HitStun)
+    {
+        UE_LOG(LogTemp, Log, TEXT("PerformShadowClone: Blocked by state"));
+        return;
+    }
+
+    // 检查冷却
+    if (IsCooldownActive(TEXT("ShadowClone")))
+    {
+        UE_LOG(LogTemp, Log, TEXT("PerformShadowClone: On cooldown"));
+        return;
+    }
+
+    // 检查是否设置了分身类
+    if (!CloneClass)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("PerformShadowClone: CloneClass not set! Set it in BP_Wukong blueprint."));
+        return;
+    }
+
+    UE_LOG(LogTemp, Log, TEXT("PerformShadowClone: Summoning %d clones!"), CloneCount);
+
+    // 开始冷却
+    StartCooldown(TEXT("ShadowClone"), ShadowCloneCooldown);
+
+    // 播放召唤动画（如果有的话）
+    if (ShadowCloneMontage)
+    {
+        if (UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance())
+        {
+            AnimInstance->Montage_Play(ShadowCloneMontage, 1.0f);
+        }
+    }
+
+    // 生成分身
+    FVector PlayerLocation = GetActorLocation();
+    FRotator PlayerRotation = GetActorRotation();
+
+    for (int32 i = 0; i < CloneCount; i++)
+    {
+        // 计算生成位置（围绕玩家均匀分布）
+        float Angle = (360.0f / CloneCount) * i + 90.0f; // 从两侧开始
+        float AngleRad = FMath::DegreesToRadians(Angle);
+        
+        FVector SpawnOffset = FVector(
+            FMath::Cos(AngleRad) * CloneSpawnDistance,
+            FMath::Sin(AngleRad) * CloneSpawnDistance,
+            0.0f
+        );
+        
+        FVector SpawnLocation = PlayerLocation + SpawnOffset;
+        
+        // 进行地面检测，确保分身生成在地面上
+        FHitResult HitResult;
+        FVector TraceStart = SpawnLocation + FVector(0.0f, 0.0f, 500.0f);
+        FVector TraceEnd = SpawnLocation - FVector(0.0f, 0.0f, 500.0f);
+        FCollisionQueryParams QueryParams;
+        QueryParams.AddIgnoredActor(this);
+        
+        if (GetWorld()->LineTraceSingleByChannel(HitResult, TraceStart, TraceEnd, ECC_Visibility, QueryParams))
+        {
+            // 找到地面，将生成点设置在地面上方一点
+            SpawnLocation = HitResult.Location + FVector(0.0f, 0.0f, 90.0f); // 胶囊体半高
+        }
+        
+        // 让分身面向玩家的朝向
+        FRotator SpawnRotation = PlayerRotation;
+
+        // 设置生成参数
+        FActorSpawnParameters SpawnParams;
+        SpawnParams.Owner = this;
+        SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
+
+        // 生成分身
+        AWukongClone* Clone = GetWorld()->SpawnActor<AWukongClone>(
+            CloneClass,
+            SpawnLocation,
+            SpawnRotation,
+            SpawnParams
+        );
+
+        if (Clone)
+        {
+            // 初始化分身
+            Clone->InitializeClone(this, CloneLifetime);
+            UE_LOG(LogTemp, Log, TEXT("PerformShadowClone: Spawned clone %d at %s"), i + 1, *SpawnLocation.ToString());
+        }
+        else
+        {
+            UE_LOG(LogTemp, Warning, TEXT("PerformShadowClone: Failed to spawn clone %d"), i + 1);
+        }
     }
 }
 

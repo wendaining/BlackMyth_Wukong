@@ -48,4 +48,7 @@ protected:
 
 	/** 丢失仇恨后的处理函数 */
 	void HandleLostAggro();
+	
+	/** 寻找最近的敌对目标（玩家或玩家的分身） */
+	AActor* FindNearestHostileTarget();
 };

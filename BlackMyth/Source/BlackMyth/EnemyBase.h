@@ -11,6 +11,7 @@ class UHealthComponent;
 class UCombatComponent;
 class UTraceHitboxComponent;
 class UEnemyHealthBarWidget;
+class UTeamComponent;
 
 /**
  * 敌人状态枚举
@@ -163,6 +164,10 @@ protected:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	TObjectPtr<UTraceHitboxComponent> TraceHitboxComponent;
+
+	/** 阵营组件（用于敌我判定，默认为敌人阵营） */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
+	TObjectPtr<UTeamComponent> TeamComponent;
 
 	// 状态
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "State")

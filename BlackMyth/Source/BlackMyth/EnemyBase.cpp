@@ -9,6 +9,7 @@
 #include "Navigation/PathFollowingComponent.h"
 #include "Components/HealthComponent.h"
 #include "Components/CombatComponent.h"
+#include "Components/TeamComponent.h"
 #include "Combat/TraceHitboxComponent.h"
 #include "Components/WidgetComponent.h"
 #include "UI/EnemyHealthBarWidget.h"
@@ -26,6 +27,10 @@ AEnemyBase::AEnemyBase()
 	TraceHitboxComponent = CreateDefaultSubobject<UTraceHitboxComponent>(TEXT("TraceHitboxComponent"));
 	// TraceHitboxComponent 是 ActorComponent，不需要 SetupAttachment
 	// TraceHitboxComponent->SetupAttachment(GetRootComponent());
+
+	// 创建阵营组件，设置为敌人阵营
+	TeamComponent = CreateDefaultSubobject<UTeamComponent>(TEXT("TeamComponent"));
+	TeamComponent->SetTeam(ETeam::Enemy);
 
 	// 设置默认 AI 控制器
 	AIControllerClass = AEnemyAIController::StaticClass();
