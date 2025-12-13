@@ -113,6 +113,18 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stamina|Costs")
 	float AttackStaminaCost = 10.0f;
 
+	/** 重击消耗体力 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stamina|Costs")
+	float HeavyAttackStaminaCost = 25.0f;
+
+	/** 棍花消耗体力 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stamina|Costs")
+	float StaffSpinStaminaCost = 30.0f;
+
+	/** 立棍法消耗体力 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stamina|Costs")
+	float PoleStanceStaminaCost = 35.0f;
+
 	/** 翻滚消耗体力 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stamina|Costs")
 	float DodgeStaminaCost = 20.0f;

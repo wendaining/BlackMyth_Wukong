@@ -962,8 +962,18 @@ void AWukongCharacter::PerformHeavyAttack()
         return;
     }
 
+    // 检查是否有足够体力重击
+    if (!StaminaComponent || !StaminaComponent->HasEnoughStamina(StaminaComponent->HeavyAttackStaminaCost))
+    {
+        UE_LOG(LogTemp, Log, TEXT("PerformHeavyAttack: Not enough stamina!"));
+        return;
+    }
+
     if (HeavyAttackMontage)
     {
+        // 消耗体力
+        StaminaComponent->ConsumeStamina(StaminaComponent->HeavyAttackStaminaCost);
+        
         ChangeState(EWukongState::Attacking);
         PlayMontage(HeavyAttackMontage);
     }
@@ -992,8 +1002,18 @@ void AWukongCharacter::PerformPoleStance()
         return;
     }
 
+    // 检查是否有足够体力使用立棍法
+    if (!StaminaComponent || !StaminaComponent->HasEnoughStamina(StaminaComponent->PoleStanceStaminaCost))
+    {
+        UE_LOG(LogTemp, Log, TEXT("PerformPoleStance: Not enough stamina!"));
+        return;
+    }
+
     if (PoleStanceMontage)
     {
+        // 消耗体力
+        StaminaComponent->ConsumeStamina(StaminaComponent->PoleStanceStaminaCost);
+        
         ChangeState(EWukongState::Attacking);
         PlayMontage(PoleStanceMontage);
     }
