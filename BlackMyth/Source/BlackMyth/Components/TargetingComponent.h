@@ -6,6 +6,8 @@
 #include "Components/ActorComponent.h"
 #include "TargetingComponent.generated.h"
 
+class UWidgetComponent;
+
 // 目标变更委托
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnTargetChanged, AActor*, NewTarget);
 
@@ -135,6 +137,24 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Targeting|Config")
 	FName TargetTag = FName("Enemy");
 
+	// ========== 锁定指示器配置 ==========
+
+	/** 是否显示锁定指示器 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Targeting|Indicator")
+	bool bShowTargetIndicator = true;
+
+	/** 锁定指示器颜色 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Targeting|Indicator")
+	FLinearColor IndicatorColor = FLinearColor(1.0f, 1.0f, 1.0f, 1.0f);
+
+	/** 锁定指示器大小 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Targeting|Indicator")
+	float IndicatorSize = 20.0f;
+
+	/** 锁定指示器高度偏移（相对于目标中心） */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Targeting|Indicator")
+	float IndicatorHeightOffset = 50.0f;
+
 	// ========== 运行时状态 ==========
 
 	/** 当前锁定的目标 */
@@ -152,7 +172,20 @@ protected:
 	UPROPERTY()
 	TObjectPtr<APlayerController> OwnerController;
 
+	/** 锁定指示器 WidgetComponent（UI 风格，不受光照影响） */
+	UPROPERTY()
+	TObjectPtr<UWidgetComponent> TargetIndicatorWidget;
+
 	// ========== 内部方法 ==========
+
+	/** 创建锁定指示器 */
+	void CreateTargetIndicator();
+
+	/** 销毁锁定指示器 */
+	void DestroyTargetIndicator();
+
+	/** 更新锁定指示器位置 */
+	void UpdateTargetIndicator();
 
 	/** 寻找最佳目标 */
 	AActor* FindBestTarget() const;

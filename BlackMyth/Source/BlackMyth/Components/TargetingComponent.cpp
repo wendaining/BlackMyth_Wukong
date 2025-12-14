@@ -8,6 +8,10 @@
 #include "Kismet/KismetMathLibrary.h"
 #include "Camera/CameraComponent.h"
 #include "DrawDebugHelpers.h"
+#include "Components/WidgetComponent.h"
+#include "Blueprint/UserWidget.h"
+#include "Components/Image.h"
+#include "Components/CanvasPanelSlot.h"
 
 UTargetingComponent::UTargetingComponent()
 {
@@ -39,6 +43,7 @@ void UTargetingComponent::TickComponent(float DeltaTime, ELevelTick TickType, FA
 		if (LockedTarget)
 		{
 			UpdateCameraToTarget(DeltaTime);
+			UpdateTargetIndicator();
 		}
 	}
 }
@@ -67,6 +72,9 @@ void UTargetingComponent::ToggleLockOn()
 				TargetHealth->OnDeath.AddDynamic(this, &UTargetingComponent::OnTargetDeath);
 			}
 
+			// 创建锁定指示器
+			CreateTargetIndicator();
+
 			// 广播目标变更
 			OnTargetChanged.Broadcast(NewTarget);
 			
@@ -78,7 +86,6 @@ void UTargetingComponent::ToggleLockOn()
 		}
 	}
 }
-
 void UTargetingComponent::SwitchTarget(bool bRight)
 {
 	if (!bIsTargeting || !LockedTarget)
@@ -143,6 +150,9 @@ void UTargetingComponent::ClearTarget()
 			TargetHealth->OnDeath.RemoveDynamic(this, &UTargetingComponent::OnTargetDeath);
 		}
 	}
+
+	// 销毁锁定指示器
+	DestroyTargetIndicator();
 
 	LockedTarget = nullptr;
 	bIsTargeting = false;
@@ -546,5 +556,107 @@ void UTargetingComponent::OnTargetDeath(AActor* DeadActor)
 			// 没有新目标，结束锁定
 			ClearTarget();
 		}
+	}
+}
+// ========== 锁定指示器实现 ==========
+
+void UTargetingComponent::CreateTargetIndicator()
+{
+	if (!bShowTargetIndicator || !LockedTarget)
+	{
+		return;
+	}
+
+	// 如果已有指示器，先销毁
+	DestroyTargetIndicator();
+
+	// 创建 WidgetComponent 并附加到目标身上
+	TargetIndicatorWidget = NewObject<UWidgetComponent>(LockedTarget, UWidgetComponent::StaticClass(), TEXT("LockOnIndicator"));
+	
+	if (!TargetIndicatorWidget)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[TargetingComponent] Failed to create target indicator widget"));
+		return;
+	}
+
+	// 设置为屏幕空间模式（始终面向摄像机，不受光照影响）
+	TargetIndicatorWidget->SetWidgetSpace(EWidgetSpace::Screen);
+	
+	// 设置绘制大小
+	TargetIndicatorWidget->SetDrawSize(FVector2D(IndicatorSize, IndicatorSize));
+	
+	// 设置相对位置（在目标头顶）
+	TargetIndicatorWidget->SetRelativeLocation(FVector(0.0f, 0.0f, IndicatorHeightOffset));
+	
+	// 禁用碰撞
+	TargetIndicatorWidget->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	
+	// 附加到目标 Actor 的根组件
+	if (USceneComponent* RootComp = LockedTarget->GetRootComponent())
+	{
+		TargetIndicatorWidget->AttachToComponent(
+			RootComp,
+			FAttachmentTransformRules::KeepRelativeTransform
+		);
+	}
+	
+	// 注册组件
+	TargetIndicatorWidget->RegisterComponent();
+
+	// 尝试加载自定义 Widget 蓝图（如果存在）
+	// 路径：Content/_BlackMythGame/UI/WBP_LockOnIndicator
+	UClass* WidgetClass = LoadClass<UUserWidget>(
+		nullptr, 
+		TEXT("/Game/_BlackMythGame/UI/WBP_LockOnIndicator.WBP_LockOnIndicator_C")
+	);
+	
+	if (WidgetClass)
+	{
+		TargetIndicatorWidget->SetWidgetClass(WidgetClass);
+		UE_LOG(LogTemp, Log, TEXT("[TargetingComponent] Using custom widget: WBP_LockOnIndicator"));
+	}
+	else
+	{
+		// 如果没有自定义 Widget，使用 DrawDebug 方式作为后备
+		UE_LOG(LogTemp, Warning, TEXT("[TargetingComponent] WBP_LockOnIndicator not found. Create a Widget Blueprint at: Content/_BlackMythGame/UI/WBP_LockOnIndicator"));
+		UE_LOG(LogTemp, Warning, TEXT("[TargetingComponent] Using debug draw as fallback"));
+	}
+
+	UE_LOG(LogTemp, Log, TEXT("[TargetingComponent] Target indicator widget created"));
+}
+
+void UTargetingComponent::DestroyTargetIndicator()
+{
+	if (TargetIndicatorWidget)
+	{
+		TargetIndicatorWidget->DestroyComponent();
+		TargetIndicatorWidget = nullptr;
+		UE_LOG(LogTemp, Log, TEXT("[TargetingComponent] Target indicator destroyed"));
+	}
+}
+
+void UTargetingComponent::UpdateTargetIndicator()
+{
+	// 如果没有自定义 Widget，使用 Debug Draw 绘制圆点
+	if (bShowTargetIndicator && LockedTarget && (!TargetIndicatorWidget || !TargetIndicatorWidget->GetWidget()))
+	{
+		FVector TargetLocation = LockedTarget->GetActorLocation();
+		TargetLocation.Z += IndicatorHeightOffset;
+		
+		// 使用 DrawDebugPoint 绘制一个白点（每帧绘制，始终可见）
+		DrawDebugPoint(
+			GetWorld(),
+			TargetLocation,
+			IndicatorSize,
+			FColor(
+				FMath::RoundToInt(IndicatorColor.R * 255),
+				FMath::RoundToInt(IndicatorColor.G * 255),
+				FMath::RoundToInt(IndicatorColor.B * 255),
+				FMath::RoundToInt(IndicatorColor.A * 255)
+			),
+			false,  // bPersistentLines
+			-1.0f,  // LifeTime (-1 = 1 frame)
+			0       // DepthPriority (0 = always on top)
+		);
 	}
 }
