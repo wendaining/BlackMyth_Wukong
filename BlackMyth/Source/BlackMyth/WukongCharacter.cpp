@@ -6,6 +6,8 @@
 #include "Components/CombatComponent.h"
 #include "Components/HealthComponent.h"
 #include "Components/TargetingComponent.h"
+#include "Components/TeamComponent.h"
+#include "Components/CapsuleComponent.h"
 #include "Combat/TraceHitboxComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "EnhancedInputComponent.h"
@@ -35,6 +37,9 @@ AWukongCharacter::AWukongCharacter()
 
     // 创建目标锁定组件
     TargetingComponent = CreateDefaultSubobject<UTargetingComponent>(TEXT("TargetingComponent"));
+
+    // 创建阵营组件（默认为玩家阵营）
+    TeamComponent = CreateDefaultSubobject<UTeamComponent>(TEXT("TeamComponent"));
 
     // 注意：所有动画资产和输入动作现在都应在蓝图子类 (BP_Wukong_New) 中设置
     // 不再在 C++ 构造函数中硬编码加载路径，以便于在编辑器中灵活配置
@@ -122,6 +127,13 @@ void AWukongCharacter::BeginPlay()
     if (StaminaComponent)
     {
         StaminaComponent->OnStaminaDepleted.AddDynamic(this, &AWukongCharacter::OnStaminaDepleted);
+    }
+
+    // 设置玩家阵营（确保敌人 AI 能识别我们为敌对目标）
+    if (TeamComponent)
+    {
+        TeamComponent->SetTeam(ETeam::Player);
+        UE_LOG(LogTemp, Log, TEXT("[Wukong] TeamComponent set to Player team"));
     }
 }
 
@@ -223,11 +235,15 @@ void AWukongCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCom
             UE_LOG(LogTemp, Warning, TEXT("  Bound UseItemAction to UseItem"));
         }
 
-        // Bind shadow clone action (F key)
+        // Bind shadow clone action (1 key)
         if (ShadowCloneAction)
         {
             EnhancedInputComponent->BindAction(ShadowCloneAction, ETriggerEvent::Started, this, &AWukongCharacter::PerformShadowClone);
             UE_LOG(LogTemp, Warning, TEXT("  Bound ShadowCloneAction to PerformShadowClone"));
+        }
+        else
+        {
+            UE_LOG(LogTemp, Error, TEXT("  ShadowCloneAction is NULL! Shadow Clone (Key 1) will not work! Assign IA_ShadowClone in BP_Wukong."));
         }
 
         // Bind sprint action
@@ -1160,6 +1176,8 @@ void AWukongCharacter::UseItem()
 
 void AWukongCharacter::PerformShadowClone()
 {
+    UE_LOG(LogTemp, Warning, TEXT(">>> PerformShadowClone() CALLED! CurrentState=%d"), (int32)CurrentState);
+
     // 死亡、翻滚、硬直状态下不能使用影分身
     if (CurrentState == EWukongState::Dead ||
         CurrentState == EWukongState::Dodging ||

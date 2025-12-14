@@ -12,6 +12,7 @@ class UCombatComponent;
 class UHealthComponent;
 class UTraceHitboxComponent;
 class UTargetingComponent;
+class UTeamComponent;
 class UWukongAnimInstance;
 struct FInputActionValue;
 
@@ -157,6 +158,10 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UInputAction> SwitchTargetAction;
 
+	/** 影分身输入动作 (F键) */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input", meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<UInputAction> ShadowCloneAction;
+
 	// ========== 组件 ==========
 
 	/** 生命值组件 */
@@ -178,6 +183,10 @@ protected:
 	/** 目标锁定组件 */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	TObjectPtr<UTargetingComponent> TargetingComponent;
+
+	/** 阵营组件（用于敌我识别） */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
+	TObjectPtr<UTeamComponent> TeamComponent;
 
 	// ========== 移动属性 ==========
 	
