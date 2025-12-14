@@ -5,6 +5,7 @@
 #include "Kismet/GameplayStatics.h"
 #include "GameFramework/PlayerController.h"
 #include "BlackMythPlayerController.h"
+#include "../LoadMenuWidget.h"
 
 void UPauseMenuWidget::OnResumeClicked()
 {
@@ -31,17 +32,33 @@ void UPauseMenuWidget::OnLoadClicked()
     }
 
     // 加载读档界面蓝图类
-    UClass* LoadWidgetClass = LoadClass<UUserWidget>(
-        nullptr,
-        TEXT("/Game/_BlackMythGame/Blueprints/Menu/WBP_LoadMenu.WBP_LoadMenu_C")
-    );
+    TSubclassOf<ULoadMenuWidget> LoadWidgetClass =
+        LoadClass<ULoadMenuWidget>(
+            nullptr,
+            TEXT("/Game/_BlackMythGame/Blueprints/Menu/WBP_LoadMenu.WBP_LoadMenu_C")
+        );
 
-    // 创建并显示读档界面
-    if (UUserWidget* LoadUI = CreateWidget<UUserWidget>(PC, LoadWidgetClass)) {
-        LoadUI->AddToViewport();
-        PC->SetInputMode(FInputModeUIOnly());
-        PC->bShowMouseCursor = true;
+    if (!LoadWidgetClass) {
+        return;
     }
+
+    // 创建“真正的”读档界面
+    ULoadMenuWidget* LoadMenuWidget =
+        CreateWidget<ULoadMenuWidget>(PC, LoadWidgetClass);
+
+    if (!LoadMenuWidget) {
+        return;
+    }
+
+    // 关键一句：告诉读档界面“你是谁”
+    LoadMenuWidget->OwnerPauseWidget = this;
+
+    // 显示读档界面
+    LoadMenuWidget->AddToViewport();
+
+    // UI 输入
+    PC->SetInputMode(FInputModeUIOnly());
+    PC->bShowMouseCursor = true;
 }
 
 void UPauseMenuWidget::OnSaveClicked()

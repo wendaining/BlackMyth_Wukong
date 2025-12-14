@@ -35,6 +35,9 @@ public:
     UPROPERTY(meta = (BindWidget))
     UTextBlock* LoadSlot3Text;
 
+    UPROPERTY()
+    UUserWidget* OwnerPauseWidget;
+
     /** µã»÷¶Áµµ²Û£¨1~3£©¡£ */
     UFUNCTION(BlueprintCallable, Category = "Load")
     void OnLoadSlotClicked(int32 SlotIndex);

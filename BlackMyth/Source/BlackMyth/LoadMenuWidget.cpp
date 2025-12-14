@@ -71,5 +71,18 @@ void ULoadMenuWidget::OnLoadSlotClicked(int32 SlotIndex)
         Player->SetActorRotation(SaveGame->PlayerRotation);
     }
 
+    if (OwnerPauseWidget)
+    {
+        OwnerPauseWidget->RemoveFromParent();
+    }
     RemoveFromParent();
+
+    // 取消暂停
+    UGameplayStatics::SetGamePaused(World, false);
+
+    // 恢复游戏输入
+    if (APlayerController* PC = World->GetFirstPlayerController()) {
+        PC->SetInputMode(FInputModeGameOnly());
+        PC->bShowMouseCursor = false;
+    }
 }
