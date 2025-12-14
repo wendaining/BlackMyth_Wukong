@@ -2,6 +2,7 @@
 
 
 #include "MainMenuWidget.h"
+#include "BlackMythPlayerController.h"
 #include "Kismet/GameplayStatics.h"
 #include "Kismet/KismetSystemLibrary.h"
 
@@ -34,18 +35,14 @@ void UMainMenuWidget::QuitGame()
 
 void UMainMenuWidget::LoadGame()
 {
-    UWorld* World = GetWorld();
-    if (!World) return;
-    UClass* load_widget_class = LoadClass<UUserWidget>(
-        nullptr,
-        TEXT("/Game/_BlackMythGame/Blueprints/Menu/WBP_LoadMenu.WBP_LoadMenu_C"));
+    RemoveFromParent();
 
-    if (load_widget_class == nullptr) {
-        return;
-    }
-
-    // 创建并显示设置界面
-    if (UUserWidget* load_ui = CreateWidget<UUserWidget>(World, load_widget_class)) {
-        load_ui->AddToViewport();
-    }
+    // LoadGame=1 是自定义参数
+    UGameplayStatics::OpenLevel(
+        this,
+        FName(TEXT("/Game/ThirdPerson/Maps/ThirdPersonMap")),
+        true,
+        TEXT("LoadGame=1")
+    );
 }
+

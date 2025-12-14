@@ -2,6 +2,7 @@
 #include "EnhancedInputSubsystems.h"
 #include "EnhancedInputComponent.h"
 #include "Blueprint/UserWidget.h"
+#include "PauseMenuWidget.h"
 #include "Kismet/GameplayStatics.h"
 ABlackMythPlayerController::ABlackMythPlayerController()
     : PauseMenuInstance(nullptr)
@@ -37,6 +38,19 @@ void ABlackMythPlayerController::BeginPlay() {
         if (PlayerMappingContext != nullptr) {
             Subsystem->AddMappingContext(PlayerMappingContext, 0);
         }
+    }
+
+    // 读取 OpenLevel 传进来的参数
+    if (GetWorld()->URL.HasOption(TEXT("LoadGame")))
+    {
+        FTimerHandle Handle;
+        GetWorld()->GetTimerManager().SetTimer(
+            Handle,
+            this,
+            &ABlackMythPlayerController::EnterLoadGameFromPause,
+            0.1f,
+            false
+        );
     }
 }
 
@@ -102,4 +116,33 @@ void ABlackMythPlayerController::ContinueGame() {
     UGameplayStatics::SetGamePaused(world, false);
     bShowMouseCursor = false;
     SetInputMode(FInputModeGameOnly());
+}
+
+void ABlackMythPlayerController::EnterLoadGameFromPause()
+{
+    if (!PauseMenuClass) return;
+
+    // 1. 创建 / 显示 PauseMenu
+    if (!PauseMenuInstance)
+    {
+        PauseMenuInstance = CreateWidget<UUserWidget>(this, PauseMenuClass);
+    }
+
+    if (PauseMenuInstance)
+    {
+        PauseMenuInstance->AddToViewport();
+    }
+
+    // 2. 暂停游戏
+    UGameplayStatics::SetGamePaused(GetWorld(), true);
+
+    bShowMouseCursor = true;
+    SetInputMode(FInputModeUIOnly());
+
+    // 3. 进入读档界面
+    if (UPauseMenuWidget* PauseWidget =
+        Cast<UPauseMenuWidget>(PauseMenuInstance))
+    {
+        PauseWidget->OnLoadClicked();
+    }
 }

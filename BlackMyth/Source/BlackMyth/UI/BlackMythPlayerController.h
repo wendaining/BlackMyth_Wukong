@@ -44,6 +44,9 @@ protected:
     /** 绑定输入组件（Enhanced Input）。 */
     virtual void SetupInputComponent() override;
 
+    UFUNCTION()
+    void EnterLoadGameFromPause();
+
     /** 暂停菜单的 Widget 类（在编辑器中设置）。 */
     UPROPERTY(EditAnywhere, Category = "UI")
     TSubclassOf<UUserWidget> PauseMenuClass;
