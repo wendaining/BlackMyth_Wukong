@@ -11,7 +11,7 @@ class UStaminaComponent;
 class UCombatComponent;
 class UHealthComponent;
 class UTraceHitboxComponent;
-class UTeamComponent;
+class UTargetingComponent;
 class UWukongAnimInstance;
 struct FInputActionValue;
 
@@ -96,6 +96,10 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Combat")
 	UCombatComponent* GetCombatComponent() const { return CombatComponent; }
 
+	/** 获取目标锁定组件 */
+	UFUNCTION(BlueprintPure, Category = "Targeting")
+	UTargetingComponent* GetTargetingComponent() const { return TargetingComponent; }
+
 	/** 是否正在冲刺 */
 	UFUNCTION(BlueprintPure, Category = "Movement")
 	bool IsSprinting() const { return bIsSprinting; }
@@ -145,9 +149,13 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UInputAction> UseItemAction;
 
-	/** 影分身输入动作 (F键) */
+	/** 锁定目标输入动作 (鼠标中键) */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input", meta = (AllowPrivateAccess = "true"))
-	TObjectPtr<UInputAction> ShadowCloneAction;
+	TObjectPtr<UInputAction> LockOnAction;
+
+	/** 切换目标输入动作 (鼠标滚轮) */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input", meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<UInputAction> SwitchTargetAction;
 
 	// ========== 组件 ==========
 
@@ -167,9 +175,9 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	TObjectPtr<UTraceHitboxComponent> WeaponTraceHitbox;
 
-	/** 阵营组件（用于敌我判定） */
+	/** 目标锁定组件 */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
-	TObjectPtr<UTeamComponent> TeamComponent;
+	TObjectPtr<UTargetingComponent> TargetingComponent;
 
 	// ========== 移动属性 ==========
 	
@@ -483,6 +491,8 @@ private:
 	void OnSprintStarted();   // 冲刺开始
 	void OnSprintStopped();   // 冲刺结束
 	void OnAbilityPressed();  // 战技按下
+	void OnLockOnPressed();   // 锁定目标按下
+	void OnSwitchTarget(const FInputActionValue& Value);  // 切换目标
 
 	// ========== 状态更新函数 ==========
 	void ChangeState(EWukongState NewState);     // 切换状态
@@ -524,6 +534,7 @@ private:
 	void Die();                                // 死亡处理
 	void UpdateMovementSpeed();                // 更新移动速度
 	FVector GetMovementInputDirection() const; // 获取移动输入方向
+	void UpdateFacingTarget(float DeltaTime);  // 锁定时更新角色朝向
 
 	/**
 	 * 从动画序列动态创建并播放蒙太奇

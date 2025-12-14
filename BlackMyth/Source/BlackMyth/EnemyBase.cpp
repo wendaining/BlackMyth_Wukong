@@ -65,6 +65,9 @@ void AEnemyBase::BeginPlay()
 	Super::BeginPlay();
 	// CurrentHealth = MaxHealth; // Managed by HealthComponent
 	
+	// 添加敌人标签，用于目标锁定系统识别
+	Tags.AddUnique(FName("Enemy"));
+	
 	EnemyController = Cast<AAIController>(GetController());
 	
 	if (HealthComponent)

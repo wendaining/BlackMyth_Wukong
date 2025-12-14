@@ -5,8 +5,7 @@
 #include "Components/StaminaComponent.h"
 #include "Components/CombatComponent.h"
 #include "Components/HealthComponent.h"
-#include "Components/CapsuleComponent.h"
-#include "Components/TeamComponent.h"
+#include "Components/TargetingComponent.h"
 #include "Combat/TraceHitboxComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "EnhancedInputComponent.h"
@@ -34,9 +33,8 @@ AWukongCharacter::AWukongCharacter()
     // 创建武器 Hitbox 组件（先挂载到 RootComponent，BeginPlay 时再附加到骨骼）
     WeaponTraceHitbox = CreateDefaultSubobject<UTraceHitboxComponent>(TEXT("WeaponTraceHitbox"));
 
-    // 创建阵营组件（默认为玩家阵营）
-    TeamComponent = CreateDefaultSubobject<UTeamComponent>(TEXT("TeamComponent"));
-    TeamComponent->SetTeam(ETeam::Player);
+    // 创建目标锁定组件
+    TargetingComponent = CreateDefaultSubobject<UTargetingComponent>(TEXT("TargetingComponent"));
 
     // 注意：所有动画资产和输入动作现在都应在蓝图子类 (BP_Wukong_New) 中设置
     // 不再在 C++ 构造函数中硬编码加载路径，以便于在编辑器中灵活配置
@@ -155,6 +153,9 @@ void AWukongCharacter::Tick(float DeltaTime)
             bIsInvincible = false;
         }
     }
+
+    // 锁定目标时角色面向目标
+    UpdateFacingTarget(DeltaTime);
 }
 
 // Called to bind functionality to input
@@ -253,6 +254,28 @@ void AWukongCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCom
             UE_LOG(LogTemp, Warning, TEXT("  AbilityAction is NULL - Q ability disabled (create IA_Ability asset)"));
         }
         */
+
+        // Bind lock-on action (Mouse Middle Button)
+        if (LockOnAction)
+        {
+            EnhancedInputComponent->BindAction(LockOnAction, ETriggerEvent::Started, this, &AWukongCharacter::OnLockOnPressed);
+            UE_LOG(LogTemp, Warning, TEXT("  Bound LockOnAction to OnLockOnPressed"));
+        }
+        else
+        {
+            UE_LOG(LogTemp, Warning, TEXT("  LockOnAction is NULL - Lock-on disabled"));
+        }
+
+        // Bind switch target action (Mouse Wheel)
+        if (SwitchTargetAction)
+        {
+            EnhancedInputComponent->BindAction(SwitchTargetAction, ETriggerEvent::Triggered, this, &AWukongCharacter::OnSwitchTarget);
+            UE_LOG(LogTemp, Warning, TEXT("  Bound SwitchTargetAction to OnSwitchTarget"));
+        }
+        else
+        {
+            UE_LOG(LogTemp, Warning, TEXT("  SwitchTargetAction is NULL - Target switching disabled"));
+        }
     }
     else
     {
@@ -1715,4 +1738,75 @@ void AWukongCharacter::UpdateAbilityState(float DeltaTime)
             ChangeState(EWukongState::Moving);
         }
     }
+}
+// ========== 目标锁定输入处理 ==========
+
+void AWukongCharacter::OnLockOnPressed()
+{
+    UE_LOG(LogTemp, Log, TEXT("OnLockOnPressed() called"));
+    
+    if (TargetingComponent)
+    {
+        TargetingComponent->ToggleLockOn();
+    }
+}
+
+void AWukongCharacter::OnSwitchTarget(const FInputActionValue& Value)
+{
+    if (!TargetingComponent || !TargetingComponent->IsTargeting())
+    {
+        return;
+    }
+
+    // 获取鼠标滚轮值，正值向右切换，负值向左切换
+    float ScrollValue = Value.Get<float>();
+    
+    if (FMath::Abs(ScrollValue) > 0.1f)
+    {
+        bool bSwitchRight = ScrollValue > 0.0f;
+        TargetingComponent->SwitchTarget(bSwitchRight);
+        UE_LOG(LogTemp, Log, TEXT("SwitchTarget: %s"), bSwitchRight ? TEXT("Right") : TEXT("Left"));
+    }
+}
+
+void AWukongCharacter::UpdateFacingTarget(float DeltaTime)
+{
+    // 只在锁定状态下处理
+    if (!TargetingComponent || !TargetingComponent->IsTargeting())
+    {
+        return;
+    }
+
+    // 翻滚、死亡状态不调整朝向
+    if (CurrentState == EWukongState::Dodging || CurrentState == EWukongState::Dead)
+    {
+        return;
+    }
+
+    AActor* Target = TargetingComponent->GetLockedTarget();
+    if (!Target)
+    {
+        return;
+    }
+
+    // 计算朝向目标的方向（只在水平面上）
+    FVector OwnerLocation = GetActorLocation();
+    FVector TargetLocation = Target->GetActorLocation();
+    FVector DirectionToTarget = (TargetLocation - OwnerLocation).GetSafeNormal2D();
+
+    if (DirectionToTarget.IsNearlyZero())
+    {
+        return;
+    }
+
+    // 计算目标旋转
+    FRotator TargetRotation = DirectionToTarget.Rotation();
+    FRotator CurrentRotation = GetActorRotation();
+
+    // 平滑插值到目标朝向
+    FRotator NewRotation = FMath::RInterpTo(CurrentRotation, TargetRotation, DeltaTime, 10.0f);
+    NewRotation.Pitch = 0.0f;
+    NewRotation.Roll = 0.0f;
+
+    SetActorRotation(NewRotation);
 }

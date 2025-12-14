@@ -155,7 +155,7 @@ void ResetCombo();
 FOnDamageDealt OnDamageDealt;
 ```
 
-#### 4. TeamComponent (待实现 📝)
+#### 4. TeamComponent (已经完成)
 **职责**: 阵营管理、敌我判定
 
 ```cpp
@@ -175,7 +175,7 @@ bool IsHostileTo(ETeam OtherTeam) const;
 bool IsHostileToActor(AActor* OtherActor) const;
 ```
 
-#### 5. HitboxComponent → TraceHitboxComponent (需重构 🔄)
+#### 5. HitboxComponent → TraceHitboxComponent (已经重构)
 **职责**: 攻击碰撞检测
 
 **当前问题**: 角色模型不精准，需要改善
@@ -219,7 +219,7 @@ FOnTargetChanged OnTargetChanged;
 FOnTargetLost OnTargetLost;
 ```
 
-#### 7. HitReactionComponent (待实现 📝)
+#### 7. HitReactionComponent (已经实现)
 **职责**: 受击反馈、硬直、击退
 
 ```cpp
