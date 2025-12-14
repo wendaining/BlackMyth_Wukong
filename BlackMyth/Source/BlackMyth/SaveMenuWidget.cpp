@@ -1,6 +1,3 @@
-// Fill out your copyright notice in the Description page of Project Settings.
-
-
 #include "SaveMenuWidget.h"
 #include "Kismet/GameplayStatics.h"
 #include "GameFramework/Character.h"
@@ -11,29 +8,77 @@ void USaveMenuWidget::OnSaveSlotClicked(int32 SlotIndex) {
         return;
     }
 
-    UWorld* world = GetWorld();
-    if (world == nullptr) {
+    UWorld* World = GetWorld();
+    if (!World) {
         return;
     }
 
-    ACharacter* player = UGameplayStatics::GetPlayerCharacter(world, 0);
-    if (player == nullptr) {
+    ACharacter* Player = UGameplayStatics::GetPlayerCharacter(World, 0);
+    if (!Player) {
         return;
     }
 
     // 创建或覆盖存档
-    UBlackMythSaveGame* save_game =
-        Cast<UBlackMythSaveGame>(UGameplayStatics::CreateSaveGameObject(
-            UBlackMythSaveGame::StaticClass()));
+    UBlackMythSaveGame* SaveGame =
+        Cast<UBlackMythSaveGame>(
+            UGameplayStatics::CreateSaveGameObject(
+                UBlackMythSaveGame::StaticClass()
+            )
+        );
 
-    save_game->PlayerLocation = player->GetActorLocation();
-    save_game->PlayerRotation = player->GetActorRotation();
-    save_game->SaveName = FString::Printf(TEXT("Save Slot %d"), SlotIndex);
+    if (!SaveGame) {
+        return;
+    }
 
-    const FString slot_name = FString::Printf(TEXT("SaveSlot_%d"), SlotIndex);
-    UGameplayStatics::SaveGameToSlot(save_game, slot_name, 0);
+    // === 玩家状态 ===
+    SaveGame->PlayerLocation = Player->GetActorLocation();
+    SaveGame->PlayerRotation = Player->GetActorRotation();
+
+    // === 存档名（来自输入框）===
+    if (SaveNameTextBox && !SaveNameTextBox->GetText().IsEmpty()) {
+        SaveGame->SaveName = SaveNameTextBox->GetText().ToString();
+    }
+    else {
+        SaveGame->SaveName = FString::Printf(TEXT("Save Slot %d"), SlotIndex);
+    }
+
+    // 记录存档时间（给 LoadMenu 显示用）
+    SaveGame->SaveTime = FDateTime::Now();
+
+    const FString SlotName = FString::Printf(TEXT("SaveSlot_%d"), SlotIndex);
+    UGameplayStatics::SaveGameToSlot(SaveGame, SlotName, 0);
 
     RemoveFromParent();
 }
 
+void USaveMenuWidget::NativeConstruct()
+{
+    Super::NativeConstruct();
 
+    UpdateSlotInfo(1, SaveSlot1Text);
+    UpdateSlotInfo(2, SaveSlot2Text);
+    UpdateSlotInfo(3, SaveSlot3Text);
+}
+
+void USaveMenuWidget::UpdateSlotInfo(int32 SlotIndex, UTextBlock* Text)
+{
+    if (!Text) return;
+
+    const FString SlotName = FString::Printf(TEXT("SaveSlot_%d"), SlotIndex);
+
+    if (UGameplayStatics::DoesSaveGameExist(SlotName, 0))
+    {
+        UBlackMythSaveGame* SaveGame =
+            Cast<UBlackMythSaveGame>(
+                UGameplayStatics::LoadGameFromSlot(SlotName, 0)
+            );
+
+        if (SaveGame)
+        {
+            Text->SetText(FText::FromString(SaveGame->SaveName));
+            return;
+        }
+    }
+
+    Text->SetText(FText::FromString(TEXT("空存档")));
+}

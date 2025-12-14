@@ -25,8 +25,8 @@ void UPauseMenuWidget::OnResumeClicked()
 
 void UPauseMenuWidget::OnLoadClicked()
 {
-    UWorld* World = GetWorld();
-    if (!World) {
+    APlayerController* PC = GetOwningPlayer();
+    if (!PC) {
         return;
     }
 
@@ -37,8 +37,10 @@ void UPauseMenuWidget::OnLoadClicked()
     );
 
     // 创建并显示读档界面
-    if (UUserWidget* LoadUI = CreateWidget<UUserWidget>(World, LoadWidgetClass)) {
+    if (UUserWidget* LoadUI = CreateWidget<UUserWidget>(PC, LoadWidgetClass)) {
         LoadUI->AddToViewport();
+        PC->SetInputMode(FInputModeUIOnly());
+        PC->bShowMouseCursor = true;
     }
 }
 
