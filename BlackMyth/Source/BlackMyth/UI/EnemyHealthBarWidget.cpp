@@ -8,6 +8,13 @@ void UEnemyHealthBarWidget::NativeConstruct()
 {
 	Super::NativeConstruct();
 
+	// 验证 BindWidget 是否成功绑定
+	if (!HealthBar)
+	{
+		UE_LOG(LogTemp, Error, TEXT("[EnemyHealthBarWidget] NativeConstruct - HealthBar is NULL! Check Blueprint has a ProgressBar named 'HealthBar'"));
+		return;
+	}
+
 	// 初始化显示为满血
 	if (HealthBar)
 	{
@@ -60,6 +67,14 @@ void UEnemyHealthBarWidget::UpdateHealthBar()
 
 void UEnemyHealthBarWidget::OnHealthChanged(float CurrentHealth, float MaxHealth)
 {
+	// 关键修复：检查 HealthBar 是否已经初始化
+	// BindWidget 的控件只有在 NativeConstruct 后才能使用
+	if (!HealthBar)
+	{
+		UE_LOG(LogTemp, Error, TEXT("[HealthBar] OnHealthChanged called but HealthBar is NULL! Widget not constructed yet?"));
+		return;
+	}
+
 	float Percent = CurrentHealth / MaxHealth;
 
 	UpdateHealthBar();

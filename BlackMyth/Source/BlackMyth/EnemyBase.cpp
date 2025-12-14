@@ -139,11 +139,19 @@ void AEnemyBase::BeginPlay()
 		HealthBarWidgetComponent->SetWidgetClass(HealthBarWidgetClass);
 		HealthBarWidgetComponent->SetRelativeLocation(FVector(0.0f, 0.0f, HealthBarHeightOffset));
 
+		// 强制初始化 Widget (确保 GetWidget() 返回有效实例)
+		HealthBarWidgetComponent->InitWidget();
+
 		// 获取 Widget 实例并初始化
 		HealthBarWidget = Cast<UEnemyHealthBarWidget>(HealthBarWidgetComponent->GetWidget());
 		if (HealthBarWidget && HealthComponent)
 		{
 			HealthBarWidget->InitializeHealthBar(HealthComponent);
+			UE_LOG(LogTemp, Warning, TEXT("[%s] HealthBar Widget initialized successfully"), *GetName());
+		}
+		else
+		{
+			UE_LOG(LogTemp, Error, TEXT("[%s] Failed to get HealthBar Widget instance!"), *GetName());
 		}
 	}
 
