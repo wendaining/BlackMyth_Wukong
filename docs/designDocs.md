@@ -155,7 +155,7 @@ void ResetCombo();
 FOnDamageDealt OnDamageDealt;
 ```
 
-#### 4. TeamComponent (待实现 📝)
+#### 4. TeamComponent (✅ 已完成)
 **职责**: 阵营管理、敌我判定
 
 ```cpp
@@ -175,10 +175,8 @@ bool IsHostileTo(ETeam OtherTeam) const;
 bool IsHostileToActor(AActor* OtherActor) const;
 ```
 
-#### 5. HitboxComponent → TraceHitboxComponent (需重构 🔄)
+#### 5. HitboxComponent → TraceHitboxComponent (✅ 已完成)
 **职责**: 攻击碰撞检测
-
-**当前问题**: 角色模型不精准，需要改善
 
 ```cpp
 // 新设计
@@ -200,8 +198,8 @@ FOnHitDetected OnHitDetected;
 
 ### 🟡 第二优先级 - 战斗增强
 
-#### 6. TargetingComponent (待实现 📝)
-**职责**: 锁定目标系统
+#### 6. TargetingComponent (✅ 已完成)
+**职责**: 锁定目标系统（软锁定 + 视觉指示器）
 
 ```cpp
 // 核心接口
@@ -219,7 +217,7 @@ FOnTargetChanged OnTargetChanged;
 FOnTargetLost OnTargetLost;
 ```
 
-#### 7. HitReactionComponent (待实现 📝)
+#### 7. HitReactionComponent (⚠️ 部分完成 - 集成在 EnemyBase)
 **职责**: 受击反馈、硬直、击退
 
 ```cpp
@@ -798,57 +796,70 @@ ACharacter (UE 基类)
 | HealthComponent | ✅ 完成 | - | 功能完整 |
 | StaminaComponent | ✅ 完成 | - | 功能完整 |
 | CombatComponent | ✅ 完成 | - | 功能完整 |
-| HitboxComponent | ⚠️ 基础完成 | - | 需改为 Trace 方式 |
-| TeamComponent | 📝 待实现 | - | 高优先级 |
-| TargetingComponent | 📝 待实现 | - | 高优先级 |
-| TriggerZoneComponent | 📝 待实现 | - | Boss 战需要 |
+| TraceHitboxComponent | ✅ 完成 | - | 已改为 Trace 方式 |
+| TeamComponent | ✅ 完成 | - | 阵营系统完成 |
+| TargetingComponent | ✅ 完成 | - | 软锁定系统完成，含指示器 |
+| HitReactionComponent | ⚠️ 部分完成 | - | 集成在 EnemyBase 中 |
+| BlockComponent | 📝 待实现 | - | 格挡/弹反系统 |
+| EnemyBase | ✅ 完成 | - | 敌人基类完成 |
+| RegularEnemy | ✅ 完成 | - | 普通敌人 |
+| RangedEnemy | ✅ 完成 | - | 远程敌人 |
+| BossEnemy | ✅ 完成 | - | Boss 框架完成 |
+| EnemyAIController | ✅ 完成 | - | AI 感知、行为树 |
+| ProjectileBase | ✅ 完成 | - | 弹丸基类 |
+| WukongClone | ✅ 完成 | - | 影分身技能 |
+| PlayerHUDWidget | ✅ 完成 | - | 玩家 UI |
+| EnemyHealthBarWidget | ✅ 完成 | - | 敌人血条 |
+| BossHealthBar | ✅ 完成 | - | Boss 血条 UI |
 | ManaComponent | 📝 待实现 | - | 魔法系统基础 |
 | SpellCastingComponent | 📝 待实现 | - | 法术施放 |
-| RangedCombatComponent | 📝 待实现 | - | 远程攻击 |
-| EnemyBase | 🔨 开发中 | 队友 | 另一分支 |
-| BossEnemy | 📝 待实现 | - | 依赖 EnemyBase |
+| StatusEffectComponent | 📝 待实现 | - | Buff/Debuff 系统 |
+| TriggerZoneComponent | 📝 待实现 | - | Boss 战触发区域 |
+| CheckpointSystem | 📝 待实现 | - | 土地庙存档点 |
 
 ### 开发路线图
 
 ```
-Phase 1: 核心战斗 (当前)
+Phase 1: 核心战斗 ✅ 已完成
 ├── [x] HealthComponent
 ├── [x] StaminaComponent  
 ├── [x] CombatComponent
-├── [ ] TeamComponent
-├── [ ] TraceHitboxComponent (重构)
-└── [ ] 基础敌我交互
+├── [x] TeamComponent
+├── [x] TraceHitboxComponent (重构完成)
+└── [x] 基础敌我交互
 
-Phase 2: 战斗增强
-├── [ ] TargetingComponent (锁定系统)
-├── [ ] HitReactionComponent (受击反馈)
-├── [ ] BlockComponent (格挡/弹反)
-└── [ ] 连招系统完善
+Phase 2: 战斗增强 ⚠️ 部分完成
+├── [x] TargetingComponent (锁定系统 + 指示器)
+├── [x] HitReaction (集成在 EnemyBase)
+├── [ ] BlockComponent (格挡/弹反) ← 建议下一步
+└── [x] 连招系统完善
 
-Phase 3: 敌人系统
-├── [ ] EnemyBase 整合
-├── [ ] ThreatComponent (仇恨)
-├── [ ] AI 行为树
-└── [ ] Boss 战框架
+Phase 3: 敌人系统 ✅ 已完成
+├── [x] EnemyBase 整合
+├── [x] RegularEnemy (普通敌人)
+├── [x] RangedEnemy (远程敌人)
+├── [x] BossEnemy (Boss 框架)
+├── [x] EnemyAIController (AI 行为)
+├── [x] ProjectileBase (弹丸)
+└── [x] Boss UI (血条)
 
-Phase 4: 场景系统
-├── [ ] TriggerZoneComponent
-├── [ ] CombatArenaManager
-├── [ ] CheckpointSystem
+Phase 4: 场景系统 📝 待开发
+├── [ ] TriggerZoneComponent ← 建议优先
+├── [ ] CombatArenaManager (Boss 战区域管理)
+├── [ ] CheckpointSystem (土地庙)
 └── [ ] 过场动画触发
 
-Phase 5: 魔法与远程系统 (新增)
+Phase 5: 魔法与远程系统 📝 待开发
 ├── [ ] ManaComponent (法力系统)
 ├── [ ] SpellCastingComponent (施法组件)
 ├── [ ] SpellBase 法术基类
-├── [ ] RangedCombatComponent (远程战斗)
-├── [ ] ProjectileBase 弹丸基类
-└── [ ] 各类法术实现 (火球、雷击、冰冻等)
+└── [ ] 各类法术实现 (火球、雷击等)
 
-Phase 6: 扩展系统
-├── [ ] StatusEffectComponent
-├── [ ] EquipmentComponent
-├── [ ] InventoryComponent
+Phase 6: 扩展系统 📝 待开发
+├── [ ] StatusEffectComponent (Buff/Debuff)
+├── [ ] EquipmentComponent (装备系统)
+├── [ ] InventoryComponent (背包)
+├── [ ] TransformationComponent (72变)
 └── [ ] 存档系统
 ```
 

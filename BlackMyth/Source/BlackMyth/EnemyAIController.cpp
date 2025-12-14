@@ -3,11 +3,15 @@
 #include "GameFramework/Character.h"
 #include "EnemyBase.h"
 #include "BossEnemy.h"
+#include "WukongCharacter.h"
+#include "WukongClone.h"
 #include "BehaviorTree/BehaviorTree.h"
 #include "BehaviorTree/BlackboardComponent.h"
 #include "Perception/AIPerceptionComponent.h"
 #include "Perception/AISenseConfig_Sight.h"
 #include "Perception/AISense_Sight.h"
+#include "Components/TeamComponent.h"
+#include "Components/HealthComponent.h"
 
 AEnemyAIController::AEnemyAIController()
 {
@@ -62,6 +66,46 @@ void AEnemyAIController::Tick(float DeltaTime)
 	{
 		if (AActor* Target = Cast<AActor>(BlackboardComp->GetValueAsObject(TEXT("TargetActor"))))
 		{
+			// 检查目标是否已经死亡（玩家或分身）
+			bool bTargetIsDead = false;
+			
+			if (AWukongCharacter* WukongTarget = Cast<AWukongCharacter>(Target))
+			{
+				bTargetIsDead = WukongTarget->IsDead();
+			}
+			else if (AWukongClone* CloneTarget = Cast<AWukongClone>(Target))
+			{
+				// 检查分身是否有效（可能已被销毁或生命值归零）
+				if (UHealthComponent* CloneHealth = CloneTarget->FindComponentByClass<UHealthComponent>())
+				{
+					bTargetIsDead = CloneHealth->IsDead();
+				}
+			}
+			
+			if (bTargetIsDead)
+			{
+				// 目标已死亡，清除目标并尝试寻找新目标
+				BlackboardComp->ClearValue(TEXT("TargetActor"));
+				BlackboardComp->SetValueAsBool(TEXT("IsInvestigating"), false);
+				
+				// 尝试寻找新的敌对目标
+				AActor* NewTarget = FindNearestHostileTarget();
+				if (NewTarget)
+				{
+					BlackboardComp->SetValueAsObject(TEXT("TargetActor"), NewTarget);
+					UE_LOG(LogTemp, Log, TEXT("Tick: Previous target dead, switching to new target"));
+				}
+				else
+				{
+					if (AEnemyBase* Enemy = Cast<AEnemyBase>(GetPawn()))
+					{
+						Enemy->StartPatrolling();
+					}
+					UE_LOG(LogTemp, Log, TEXT("Tick: Target is dead, no other targets, returning to patrol"));
+				}
+				return;
+			}
+
 			if (APawn* ControlledPawn = GetPawn())
 			{
 				// 修复：如果控制的 Pawn 已经死亡或眩晕，不再执行旋转逻辑
@@ -91,6 +135,13 @@ void AEnemyAIController::OnPerceptionUpdated(const TArray<AActor*>& UpdatedActor
 	UBlackboardComponent* BlackboardComp = GetBlackboardComponent();
 	if (!BlackboardComp) return;
 
+	// 获取自身的阵营组件
+	UTeamComponent* MyTeamComp = nullptr;
+	if (APawn* MyPawn = GetPawn())
+	{
+		MyTeamComp = MyPawn->FindComponentByClass<UTeamComponent>();
+	}
+
 	for (AActor* Actor : UpdatedActors)
 	{
 		FActorPerceptionBlueprintInfo Info;
@@ -101,15 +152,62 @@ void AEnemyAIController::OnPerceptionUpdated(const TArray<AActor*>& UpdatedActor
 			{
 				if (Stimulus.Type == UAISense::GetSenseID(UAISense_Sight::StaticClass()))
 				{
-					// 检查是否是玩家 (这里假设玩家是 ACharacter 的子类，且不是自己人)
-					// 实际项目中最好使用 Tag 或 Interface 来区分阵营
-					// 这里简单判断是否是玩家控制的角色
-					APawn* SensedPawn = Cast<APawn>(Actor);
-					if (SensedPawn && SensedPawn->IsPlayerControlled()) 
+					// 使用阵营组件判断是否是敌对目标
+					bool bIsHostile = false;
+					
+					if (MyTeamComp)
 					{
+						// 使用阵营组件判断敌对关系
+						bIsHostile = MyTeamComp->IsHostileToActor(Actor);
+					}
+					else
+					{
+						// 后备方案：检查是否是玩家控制的角色
+						APawn* SensedPawn = Cast<APawn>(Actor);
+						bIsHostile = SensedPawn && SensedPawn->IsPlayerControlled();
+					}
+					
+					if (bIsHostile)
+					{
+						// 检查目标是否已经死亡
+						bool bTargetIsDead = false;
+						
+						if (AWukongCharacter* WukongChar = Cast<AWukongCharacter>(Actor))
+						{
+							bTargetIsDead = WukongChar->IsDead();
+						}
+						else if (AWukongClone* CloneActor = Cast<AWukongClone>(Actor))
+						{
+							if (UHealthComponent* CloneHealth = CloneActor->FindComponentByClass<UHealthComponent>())
+							{
+								bTargetIsDead = CloneHealth->IsDead();
+							}
+						}
+						
+						if (bTargetIsDead)
+						{
+							// 目标已死亡，清除目标并尝试找新目标
+							BlackboardComp->ClearValue(TEXT("TargetActor"));
+							BlackboardComp->SetValueAsBool(TEXT("IsInvestigating"), false);
+							GetWorldTimerManager().ClearTimer(LoseAggroTimer);
+							
+							// 尝试寻找新的敌对目标
+							AActor* NewTarget = FindNearestHostileTarget();
+							if (NewTarget)
+							{
+								BlackboardComp->SetValueAsObject(TEXT("TargetActor"), NewTarget);
+							}
+							else if (AEnemyBase* Enemy = Cast<AEnemyBase>(GetPawn()))
+							{
+								Enemy->StartPatrolling();
+							}
+							UE_LOG(LogTemp, Log, TEXT("OnPerceptionUpdated: Target is dead, switching target or patrolling"));
+							continue;
+						}
+
 						if (Stimulus.WasSuccessfullySensed())
 						{
-							// 看到了玩家，清除丢失仇恨的计时器
+							// 看到了敌对目标，清除丢失仇恨的计时器
 							GetWorldTimerManager().ClearTimer(LoseAggroTimer);
 
 							// 更新黑板
@@ -126,19 +224,16 @@ void AEnemyAIController::OnPerceptionUpdated(const TArray<AActor*>& UpdatedActor
 							{
 								Boss->SetBossHealthVisibility(true);
 							}
+							
+							UE_LOG(LogTemp, Log, TEXT("OnPerceptionUpdated: Hostile target sensed: %s"), *Actor->GetName());
 						}
 						else
 						{
 							// 丢失视野：记录最后位置，进入搜寻模式
-							// 修复：使用 Stimulus.StimulusLocation 获取最后一次被感知的位置，而不是 Actor 的当前位置
 							BlackboardComp->SetValueAsVector(TEXT("TargetLocation"), Stimulus.StimulusLocation);
 							BlackboardComp->SetValueAsBool(TEXT("IsInvestigating"), true);
 							
-							// [Fix] 不要立即清除 TargetActor，否则怪会立刻转头走人
-							// BlackboardComp->ClearValue(TEXT("TargetActor"));
-							
 							// 启动丢失仇恨计时器 (例如 5秒后彻底放弃)
-							// 只有当计时器触发时，才真正清除 TargetActor
 							GetWorldTimerManager().SetTimer(LoseAggroTimer, this, &AEnemyAIController::HandleLostAggro, 5.0f, false);
 						}
 					}
@@ -162,6 +257,60 @@ void AEnemyAIController::HandleLostAggro()
 		Enemy->StartPatrolling();
 		UE_LOG(LogTemp, Warning, TEXT("AEnemyAIController::HandleLostAggro - Lost aggro (Timer Expired), returning to patrol."));
 	}
+}
+
+AActor* AEnemyAIController::FindNearestHostileTarget()
+{
+	APawn* MyPawn = GetPawn();
+	if (!MyPawn) return nullptr;
+	
+	UTeamComponent* MyTeamComp = MyPawn->FindComponentByClass<UTeamComponent>();
+	if (!MyTeamComp) return nullptr;
+	
+	AActor* NearestTarget = nullptr;
+	float NearestDistSq = FLT_MAX;
+	FVector MyLocation = MyPawn->GetActorLocation();
+	
+	// 获取所有被感知到的Actor
+	TArray<AActor*> PerceivedActors;
+	if (AIPerceptionComponent)
+	{
+		AIPerceptionComponent->GetCurrentlyPerceivedActors(nullptr, PerceivedActors);
+	}
+	
+	for (AActor* Actor : PerceivedActors)
+	{
+		if (!Actor || Actor == MyPawn) continue;
+		
+		// 检查是否是敌对目标
+		if (!MyTeamComp->IsHostileToActor(Actor)) continue;
+		
+		// 检查目标是否已经死亡
+		bool bIsDead = false;
+		if (AWukongCharacter* Wukong = Cast<AWukongCharacter>(Actor))
+		{
+			bIsDead = Wukong->IsDead();
+		}
+		else if (AWukongClone* Clone = Cast<AWukongClone>(Actor))
+		{
+			if (UHealthComponent* Health = Clone->FindComponentByClass<UHealthComponent>())
+			{
+				bIsDead = Health->IsDead();
+			}
+		}
+		
+		if (bIsDead) continue;
+		
+		// 计算距离
+		float DistSq = FVector::DistSquared(MyLocation, Actor->GetActorLocation());
+		if (DistSq < NearestDistSq)
+		{
+			NearestDistSq = DistSq;
+			NearestTarget = Actor;
+		}
+	}
+	
+	return NearestTarget;
 }
 
 

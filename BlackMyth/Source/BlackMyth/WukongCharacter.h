@@ -11,6 +11,8 @@ class UStaminaComponent;
 class UCombatComponent;
 class UHealthComponent;
 class UTraceHitboxComponent;
+class UTargetingComponent;
+class UTeamComponent;
 class UWukongAnimInstance;
 struct FInputActionValue;
 
@@ -73,6 +75,10 @@ public:
 	UFUNCTION(BlueprintPure, Category = "State")
 	EWukongState GetCurrentState() const { return CurrentState; }
 
+	/** 检查角色是否已死亡 */
+	UFUNCTION(BlueprintPure, Category = "State")
+	bool IsDead() const { return CurrentState == EWukongState::Dead; }
+
 	// ========== 动画访问器 ==========
 	
 	/** 获取当前连击索引 */
@@ -90,6 +96,10 @@ public:
 	/** 获取战斗组件 */
 	UFUNCTION(BlueprintPure, Category = "Combat")
 	UCombatComponent* GetCombatComponent() const { return CombatComponent; }
+
+	/** 获取目标锁定组件 */
+	UFUNCTION(BlueprintPure, Category = "Targeting")
+	UTargetingComponent* GetTargetingComponent() const { return TargetingComponent; }
 
 	/** 是否正在冲刺 */
 	UFUNCTION(BlueprintPure, Category = "Movement")
@@ -140,6 +150,18 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UInputAction> UseItemAction;
 
+	/** 锁定目标输入动作 (鼠标中键) */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input", meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<UInputAction> LockOnAction;
+
+	/** 切换目标输入动作 (鼠标滚轮) */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input", meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<UInputAction> SwitchTargetAction;
+
+	/** 影分身输入动作 (F键) */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input", meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<UInputAction> ShadowCloneAction;
+
 	// ========== 组件 ==========
 
 	/** 生命值组件 */
@@ -157,6 +179,14 @@ protected:
 	/** 武器 Hitbox 组件（用于攻击判定） */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	TObjectPtr<UTraceHitboxComponent> WeaponTraceHitbox;
+
+	/** 目标锁定组件 */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
+	TObjectPtr<UTargetingComponent> TargetingComponent;
+
+	/** 阵营组件（用于敌我识别） */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
+	TObjectPtr<UTeamComponent> TeamComponent;
 
 	// ========== 移动属性 ==========
 	
@@ -229,7 +259,7 @@ protected:
 	float HitStunDuration = 0.5f;
 
 	// ========== 攻击蒙太奇 ==========
-	
+public:
 	/** 攻击蒙太奇1（连击第1段） */
 	UPROPERTY(EditDefaultsOnly, Category = "Animation|Combat")
 	TObjectPtr<UAnimMontage> AttackMontage1;
@@ -242,6 +272,7 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "Animation|Combat")
 	TObjectPtr<UAnimMontage> AttackMontage3;
 
+protected:
 	/** 重击蒙太奇 */
 	UPROPERTY(EditDefaultsOnly, Category = "Animation|Combat")
 	TObjectPtr<UAnimMontage> HeavyAttackMontage;
@@ -386,6 +417,32 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Ability")
 	float AbilityRadius = 300.0f;
 
+	// ========== 影分身配置 ==========
+
+	/** 分身类（在蓝图中设置为 BP_WukongClone） */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ShadowClone")
+	TSubclassOf<class AWukongClone> CloneClass;
+
+	/** 影分身蒙太奇（召唤动画） */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ShadowClone")
+	TObjectPtr<UAnimMontage> ShadowCloneMontage;
+
+	/** 生成的分身数量 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ShadowClone")
+	int32 CloneCount = 2;
+
+	/** 分身存活时间（秒） */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ShadowClone")
+	float CloneLifetime = 20.0f;
+
+	/** 分身生成距离（距离玩家多远） */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ShadowClone")
+	float CloneSpawnDistance = 150.0f;
+
+	/** 影分身冷却时间 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ShadowClone")
+	float ShadowCloneCooldown = 30.0f;
+
 	/** 
 	 * 攻击蒙太奇容器
 	 * 使用 TObjectPtr 遵循 UE5 推荐的智能指针写法
@@ -443,6 +500,8 @@ private:
 	void OnSprintStarted();   // 冲刺开始
 	void OnSprintStopped();   // 冲刺结束
 	void OnAbilityPressed();  // 战技按下
+	void OnLockOnPressed();   // 锁定目标按下
+	void OnSwitchTarget(const FInputActionValue& Value);  // 切换目标
 
 	// ========== 状态更新函数 ==========
 	void ChangeState(EWukongState NewState);     // 切换状态
@@ -460,6 +519,7 @@ private:
 	void PerformHeavyAttack();  // 执行重击
 	void PerformStaffSpin();    // 执行棍花
 	void PerformPoleStance();   // 执行立棍
+	void PerformShadowClone();  // 执行影分身
 	void UseItem();             // 使用物品
 	void ResetCombo();          // 重置连击
 	void ProcessInputBuffer();  // 处理输入缓冲
@@ -483,6 +543,7 @@ private:
 	void Die();                                // 死亡处理
 	void UpdateMovementSpeed();                // 更新移动速度
 	FVector GetMovementInputDirection() const; // 获取移动输入方向
+	void UpdateFacingTarget(float DeltaTime);  // 锁定时更新角色朝向
 
 	/**
 	 * 从动画序列动态创建并播放蒙太奇
