@@ -22,7 +22,7 @@ AEnemyAIController::AEnemyAIController()
 	{
 		SightConfig->SightRadius = 1500.0f;
 		SightConfig->LoseSightRadius = 2000.0f;
-		SightConfig->PeripheralVisionAngleDegrees = 180.0f; // 扩大视野角度，防止近战时玩家绕背导致丢失仇恨
+		SightConfig->PeripheralVisionAngleDegrees = 90.0f; // 改为 90 度 (前方 180 度视野)，允许背后偷袭
 		SightConfig->DetectionByAffiliation.bDetectEnemies = true;
 		SightConfig->DetectionByAffiliation.bDetectNeutrals = true;
 		SightConfig->DetectionByAffiliation.bDetectFriendlies = true;
