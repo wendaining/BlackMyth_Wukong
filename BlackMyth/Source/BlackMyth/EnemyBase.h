@@ -12,6 +12,8 @@ class UCombatComponent;
 class UTraceHitboxComponent;
 class UEnemyHealthBarWidget;
 class UTeamComponent;
+class UNiagaraSystem;
+class UNiagaraComponent;
 
 /**
  * 敌人状态枚举
@@ -377,4 +379,39 @@ protected:
 
 	/** 内部定身处理函数 */
 	void OnFreezeTimerExpired();
+
+public:
+	// ========== 定身术 UI 与特效 ==========
+
+	/** 定身"定"字 Widget 组件（头顶显示） */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "UI|Freeze")
+	TObjectPtr<UWidgetComponent> FreezeTextWidgetComponent;
+
+	/** 定身文字 Widget 类（在蓝图中设置） */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "UI|Freeze")
+	TSubclassOf<UUserWidget> FreezeTextWidgetClass;
+
+	/** 定身"定"字距离头顶的高度偏移 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "UI|Freeze")
+	float FreezeTextHeightOffset = 180.0f;
+
+	/** 定身时播放的音效 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Audio|Freeze")
+	TObjectPtr<USoundBase> FreezeSound;
+
+	/** 定身解除时播放的音效 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Audio|Freeze")
+	TObjectPtr<USoundBase> UnfreezeSound;
+
+	/** 定身时播放的粒子特效（Niagara） */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "FX|Freeze")
+	TObjectPtr<UNiagaraSystem> FreezeEffect;
+
+	/** 定身解除时播放的粒子特效（Niagara） */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "FX|Freeze")
+	TObjectPtr<UNiagaraSystem> UnfreezeEffect;
+
+	/** 定身持续特效组件引用（用于解除时销毁） */
+	UPROPERTY()
+	TObjectPtr<UNiagaraComponent> ActiveFreezeEffectComponent;
 };

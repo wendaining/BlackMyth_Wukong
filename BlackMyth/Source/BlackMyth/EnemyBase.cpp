@@ -16,6 +16,9 @@
 #include "Engine/SkeletalMesh.h"
 #include "Animation/Skeleton.h"
 #include "Animation/AnimInstance.h"
+#include "NiagaraFunctionLibrary.h"
+#include "NiagaraComponent.h"
+#include "Blueprint/UserWidget.h"
 
 AEnemyBase::AEnemyBase()
 {
@@ -58,6 +61,32 @@ AEnemyBase::AEnemyBase()
 	HealthBarWidgetComponent->SetDrawSize(FVector2D(150.0f, 20.0f));
 	HealthBarWidgetComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	HealthBarWidgetComponent->SetVisibility(false);  // 默认隐藏
+
+	// ========== 新增：创建定身"定"字 Widget 组件 ==========
+	FreezeTextWidgetComponent = CreateDefaultSubobject<UWidgetComponent>(TEXT("FreezeTextWidget"));
+	FreezeTextWidgetComponent->SetupAttachment(GetRootComponent());
+	FreezeTextWidgetComponent->SetRelativeLocation(FVector(0.0f, 0.0f, 180.0f));  // 头顶上方（比血条更高）
+	FreezeTextWidgetComponent->SetWidgetSpace(EWidgetSpace::Screen);  // 屏幕空间，始终面向摄像机
+	FreezeTextWidgetComponent->SetDrawSize(FVector2D(100.0f, 100.0f));
+	FreezeTextWidgetComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	FreezeTextWidgetComponent->SetVisibility(false);  // 默认隐藏
+
+	// ========== 加载定身术默认资产 ==========
+	// 默认"定"字 Widget 类（路径需要在创建蓝图后设置）
+	static ConstructorHelpers::FClassFinder<UUserWidget> DefaultFreezeWidgetClass(
+		TEXT("/Game/_BlackMythGame/UI/WBP_FreezeText"));
+	if (DefaultFreezeWidgetClass.Succeeded())
+	{
+		FreezeTextWidgetClass = DefaultFreezeWidgetClass.Class;
+	}
+
+	// 默认定身音效（可选，放在 Content/_BlackMythGame/Audio/ 下）
+	// static ConstructorHelpers::FObjectFinder<USoundBase> DefaultFreezeSound(
+	// 	TEXT("/Game/_BlackMythGame/Audio/SFX_Freeze"));
+	// if (DefaultFreezeSound.Succeeded())
+	// {
+	// 	FreezeSound = DefaultFreezeSound.Object;
+	// }
 }
 
 void AEnemyBase::BeginPlay()
@@ -1006,6 +1035,41 @@ void AEnemyBase::ApplyFreeze(float Duration)
 		bIsFrozen = true;
 		EnemyState = EEnemyState::EES_Frozen;
 
+		// ========== 播放定身音效 ==========
+		if (FreezeSound)
+		{
+			UGameplayStatics::PlaySoundAtLocation(this, FreezeSound, GetActorLocation());
+		}
+
+		// ========== 播放定身特效 (Niagara) ==========
+		if (FreezeEffect)
+		{
+			// 在敌人身上生成持续特效
+			ActiveFreezeEffectComponent = UNiagaraFunctionLibrary::SpawnSystemAttached(
+				FreezeEffect,
+				GetMesh(),
+				NAME_None,
+				FVector(0.0f, 0.0f, 50.0f),  // 身体中心偏移
+				FRotator::ZeroRotator,
+				EAttachLocation::SnapToTarget,
+				false  // 不自动销毁，我们手动控制
+			);
+		}
+
+		// ========== 显示"定"字 UI ==========
+		if (FreezeTextWidgetComponent)
+		{
+			// 设置位置
+			FreezeTextWidgetComponent->SetRelativeLocation(FVector(0.0f, 0.0f, FreezeTextHeightOffset));
+			
+			// 如果有 Widget 类，设置并显示
+			if (FreezeTextWidgetClass)
+			{
+				FreezeTextWidgetComponent->SetWidgetClass(FreezeTextWidgetClass);
+			}
+			FreezeTextWidgetComponent->SetVisibility(true);
+		}
+
 		UE_LOG(LogTemp, Warning, TEXT("[%s] 被定身！持续 %.1f 秒"), *GetName(), Duration);
 	}
 
@@ -1021,6 +1085,36 @@ void AEnemyBase::RemoveFreeze()
 
 	// 清除定身计时器
 	GetWorldTimerManager().ClearTimer(FreezeTimer);
+
+	// ========== 隐藏"定"字 UI ==========
+	if (FreezeTextWidgetComponent)
+	{
+		FreezeTextWidgetComponent->SetVisibility(false);
+	}
+
+	// ========== 停止定身持续特效 ==========
+	if (ActiveFreezeEffectComponent)
+	{
+		ActiveFreezeEffectComponent->DestroyComponent();
+		ActiveFreezeEffectComponent = nullptr;
+	}
+
+	// ========== 播放解除定身特效 ==========
+	if (UnfreezeEffect)
+	{
+		UNiagaraFunctionLibrary::SpawnSystemAtLocation(
+			GetWorld(),
+			UnfreezeEffect,
+			GetActorLocation() + FVector(0.0f, 0.0f, 50.0f),
+			FRotator::ZeroRotator
+		);
+	}
+
+	// ========== 播放解除定身音效 ==========
+	if (UnfreezeSound)
+	{
+		UGameplayStatics::PlaySoundAtLocation(this, UnfreezeSound, GetActorLocation());
+	}
 
 	// 恢复动画播放
 	if (GetMesh())
