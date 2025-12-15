@@ -14,6 +14,7 @@ class UTraceHitboxComponent;
 class UTargetingComponent;
 class UTeamComponent;
 class UWukongAnimInstance;
+class UPlayerHUDWidget;
 struct FInputActionValue;
 
 // 角色状态枚举
@@ -100,6 +101,14 @@ public:
 	/** 获取目标锁定组件 */
 	UFUNCTION(BlueprintPure, Category = "Targeting")
 	UTargetingComponent* GetTargetingComponent() const { return TargetingComponent; }
+
+	/** 设置 HUD Widget 引用 */
+	UFUNCTION(BlueprintCallable, Category = "UI")
+	void SetPlayerHUD(UPlayerHUDWidget* InHUD) { PlayerHUD = InHUD; }
+
+	/** 获取 HUD Widget */
+	UFUNCTION(BlueprintPure, Category = "UI")
+	UPlayerHUDWidget* GetPlayerHUD() const { return PlayerHUD; }
 
 	/** 是否正在冲刺 */
 	UFUNCTION(BlueprintPure, Category = "Movement")
@@ -471,7 +480,17 @@ protected:
 	/** 执行攻击 */
 	void Attack();
 
+	// ========== UI 配置 ==========
+
+	/** 玩家 HUD Widget 类（在蓝图中设置） */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "UI")
+	TSubclassOf<UPlayerHUDWidget> PlayerHUDClass;
+
 private:
+	// ========== UI 引用 ==========
+	UPROPERTY()
+	TObjectPtr<UPlayerHUDWidget> PlayerHUD;  // 玩家 HUD Widget 实例
+
 	// ========== 状态管理 ==========
 	EWukongState CurrentState = EWukongState::Idle;   // 当前状态
 	EWukongState PreviousState = EWukongState::Idle;  // 上一个状态
@@ -507,6 +526,15 @@ private:
 	/** 生命值耗尽时的回调 */
 	UFUNCTION()
 	void OnHealthDepleted(AActor* Killer);
+
+	/** 对敌人造成伤害时的回调（用于更新连击 UI） */
+	UFUNCTION()
+	void OnDamageDealtToEnemy(float Damage, AActor* Target, bool bIsCritical);
+
+	// 连击计数（用于 UI 显示）
+	int32 HitComboCount = 0;
+	FTimerHandle ComboResetTimerHandle;
+	void ResetHitCombo();
 
 	// ========== 战技状态 ==========
 	bool bIsUsingAbility = false;  // 是否正在使用战技

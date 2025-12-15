@@ -3,6 +3,8 @@
 #include "WukongCharacter.h"
 #include "WukongClone.h"
 #include "EnemyBase.h"
+#include "UI/PlayerHUDWidget.h"
+#include "Blueprint/UserWidget.h"
 #include "Components/StaminaComponent.h"
 #include "Components/CombatComponent.h"
 #include "Components/HealthComponent.h"
@@ -17,6 +19,7 @@
 #include "UObject/ConstructorHelpers.h"
 #include "Animation/AnimMontage.h"
 #include "Animation/AnimSequence.h"
+#include "TimerManager.h"
 
 // Sets default values
 AWukongCharacter::AWukongCharacter()
@@ -130,11 +133,36 @@ void AWukongCharacter::BeginPlay()
         StaminaComponent->OnStaminaDepleted.AddDynamic(this, &AWukongCharacter::OnStaminaDepleted);
     }
 
+    // 绑定伤害造成事件（用于更新连击计数）
+    if (CombatComponent)
+    {
+        CombatComponent->OnDamageDealt.AddDynamic(this, &AWukongCharacter::OnDamageDealtToEnemy);
+    }
+
     // 设置玩家阵营（确保敌人 AI 能识别我们为敌对目标）
     if (TeamComponent)
     {
         TeamComponent->SetTeam(ETeam::Player);
         UE_LOG(LogTemp, Log, TEXT("[Wukong] TeamComponent set to Player team"));
+    }
+
+    // 创建并初始化玩家 HUD
+    if (PlayerHUDClass)
+    {
+        if (APlayerController* PC = Cast<APlayerController>(GetController()))
+        {
+            PlayerHUD = CreateWidget<UPlayerHUDWidget>(PC, PlayerHUDClass);
+            if (PlayerHUD)
+            {
+                PlayerHUD->AddToViewport();
+                PlayerHUD->InitializeHUD(this);
+                UE_LOG(LogTemp, Log, TEXT("[Wukong] PlayerHUD created and initialized"));
+            }
+        }
+    }
+    else
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[Wukong] PlayerHUDClass not set! Please set it in Blueprint."));
     }
 }
 
@@ -1413,6 +1441,25 @@ bool AWukongCharacter::IsCooldownActive(const FString& CooldownName) const
 void AWukongCharacter::StartCooldown(const FString& CooldownName, float Duration)
 {
     CooldownMap.Add(CooldownName, Duration);
+
+    // 通知 HUD 更新技能冷却显示
+    if (PlayerHUD)
+    {
+        // 技能名称到槽位索引的映射（按照按键顺序）
+        // 槽位0: 分身术 (按键1)
+        // 槽位1: 定身术 (按键2)
+        // 槽位2: 变身术 (按键3)
+        // 槽位3: 法术 (按键4)
+        if (CooldownName == TEXT("ShadowClone"))
+        {
+            PlayerHUD->TriggerSkillCooldown(0, Duration);
+        }
+        else if (CooldownName == TEXT("FreezeSpell"))
+        {
+            PlayerHUD->TriggerSkillCooldown(1, Duration);
+        }
+        // 可以继续添加更多技能映射
+    }
 }
 
 void AWukongCharacter::UpdateCooldowns(float DeltaTime)
@@ -1457,6 +1504,44 @@ void AWukongCharacter::OnHealthDepleted(AActor* Killer)
     UE_LOG(LogTemp, Warning, TEXT("OnHealthDepleted: Character died! Killer=%s"), 
         Killer ? *Killer->GetName() : TEXT("None"));
     Die();
+}
+
+// ========== 连击计数回调 ==========
+void AWukongCharacter::OnDamageDealtToEnemy(float Damage, AActor* Target, bool bIsCritical)
+{
+    // 增加连击计数
+    HitComboCount++;
+
+    // 更新 HUD 连击显示
+    if (PlayerHUD)
+    {
+        PlayerHUD->UpdateComboCount(HitComboCount);
+    }
+
+    // 重置连击计时器（2秒内无命中则重置）
+    if (GetWorld())
+    {
+        GetWorld()->GetTimerManager().ClearTimer(ComboResetTimerHandle);
+        GetWorld()->GetTimerManager().SetTimer(
+            ComboResetTimerHandle,
+            this,
+            &AWukongCharacter::ResetHitCombo,
+            2.0f,  // 2秒后重置
+            false
+        );
+    }
+
+    UE_LOG(LogTemp, Log, TEXT("OnDamageDealtToEnemy: Hit %s for %.1f damage, Combo: %d"), 
+        Target ? *Target->GetName() : TEXT("None"), Damage, HitComboCount);
+}
+
+void AWukongCharacter::ResetHitCombo()
+{
+    HitComboCount = 0;
+    if (PlayerHUD)
+    {
+        PlayerHUD->UpdateComboCount(0);
+    }
 }
 
 // New accessor implementations

@@ -19,6 +19,8 @@ void UMainMenuWidget::StartGame()
     }
     // 3. 进入游戏地图
     UGameplayStatics::OpenLevel(this, FName(TEXT("/Game/ThirdPerson/Maps/ThirdPersonMap")));
+    // 即将使用的地图
+    // /Game/JapaneseFeudalCastle/Levels/L_Showcase.L_Showcase'
 }
 
 void UMainMenuWidget::QuitGame()
