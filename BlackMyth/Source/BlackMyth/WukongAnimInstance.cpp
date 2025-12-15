@@ -15,11 +15,11 @@ void UWukongAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
 {
     Super::NativeUpdateAnimation(DeltaSeconds);
 
-    // 确保引用有效
-    if (!CachedWukongCharacter.IsValid())
+    // 确保引用有效（支持悟空和分身等通用角色）
+    if (!CachedMovementComponent.IsValid())
     {
         RefreshOwningCharacter();
-        if (!CachedWukongCharacter.IsValid())
+        if (!CachedMovementComponent.IsValid())
         {
             return;
         }
@@ -27,7 +27,12 @@ void UWukongAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
 
     // 更新所有动画变量
     UpdateMovementVariables();
-    UpdateCombatVariables();
+    
+    // 战斗变量只有悟空角色才有
+    if (CachedWukongCharacter.IsValid())
+    {
+        UpdateCombatVariables();
+    }
 }
 
 void UWukongAnimInstance::RefreshOwningCharacter()
@@ -41,6 +46,13 @@ void UWukongAnimInstance::RefreshOwningCharacter()
         // 设置 Paragon 兼容的 Character 引用
         Character = CachedWukongCharacter.Get();
     }
+    else if (ACharacter* GenericCharacter = Cast<ACharacter>(OwningPawn))
+    {
+        // 支持非 WukongCharacter 的通用角色（如分身 WukongClone）
+        // 这样动画蓝图可以正常工作
+        CachedMovementComponent = GenericCharacter->GetCharacterMovement();
+        Character = GenericCharacter;
+    }
 }
 
 void UWukongAnimInstance::UpdateMovementVariables()
@@ -48,7 +60,8 @@ void UWukongAnimInstance::UpdateMovementVariables()
     const AWukongCharacter* Wukong = CachedWukongCharacter.Get();
     const UCharacterMovementComponent* MovementComp = CachedMovementComponent.Get();
     
-    if (!Wukong || !MovementComp)
+    // 如果没有移动组件，重置所有变量
+    if (!MovementComp)
     {
         Speed = 0.0f;
         Direction = 0.0f;
@@ -61,8 +74,8 @@ void UWukongAnimInstance::UpdateMovementVariables()
         return;
     }
 
-    // 从 Character 获取动画引用 (如果尚未获取)
-    if (!IdleAnimation)
+    // 从 Wukong Character 获取动画引用 (如果尚未获取，且是悟空角色)
+    if (!IdleAnimation && Wukong)
     {
         IdleAnimation = Wukong->IdleAnimation;
         WalkAnimation = Wukong->WalkForwardAnimation;
@@ -87,6 +100,9 @@ void UWukongAnimInstance::UpdateMovementVariables()
     // 先获取实际水平速度（用于判断移动状态）
     const float ActualHorizontalSpeed = HorizontalVelocity.Size();
     
+    // 获取角色引用（通用）
+    ACharacter* OwnerCharacter = Character;
+    
     if (bIsFalling)
     {
         // 空中时：动画系统的 Speed 设为0，防止播放走路/跑步动画
@@ -103,11 +119,21 @@ void UWukongAnimInstance::UpdateMovementVariables()
     {
         // 地面时：正常更新移动变量
         Speed = ActualHorizontalSpeed;
-        Direction = CalculateDirection(Velocity, Wukong->GetActorRotation());
+        
+        // 使用通用 Character 引用计算方向
+        if (OwnerCharacter)
+        {
+            Direction = CalculateDirection(Velocity, OwnerCharacter->GetActorRotation());
+        }
+        else
+        {
+            Direction = 0.0f;
+        }
+        
         bIsMoving = Speed > 10.0f;
         
-        // 更新冲刺状态
-        bIsSprinting = Wukong->IsSprinting();
+        // 更新冲刺状态（只有悟空角色才有冲刺）
+        bIsSprinting = Wukong ? Wukong->IsSprinting() : (Speed > 450.0f);
         
         // 更新走路状态（移动但不冲刺）
         bIsWalking = bIsMoving && !bIsSprinting;
@@ -189,29 +215,33 @@ void UWukongAnimInstance::UpdateMovementVariables()
 
     // ===== 更新瞄准偏移变量（对应原蓝图 Set Roll Pitch and Yaw） =====
     // 这些变量用于 Aim Offset BlendSpace，让上半身跟随瞄准方向
-    const FRotator ActorRotation = Wukong->GetActorRotation();
-    const FRotator ControlRotation = Wukong->GetControlRotation();
+    // 只有悟空角色才有控制旋转，分身使用角色朝向
+    if (OwnerCharacter)
+    {
+        const FRotator ActorRotation = OwnerCharacter->GetActorRotation();
+        const FRotator ControlRotation = Wukong ? Wukong->GetControlRotation() : ActorRotation;
     
-    // 计算控制器相对于角色的旋转差
-    const FRotator DeltaRotation = UKismetMathLibrary::NormalizedDeltaRotator(ControlRotation, ActorRotation);
-    
-    AimPitch = FMath::Clamp(DeltaRotation.Pitch, -90.0f, 90.0f);
-    AimYaw = FMath::Clamp(DeltaRotation.Yaw, -90.0f, 90.0f);
-    AimRoll = DeltaRotation.Roll;
+        // 计算控制器相对于角色的旋转差
+        const FRotator DeltaRotation = UKismetMathLibrary::NormalizedDeltaRotator(ControlRotation, ActorRotation);
+        
+        AimPitch = FMath::Clamp(DeltaRotation.Pitch, -90.0f, 90.0f);
+        AimYaw = FMath::Clamp(DeltaRotation.Yaw, -90.0f, 90.0f);
+        AimRoll = DeltaRotation.Roll;
 
-    // 计算 Yaw 变化量（用于转向动画混合）
-    const float CurrentYaw = ActorRotation.Yaw;
-    YawDelta = UKismetMathLibrary::NormalizedDeltaRotator(
-        FRotator(0.0f, CurrentYaw, 0.0f),
-        FRotator(0.0f, PreviousYaw, 0.0f)
-    ).Yaw;
-    PreviousYaw = CurrentYaw;
+        // 计算 Yaw 变化量（用于转向动画混合）
+        const float CurrentYaw = ActorRotation.Yaw;
+        YawDelta = UKismetMathLibrary::NormalizedDeltaRotator(
+            FRotator(0.0f, CurrentYaw, 0.0f),
+            FRotator(0.0f, PreviousYaw, 0.0f)
+        ).Yaw;
+        PreviousYaw = CurrentYaw;
 
-    // ===== 同步 Paragon 兼容变量 =====
-    isAccelerating = bIsAccelerating;
-    Pitch = AimPitch;
-    Yaw = AimYaw;
-    Roll = AimRoll;
+        // ===== 同步 Paragon 兼容变量 =====
+        isAccelerating = bIsAccelerating;
+        Pitch = AimPitch;
+        Yaw = AimYaw;
+        Roll = AimRoll;
+    }
 }
 
 void UWukongAnimInstance::UpdateCombatVariables()

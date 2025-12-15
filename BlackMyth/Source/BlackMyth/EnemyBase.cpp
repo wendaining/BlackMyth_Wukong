@@ -16,6 +16,9 @@
 #include "Engine/SkeletalMesh.h"
 #include "Animation/Skeleton.h"
 #include "Animation/AnimInstance.h"
+#include "NiagaraFunctionLibrary.h"
+#include "NiagaraComponent.h"
+#include "Blueprint/UserWidget.h"
 
 AEnemyBase::AEnemyBase()
 {
@@ -58,6 +61,32 @@ AEnemyBase::AEnemyBase()
 	HealthBarWidgetComponent->SetDrawSize(FVector2D(150.0f, 20.0f));
 	HealthBarWidgetComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	HealthBarWidgetComponent->SetVisibility(false);  // 默认隐藏
+
+	// ========== 新增：创建定身"定"字 Widget 组件 ==========
+	FreezeTextWidgetComponent = CreateDefaultSubobject<UWidgetComponent>(TEXT("FreezeTextWidget"));
+	FreezeTextWidgetComponent->SetupAttachment(GetRootComponent());
+	FreezeTextWidgetComponent->SetRelativeLocation(FVector(0.0f, 0.0f, 180.0f));  // 头顶上方（比血条更高）
+	FreezeTextWidgetComponent->SetWidgetSpace(EWidgetSpace::Screen);  // 屏幕空间，始终面向摄像机
+	FreezeTextWidgetComponent->SetDrawSize(FVector2D(100.0f, 100.0f));
+	FreezeTextWidgetComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	FreezeTextWidgetComponent->SetVisibility(false);  // 默认隐藏
+
+	// ========== 加载定身术默认资产 ==========
+	// 默认"定"字 Widget 类（路径需要在创建蓝图后设置）
+	static ConstructorHelpers::FClassFinder<UUserWidget> DefaultFreezeWidgetClass(
+		TEXT("/Game/_BlackMythGame/UI/WBP_FreezeText"));
+	if (DefaultFreezeWidgetClass.Succeeded())
+	{
+		FreezeTextWidgetClass = DefaultFreezeWidgetClass.Class;
+	}
+
+	// 默认定身音效（可选，放在 Content/_BlackMythGame/Audio/ 下）
+	// static ConstructorHelpers::FObjectFinder<USoundBase> DefaultFreezeSound(
+	// 	TEXT("/Game/_BlackMythGame/Audio/SFX_Freeze"));
+	// if (DefaultFreezeSound.Succeeded())
+	// {
+	// 	FreezeSound = DefaultFreezeSound.Object;
+	// }
 }
 
 void AEnemyBase::BeginPlay()
@@ -946,4 +975,195 @@ void AEnemyBase::StartChasingAfterAggro()
 	{
 		ChaseTarget();
 	}
+}
+
+// ========== 定身术系统实现 ==========
+
+void AEnemyBase::ApplyFreeze(float Duration)
+{
+	// 不能对死亡的敌人施加定身
+	if (IsDead()) return;
+
+	// 如果已经被定身，重置计时器
+	if (bIsFrozen)
+	{
+		GetWorldTimerManager().ClearTimer(FreezeTimer);
+	}
+	else
+	{
+		// 保存定身前的状态
+		StateBeforeFreeze = EnemyState;
+		MovementSpeedBeforeFreeze = GetCharacterMovement()->MaxWalkSpeed;
+
+		// 停止所有行为
+		if (EnemyController)
+		{
+			EnemyController->StopMovement();
+			// 暂停行为树
+			if (UBrainComponent* Brain = EnemyController->GetBrainComponent())
+			{
+				Brain->PauseLogic("Frozen");
+			}
+		}
+
+		// 停止角色移动
+		GetCharacterMovement()->StopMovementImmediately();
+		GetCharacterMovement()->DisableMovement();
+
+		// 暂停动画 - 保持当前帧
+		if (UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance())
+		{
+			// 获取当前动画位置（用于恢复时参考）
+			if (UAnimMontage* CurrentMontage = AnimInstance->GetCurrentActiveMontage())
+			{
+				FrozenAnimPosition = AnimInstance->Montage_GetPosition(CurrentMontage);
+			}
+			
+			// 暂停整个动画蓝图（关键！这会冻结所有动画状态）
+			AnimInstance->bReceiveNotifiesFromLinkedInstances = false;
+			GetMesh()->bPauseAnims = true;
+			GetMesh()->bNoSkeletonUpdate = true;
+		}
+
+		// 清除所有计时器（攻击、巡逻、眩晕等）
+		ClearAttackTimer();
+		ClearPatrolTimer();
+		GetWorldTimerManager().ClearTimer(StunTimer);
+		GetWorldTimerManager().ClearTimer(AggroTimer);
+
+		// 设置定身状态
+		bIsFrozen = true;
+		EnemyState = EEnemyState::EES_Frozen;
+
+		// ========== 播放定身音效 ==========
+		if (FreezeSound)
+		{
+			UGameplayStatics::PlaySoundAtLocation(this, FreezeSound, GetActorLocation());
+		}
+
+		// ========== 播放定身特效 (Niagara) ==========
+		if (FreezeEffect)
+		{
+			// 在敌人身上生成持续特效
+			ActiveFreezeEffectComponent = UNiagaraFunctionLibrary::SpawnSystemAttached(
+				FreezeEffect,
+				GetMesh(),
+				NAME_None,
+				FVector(0.0f, 0.0f, 50.0f),  // 身体中心偏移
+				FRotator::ZeroRotator,
+				EAttachLocation::SnapToTarget,
+				false  // 不自动销毁，我们手动控制
+			);
+		}
+
+		// ========== 显示"定"字 UI ==========
+		if (FreezeTextWidgetComponent)
+		{
+			// 设置位置
+			FreezeTextWidgetComponent->SetRelativeLocation(FVector(0.0f, 0.0f, FreezeTextHeightOffset));
+			
+			// 如果有 Widget 类，设置并显示
+			if (FreezeTextWidgetClass)
+			{
+				FreezeTextWidgetComponent->SetWidgetClass(FreezeTextWidgetClass);
+			}
+			FreezeTextWidgetComponent->SetVisibility(true);
+		}
+
+		UE_LOG(LogTemp, Warning, TEXT("[%s] 被定身！持续 %.1f 秒"), *GetName(), Duration);
+	}
+
+	// 设置定身结束计时器
+	GetWorldTimerManager().SetTimer(FreezeTimer, this, &AEnemyBase::OnFreezeTimerExpired, Duration, false);
+}
+
+void AEnemyBase::RemoveFreeze()
+{
+	if (!bIsFrozen) return;
+
+	bIsFrozen = false;
+
+	// 清除定身计时器
+	GetWorldTimerManager().ClearTimer(FreezeTimer);
+
+	// ========== 隐藏"定"字 UI ==========
+	if (FreezeTextWidgetComponent)
+	{
+		FreezeTextWidgetComponent->SetVisibility(false);
+	}
+
+	// ========== 停止定身持续特效 ==========
+	if (ActiveFreezeEffectComponent)
+	{
+		ActiveFreezeEffectComponent->DestroyComponent();
+		ActiveFreezeEffectComponent = nullptr;
+	}
+
+	// ========== 播放解除定身特效 ==========
+	if (UnfreezeEffect)
+	{
+		UNiagaraFunctionLibrary::SpawnSystemAtLocation(
+			GetWorld(),
+			UnfreezeEffect,
+			GetActorLocation() + FVector(0.0f, 0.0f, 50.0f),
+			FRotator::ZeroRotator
+		);
+	}
+
+	// ========== 播放解除定身音效 ==========
+	if (UnfreezeSound)
+	{
+		UGameplayStatics::PlaySoundAtLocation(this, UnfreezeSound, GetActorLocation());
+	}
+
+	// 恢复动画播放
+	if (GetMesh())
+	{
+		GetMesh()->bPauseAnims = false;
+		GetMesh()->bNoSkeletonUpdate = false;
+	}
+
+	if (UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance())
+	{
+		AnimInstance->bReceiveNotifiesFromLinkedInstances = true;
+	}
+
+	// 恢复移动能力
+	GetCharacterMovement()->SetMovementMode(MOVE_Walking);
+	GetCharacterMovement()->MaxWalkSpeed = MovementSpeedBeforeFreeze;
+
+	// 恢复行为树
+	if (EnemyController)
+	{
+		if (UBrainComponent* Brain = EnemyController->GetBrainComponent())
+		{
+			Brain->ResumeLogic("Freeze Ended");
+		}
+	}
+
+	// 恢复之前的状态（如果之前在追击，继续追击）
+	if (StateBeforeFreeze != EEnemyState::EES_NoState && StateBeforeFreeze != EEnemyState::EES_Dead)
+	{
+		EnemyState = StateBeforeFreeze;
+
+		// 如果之前在战斗中，继续战斗
+		if (CombatTarget && (StateBeforeFreeze == EEnemyState::EES_Chasing || 
+			StateBeforeFreeze == EEnemyState::EES_Attacking ||
+			StateBeforeFreeze == EEnemyState::EES_Engaged))
+		{
+			ChaseTarget();
+		}
+	}
+	else
+	{
+		// 默认恢复到警戒/巡逻状态
+		StartPatrolling();
+	}
+
+	UE_LOG(LogTemp, Warning, TEXT("[%s] 定身解除！恢复到状态: %d"), *GetName(), (int32)EnemyState);
+}
+
+void AEnemyBase::OnFreezeTimerExpired()
+{
+	RemoveFreeze();
 }

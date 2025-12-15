@@ -3,6 +3,7 @@
 #include "TraceHitboxComponent.h"
 #include "../Components/HealthComponent.h"
 #include "../Components/CombatComponent.h"
+#include "../Components/TeamComponent.h"
 #include "../EnemyBase.h"
 #include "../WukongCharacter.h"
 #include "DrawDebugHelpers.h"
@@ -404,11 +405,26 @@ bool UTraceHitboxComponent::IsValidTarget(AActor* Target) const
 		return false;
 	}
 
-	// 修复：防止敌人之间互相伤害 (Friendly Fire)
-	// 如果攻击者是敌人，且目标也是敌人，则判定为无效目标
-	if (GetOwner()->IsA(AEnemyBase::StaticClass()) && Target->IsA(AEnemyBase::StaticClass()))
+	// ========== 阵营判断：同阵营不互相伤害 ==========
+	UTeamComponent* OwnerTeam = GetOwner()->FindComponentByClass<UTeamComponent>();
+	UTeamComponent* TargetTeam = Target->FindComponentByClass<UTeamComponent>();
+	
+	if (OwnerTeam && TargetTeam)
 	{
-		return false;
+		// 同阵营不造成伤害（玩家不伤害玩家/分身，敌人不伤害敌人）
+		if (OwnerTeam->GetTeam() == TargetTeam->GetTeam())
+		{
+			return false;
+		}
+	}
+	else
+	{
+		// 兼容旧逻辑：如果没有 TeamComponent，回退到类型判断
+		// 防止敌人之间互相伤害 (Friendly Fire)
+		if (GetOwner()->IsA(AEnemyBase::StaticClass()) && Target->IsA(AEnemyBase::StaticClass()))
+		{
+			return false;
+		}
 	}
 
 	// 不重复攻击

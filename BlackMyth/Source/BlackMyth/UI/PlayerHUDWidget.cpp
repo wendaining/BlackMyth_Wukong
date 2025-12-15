@@ -1,6 +1,7 @@
 // 玩家 HUD Widget 实现
 
 #include "PlayerHUDWidget.h"
+#include "SkillBarWidget.h"
 #include "Components/ProgressBar.h"
 #include "Components/TextBlock.h"
 #include "GameFramework/Character.h"
@@ -168,5 +169,21 @@ void UPlayerHUDWidget::HideCombo()
 	if (ComboText)
 	{
 		ComboText->SetVisibility(ESlateVisibility::Collapsed);
+	}
+}
+
+void UPlayerHUDWidget::TriggerSkillCooldown(int32 SlotIndex, float CooldownDuration)
+{
+	if (SkillBar)
+	{
+		SkillBar->TriggerSkillCooldown(SlotIndex, CooldownDuration);
+	}
+}
+
+void UPlayerHUDWidget::TriggerSkillCooldownByName(const FString& SkillName, float CooldownDuration)
+{
+	if (SkillBar)
+	{
+		SkillBar->TriggerSkillCooldownByName(SkillName, CooldownDuration);
 	}
 }

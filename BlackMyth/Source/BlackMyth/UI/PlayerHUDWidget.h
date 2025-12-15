@@ -10,6 +10,7 @@ class UProgressBar;
 class UTextBlock;
 class UHealthComponent;
 class UStaminaComponent;
+class USkillBarWidget;
 
 /**
  * 玩家 HUD Widget
@@ -46,6 +47,18 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "HUD")
 	void SetComboVisible(bool bVisible);
 
+	/** 触发技能冷却显示（按槽位索引） */
+	UFUNCTION(BlueprintCallable, Category = "HUD|Skill")
+	void TriggerSkillCooldown(int32 SlotIndex, float CooldownDuration);
+
+	/** 触发技能冷却显示（按技能名称） */
+	UFUNCTION(BlueprintCallable, Category = "HUD|Skill")
+	void TriggerSkillCooldownByName(const FString& SkillName, float CooldownDuration);
+
+	/** 获取技能栏 Widget */
+	UFUNCTION(BlueprintCallable, Category = "HUD|Skill")
+	USkillBarWidget* GetSkillBar() const { return SkillBar; }
+
 protected:
 	virtual void NativeConstruct() override;
 	virtual void NativeDestruct() override;
@@ -64,6 +77,10 @@ protected:
 	/** 连击计数文本 - 蓝图中必须有同名 TextBlock（可选） */
 	UPROPERTY(meta = (BindWidgetOptional))
 	UTextBlock* ComboText;
+
+	/** 技能栏 Widget - 蓝图中必须有同名 Widget（可选） */
+	UPROPERTY(meta = (BindWidgetOptional))
+	USkillBarWidget* SkillBar;
 
 	// ========== 可配置属性 ==========
 

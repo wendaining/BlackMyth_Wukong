@@ -14,6 +14,7 @@ class UTraceHitboxComponent;
 class UTargetingComponent;
 class UTeamComponent;
 class UWukongAnimInstance;
+class UPlayerHUDWidget;
 struct FInputActionValue;
 
 // 角色状态枚举
@@ -101,6 +102,14 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Targeting")
 	UTargetingComponent* GetTargetingComponent() const { return TargetingComponent; }
 
+	/** 设置 HUD Widget 引用 */
+	UFUNCTION(BlueprintCallable, Category = "UI")
+	void SetPlayerHUD(UPlayerHUDWidget* InHUD) { PlayerHUD = InHUD; }
+
+	/** 获取 HUD Widget */
+	UFUNCTION(BlueprintPure, Category = "UI")
+	UPlayerHUDWidget* GetPlayerHUD() const { return PlayerHUD; }
+
 	/** 是否正在冲刺 */
 	UFUNCTION(BlueprintPure, Category = "Movement")
 	bool IsSprinting() const { return bIsSprinting; }
@@ -161,6 +170,10 @@ protected:
 	/** 影分身输入动作 (F键) */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UInputAction> ShadowCloneAction;
+
+	/** 定身术输入动作 (按键2) */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input", meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<UInputAction> FreezeSpellAction;
 
 	// ========== 组件 ==========
 
@@ -443,6 +456,20 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ShadowClone")
 	float ShadowCloneCooldown = 30.0f;
 
+	// ========== 定身术配置 ==========
+
+	/** 定身术持续时间（秒） */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "FreezeSpell")
+	float FreezeSpellDuration = 5.0f;
+
+	/** 定身术冷却时间（秒） */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "FreezeSpell")
+	float FreezeSpellCooldown = 15.0f;
+
+	/** 定身术施放动画蒙太奇（可选） */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "FreezeSpell")
+	TObjectPtr<UAnimMontage> FreezeSpellMontage;
+
 	/** 
 	 * 攻击蒙太奇容器
 	 * 使用 TObjectPtr 遵循 UE5 推荐的智能指针写法
@@ -453,7 +480,17 @@ protected:
 	/** 执行攻击 */
 	void Attack();
 
+	// ========== UI 配置 ==========
+
+	/** 玩家 HUD Widget 类（在蓝图中设置） */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "UI")
+	TSubclassOf<UPlayerHUDWidget> PlayerHUDClass;
+
 private:
+	// ========== UI 引用 ==========
+	UPROPERTY()
+	TObjectPtr<UPlayerHUDWidget> PlayerHUD;  // 玩家 HUD Widget 实例
+
 	// ========== 状态管理 ==========
 	EWukongState CurrentState = EWukongState::Idle;   // 当前状态
 	EWukongState PreviousState = EWukongState::Idle;  // 上一个状态
@@ -490,6 +527,15 @@ private:
 	UFUNCTION()
 	void OnHealthDepleted(AActor* Killer);
 
+	/** 对敌人造成伤害时的回调（用于更新连击 UI） */
+	UFUNCTION()
+	void OnDamageDealtToEnemy(float Damage, AActor* Target, bool bIsCritical);
+
+	// 连击计数（用于 UI 显示）
+	int32 HitComboCount = 0;
+	FTimerHandle ComboResetTimerHandle;
+	void ResetHitCombo();
+
 	// ========== 战技状态 ==========
 	bool bIsUsingAbility = false;  // 是否正在使用战技
 	float AbilityTimer = 0.0f;     // 战技计时器
@@ -520,6 +566,7 @@ private:
 	void PerformStaffSpin();    // 执行棍花
 	void PerformPoleStance();   // 执行立棍
 	void PerformShadowClone();  // 执行影分身
+	void PerformFreezeSpell();  // 执行定身术
 	void UseItem();             // 使用物品
 	void ResetCombo();          // 重置连击
 	void ProcessInputBuffer();  // 处理输入缓冲
