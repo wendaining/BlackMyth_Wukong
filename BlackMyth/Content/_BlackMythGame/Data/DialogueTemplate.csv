@@ -1,0 +1,5 @@
+---,DialogueID,SpeakerName,DialogueText,DisplayDuration,EventTag
+Row_001,Line001,神秘老者,你好啊，年轻人。看你骨骼精奇，是个练武的好苗子。,0,
+Row_002,Line002,神秘老者,这世道不太平，妖魔横行，你可要小心啊。,0,
+Row_003,Line003,悟空,多谢老人家提醒，在下自会留意。,0,
+Row_004,Line004,神秘老者,去吧，前方的路还很长。,0,dialogue_complete

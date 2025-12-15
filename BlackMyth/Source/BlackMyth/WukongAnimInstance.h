@@ -22,6 +22,19 @@ enum class ELocomotionState : uint8
 };
 
 /**
+ * 移动方向枚举 - 用于选择不同方向的动画
+ * 前进、后退、左移、右移
+ */
+UENUM(BlueprintType)
+enum class EMovementDirection : uint8
+{
+	Forward     UMETA(DisplayName = "Forward"),      // 前进 (-45 到 45 度)
+	Backward    UMETA(DisplayName = "Backward"),     // 后退 (135 到 -135 度)
+	Left        UMETA(DisplayName = "Left"),         // 左移 (-135 到 -45 度)
+	Right       UMETA(DisplayName = "Right")         // 右移 (45 到 135 度)
+};
+
+/**
  * 悟空角色的动画实例类
  * 
  * 设计理念：所有动画逻辑都在 C++ 层完成，Animation Blueprint 只需要：
@@ -80,6 +93,36 @@ protected:
     /** 是否正在冲刺 */
     UPROPERTY(BlueprintReadOnly, Category = "Movement")
     bool bIsSprinting = false;
+
+    // ========== 方向性移动变量（用于八方向动画）==========
+
+    /** 当前移动方向枚举（前/后/左/右） */
+    UPROPERTY(BlueprintReadOnly, Category = "Movement|Direction")
+    EMovementDirection MovementDirection = EMovementDirection::Forward;
+
+    /** 是否正在向前移动 */
+    UPROPERTY(BlueprintReadOnly, Category = "Movement|Direction")
+    bool bIsMovingForward = false;
+
+    /** 是否正在向后移动（后退） */
+    UPROPERTY(BlueprintReadOnly, Category = "Movement|Direction")
+    bool bIsMovingBackward = false;
+
+    /** 是否正在向左移动 */
+    UPROPERTY(BlueprintReadOnly, Category = "Movement|Direction")
+    bool bIsMovingLeft = false;
+
+    /** 是否正在向右移动 */
+    UPROPERTY(BlueprintReadOnly, Category = "Movement|Direction")
+    bool bIsMovingRight = false;
+
+    /** 前后移动量 (-1 到 1)，负值为后退 */
+    UPROPERTY(BlueprintReadOnly, Category = "Movement|Direction")
+    float ForwardAxis = 0.0f;
+
+    /** 左右移动量 (-1 到 1)，负值为左移 */
+    UPROPERTY(BlueprintReadOnly, Category = "Movement|Direction")
+    float RightAxis = 0.0f;
 
     /** 
      * 动画播放速率缩放，用于区分走路和跑步
@@ -152,13 +195,43 @@ protected:
     UPROPERTY(BlueprintReadOnly, Category = "Animation|Dynamic")
     TObjectPtr<UAnimSequence> IdleAnimation;
 
-    /** 行走动画 */
+    /** 当前行走动画（根据方向自动选择） */
     UPROPERTY(BlueprintReadOnly, Category = "Animation|Dynamic")
     TObjectPtr<UAnimSequence> WalkAnimation;
 
-	/** 冲刺动画 */
+	/** 当前冲刺动画（根据方向自动选择） */
 	UPROPERTY(BlueprintReadOnly, Category = "Animation|Dynamic")
 	TObjectPtr<UAnimSequence> SprintAnimation;
+
+    /** 当前移动动画（根据状态和方向自动选择，Walk或Sprint） */
+    UPROPERTY(BlueprintReadOnly, Category = "Animation|Dynamic")
+    TObjectPtr<UAnimSequence> CurrentLocomotionAnimation;
+
+    // ========== 方向性动画引用（从 Character 获取）==========
+
+    UPROPERTY(BlueprintReadOnly, Category = "Animation|Directional")
+    TObjectPtr<UAnimSequence> WalkForwardAnimation;
+
+    UPROPERTY(BlueprintReadOnly, Category = "Animation|Directional")
+    TObjectPtr<UAnimSequence> WalkBackwardAnimation;
+
+    UPROPERTY(BlueprintReadOnly, Category = "Animation|Directional")
+    TObjectPtr<UAnimSequence> WalkLeftAnimation;
+
+    UPROPERTY(BlueprintReadOnly, Category = "Animation|Directional")
+    TObjectPtr<UAnimSequence> WalkRightAnimation;
+
+    UPROPERTY(BlueprintReadOnly, Category = "Animation|Directional")
+    TObjectPtr<UAnimSequence> SprintForwardAnimation;
+
+    UPROPERTY(BlueprintReadOnly, Category = "Animation|Directional")
+    TObjectPtr<UAnimSequence> SprintBackwardAnimation;
+
+    UPROPERTY(BlueprintReadOnly, Category = "Animation|Directional")
+    TObjectPtr<UAnimSequence> SprintLeftAnimation;
+
+    UPROPERTY(BlueprintReadOnly, Category = "Animation|Directional")
+    TObjectPtr<UAnimSequence> SprintRightAnimation;
 
 	// ========== 原动画蓝图中的瞄准/旋转变量 ==========    /** Yaw 旋转角度（用于 Aim Offset） */
     UPROPERTY(BlueprintReadOnly, Category = "AimOffset")

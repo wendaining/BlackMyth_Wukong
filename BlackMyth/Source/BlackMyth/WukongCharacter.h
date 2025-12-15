@@ -15,6 +15,8 @@ class UTargetingComponent;
 class UTeamComponent;
 class UWukongAnimInstance;
 class UPlayerHUDWidget;
+class ANPCCharacter;
+class UInteractionPromptWidget;
 struct FInputActionValue;
 
 // 角色状态枚举
@@ -175,6 +177,10 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UInputAction> FreezeSpellAction;
 
+	/** 交互输入动作 (E键) */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input", meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<UInputAction> InteractAction;
+
 	// ========== 组件 ==========
 
 	/** 生命值组件 */
@@ -332,13 +338,37 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "Animation|Locomotion")
 	TObjectPtr<UAnimSequence> IdleAnimation;
 
-	/** 行走动画 */
+	/** 行走动画 - 前进 */
 	UPROPERTY(EditDefaultsOnly, Category = "Animation|Locomotion")
 	TObjectPtr<UAnimSequence> WalkForwardAnimation;
 
-	/** 冲刺动画 */
+	/** 行走动画 - 后退 */
+	UPROPERTY(EditDefaultsOnly, Category = "Animation|Locomotion")
+	TObjectPtr<UAnimSequence> WalkBackwardAnimation;
+
+	/** 行走动画 - 左移 */
+	UPROPERTY(EditDefaultsOnly, Category = "Animation|Locomotion")
+	TObjectPtr<UAnimSequence> WalkLeftAnimation;
+
+	/** 行走动画 - 右移 */
+	UPROPERTY(EditDefaultsOnly, Category = "Animation|Locomotion")
+	TObjectPtr<UAnimSequence> WalkRightAnimation;
+
+	/** 冲刺动画 - 前进 */
 	UPROPERTY(EditDefaultsOnly, Category = "Animation|Locomotion")
 	TObjectPtr<UAnimSequence> SprintForwardAnimation;
+
+	/** 冲刺动画 - 后退 */
+	UPROPERTY(EditDefaultsOnly, Category = "Animation|Locomotion")
+	TObjectPtr<UAnimSequence> SprintBackwardAnimation;
+
+	/** 冲刺动画 - 左移 */
+	UPROPERTY(EditDefaultsOnly, Category = "Animation|Locomotion")
+	TObjectPtr<UAnimSequence> SprintLeftAnimation;
+
+	/** 冲刺动画 - 右移 */
+	UPROPERTY(EditDefaultsOnly, Category = "Animation|Locomotion")
+	TObjectPtr<UAnimSequence> SprintRightAnimation;
 
 	/** 翻滚动画序列 */
 	UPROPERTY(EditDefaultsOnly, Category = "Animation|Combat")
@@ -601,4 +631,41 @@ private:
 	 * @return 蒙太奇时长，失败返回0
 	 */
 	float PlayAnimationAsMontageDynamic(UAnimSequence* AnimSequence, FName SlotName = FName("DefaultSlot"), float PlayRate = 1.0f);
+
+	// ========== NPC交互系统 ==========
+protected:
+	/** 交互距离 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Interaction")
+	float InteractionDistance = 300.0f;
+
+	/** 检测频率（秒） */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Interaction")
+	float InteractionCheckInterval = 0.2f;
+
+	/** 交互提示Widget类 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Interaction|UI")
+	TSubclassOf<UInteractionPromptWidget> InteractionPromptWidgetClass;
+
+	/** 当前可交互的NPC */
+	UPROPERTY()
+	ANPCCharacter* NearbyNPC;
+
+	/** 交互提示UI实例 */
+	UPROPERTY()
+	UInteractionPromptWidget* InteractionPromptWidget;
+
+	/** 检测计时器 */
+	float InteractionCheckTimer;
+
+	/** 检测附近的NPC */
+	void CheckForNearbyNPC();
+
+	/** 显示交互提示 */
+	void ShowInteractionPrompt();
+
+	/** 隐藏交互提示 */
+	void HideInteractionPrompt();
+
+	/** 处理交互输入 */
+	void OnInteract();
 };
