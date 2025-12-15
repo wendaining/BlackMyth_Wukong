@@ -1,0 +1,52 @@
+// Fill out your copyright notice in the Description page of Project Settings.
+
+#include "Characters/NPCCharacter.h"
+#include "Dialogue/DialogueComponent.h"
+#include "Components/CapsuleComponent.h"
+#include "GameFramework/CharacterMovementComponent.h"
+
+ANPCCharacter::ANPCCharacter()
+{
+	PrimaryActorTick.bCanEverTick = false;
+
+	// 创建对话组件
+	DialogueComponent = CreateDefaultSubobject<UDialogueComponent>(TEXT("DialogueComponent"));
+
+	// 默认可以交互
+	bCanInteract = true;
+	InteractionDistance = 300.0f;
+
+	// 禁用碰撞攻击（中立阵营，无法被攻击）
+	GetCapsuleComponent()->SetCollisionResponseToChannel(ECC_Pawn, ECR_Ignore);
+	GetCapsuleComponent()->SetCollisionResponseToChannel(ECC_WorldDynamic, ECR_Block);
+	
+	// 禁用移动
+	GetCharacterMovement()->DisableMovement();
+}
+
+void ANPCCharacter::BeginPlay()
+{
+	Super::BeginPlay();
+}
+
+void ANPCCharacter::PostInitializeComponents()
+{
+	Super::PostInitializeComponents();
+
+	// 设置为中立阵营（Team ID = 255表示中立）
+	// 注：如果项目中使用了GenericTeamId系统，可以在这里设置
+	// 目前先通过碰撞设置来实现"无法被攻击"
+}
+
+bool ANPCCharacter::CanBeInteractedWith() const
+{
+	return bCanInteract && DialogueComponent != nullptr;
+}
+
+void ANPCCharacter::StartDialogue()
+{
+	if (DialogueComponent && CanBeInteractedWith())
+	{
+		DialogueComponent->StartDialogue();
+	}
+}
