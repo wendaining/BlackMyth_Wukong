@@ -947,3 +947,129 @@ void AEnemyBase::StartChasingAfterAggro()
 		ChaseTarget();
 	}
 }
+
+// ========== 定身术系统实现 ==========
+
+void AEnemyBase::ApplyFreeze(float Duration)
+{
+	// 不能对死亡的敌人施加定身
+	if (IsDead()) return;
+
+	// 如果已经被定身，重置计时器
+	if (bIsFrozen)
+	{
+		GetWorldTimerManager().ClearTimer(FreezeTimer);
+	}
+	else
+	{
+		// 保存定身前的状态
+		StateBeforeFreeze = EnemyState;
+		MovementSpeedBeforeFreeze = GetCharacterMovement()->MaxWalkSpeed;
+
+		// 停止所有行为
+		if (EnemyController)
+		{
+			EnemyController->StopMovement();
+			// 暂停行为树
+			if (UBrainComponent* Brain = EnemyController->GetBrainComponent())
+			{
+				Brain->PauseLogic("Frozen");
+			}
+		}
+
+		// 停止角色移动
+		GetCharacterMovement()->StopMovementImmediately();
+		GetCharacterMovement()->DisableMovement();
+
+		// 暂停动画 - 保持当前帧
+		if (UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance())
+		{
+			// 获取当前动画位置（用于恢复时参考）
+			if (UAnimMontage* CurrentMontage = AnimInstance->GetCurrentActiveMontage())
+			{
+				FrozenAnimPosition = AnimInstance->Montage_GetPosition(CurrentMontage);
+			}
+			
+			// 暂停整个动画蓝图（关键！这会冻结所有动画状态）
+			AnimInstance->bReceiveNotifiesFromLinkedInstances = false;
+			GetMesh()->bPauseAnims = true;
+			GetMesh()->bNoSkeletonUpdate = true;
+		}
+
+		// 清除所有计时器（攻击、巡逻、眩晕等）
+		ClearAttackTimer();
+		ClearPatrolTimer();
+		GetWorldTimerManager().ClearTimer(StunTimer);
+		GetWorldTimerManager().ClearTimer(AggroTimer);
+
+		// 设置定身状态
+		bIsFrozen = true;
+		EnemyState = EEnemyState::EES_Frozen;
+
+		UE_LOG(LogTemp, Warning, TEXT("[%s] 被定身！持续 %.1f 秒"), *GetName(), Duration);
+	}
+
+	// 设置定身结束计时器
+	GetWorldTimerManager().SetTimer(FreezeTimer, this, &AEnemyBase::OnFreezeTimerExpired, Duration, false);
+}
+
+void AEnemyBase::RemoveFreeze()
+{
+	if (!bIsFrozen) return;
+
+	bIsFrozen = false;
+
+	// 清除定身计时器
+	GetWorldTimerManager().ClearTimer(FreezeTimer);
+
+	// 恢复动画播放
+	if (GetMesh())
+	{
+		GetMesh()->bPauseAnims = false;
+		GetMesh()->bNoSkeletonUpdate = false;
+	}
+
+	if (UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance())
+	{
+		AnimInstance->bReceiveNotifiesFromLinkedInstances = true;
+	}
+
+	// 恢复移动能力
+	GetCharacterMovement()->SetMovementMode(MOVE_Walking);
+	GetCharacterMovement()->MaxWalkSpeed = MovementSpeedBeforeFreeze;
+
+	// 恢复行为树
+	if (EnemyController)
+	{
+		if (UBrainComponent* Brain = EnemyController->GetBrainComponent())
+		{
+			Brain->ResumeLogic("Freeze Ended");
+		}
+	}
+
+	// 恢复之前的状态（如果之前在追击，继续追击）
+	if (StateBeforeFreeze != EEnemyState::EES_NoState && StateBeforeFreeze != EEnemyState::EES_Dead)
+	{
+		EnemyState = StateBeforeFreeze;
+
+		// 如果之前在战斗中，继续战斗
+		if (CombatTarget && (StateBeforeFreeze == EEnemyState::EES_Chasing || 
+			StateBeforeFreeze == EEnemyState::EES_Attacking ||
+			StateBeforeFreeze == EEnemyState::EES_Engaged))
+		{
+			ChaseTarget();
+		}
+	}
+	else
+	{
+		// 默认恢复到警戒/巡逻状态
+		StartPatrolling();
+	}
+
+	UE_LOG(LogTemp, Warning, TEXT("[%s] 定身解除！恢复到状态: %d"), *GetName(), (int32)EnemyState);
+}
+
+void AEnemyBase::OnFreezeTimerExpired()
+{
+	RemoveFreeze();
+}

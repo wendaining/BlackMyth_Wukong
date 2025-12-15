@@ -24,6 +24,7 @@ enum class EEnemyState : uint8
 	EES_Attacking UMETA(DisplayName = "Attacking"),
 	EES_Engaged UMETA(DisplayName = "Engaged"),
 	EES_Stunned UMETA(DisplayName = "Stunned"),
+	EES_Frozen UMETA(DisplayName = "Frozen"),  // 定身状态
 	EES_Dead UMETA(DisplayName = "Dead"),
 	EES_NoState UMETA(DisplayName = "NoState")
 };
@@ -327,6 +328,27 @@ public:
 
 	bool IsStunned();
 
+	// ========== 定身术系统 ==========
+
+	/**
+	 * 施加定身效果
+	 * @param Duration 定身持续时间（秒）
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Combat|Freeze")
+	void ApplyFreeze(float Duration);
+
+	/**
+	 * 解除定身效果
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Combat|Freeze")
+	void RemoveFreeze();
+
+	/**
+	 * 检查是否处于定身状态
+	 */
+	UFUNCTION(BlueprintPure, Category = "Combat|Freeze")
+	bool IsFrozen() const { return bIsFrozen; }
+
 protected:
 	/** 咆哮结束，开始追击 */
 	void StartChasingAfterAggro();
@@ -335,4 +357,24 @@ protected:
 	void StunEnd();
 
 	bool bHasAggroed = false;
+
+	// ========== 定身术系统 (内部实现) ==========
+
+	/** 是否处于定身状态 */
+	bool bIsFrozen = false;
+
+	/** 定身前的状态（用于解除后恢复） */
+	EEnemyState StateBeforeFreeze = EEnemyState::EES_NoState;
+
+	/** 定身时保存的动画播放位置 */
+	float FrozenAnimPosition = 0.0f;
+
+	/** 定身前的移动速度 */
+	float MovementSpeedBeforeFreeze = 0.0f;
+
+	/** 定身计时器句柄 */
+	FTimerHandle FreezeTimer;
+
+	/** 内部定身处理函数 */
+	void OnFreezeTimerExpired();
 };

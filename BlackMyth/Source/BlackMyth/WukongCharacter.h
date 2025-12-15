@@ -162,6 +162,10 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UInputAction> ShadowCloneAction;
 
+	/** 定身术输入动作 (按键2) */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input", meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<UInputAction> FreezeSpellAction;
+
 	// ========== 组件 ==========
 
 	/** 生命值组件 */
@@ -443,6 +447,20 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ShadowClone")
 	float ShadowCloneCooldown = 30.0f;
 
+	// ========== 定身术配置 ==========
+
+	/** 定身术持续时间（秒） */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "FreezeSpell")
+	float FreezeSpellDuration = 5.0f;
+
+	/** 定身术冷却时间（秒） */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "FreezeSpell")
+	float FreezeSpellCooldown = 15.0f;
+
+	/** 定身术施放动画蒙太奇（可选） */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "FreezeSpell")
+	TObjectPtr<UAnimMontage> FreezeSpellMontage;
+
 	/** 
 	 * 攻击蒙太奇容器
 	 * 使用 TObjectPtr 遵循 UE5 推荐的智能指针写法
@@ -520,6 +538,7 @@ private:
 	void PerformStaffSpin();    // 执行棍花
 	void PerformPoleStance();   // 执行立棍
 	void PerformShadowClone();  // 执行影分身
+	void PerformFreezeSpell();  // 执行定身术
 	void UseItem();             // 使用物品
 	void ResetCombo();          // 重置连击
 	void ProcessInputBuffer();  // 处理输入缓冲
