@@ -332,13 +332,37 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "Animation|Locomotion")
 	TObjectPtr<UAnimSequence> IdleAnimation;
 
-	/** 行走动画 */
+	/** 行走动画 - 前进 */
 	UPROPERTY(EditDefaultsOnly, Category = "Animation|Locomotion")
 	TObjectPtr<UAnimSequence> WalkForwardAnimation;
 
-	/** 冲刺动画 */
+	/** 行走动画 - 后退 */
+	UPROPERTY(EditDefaultsOnly, Category = "Animation|Locomotion")
+	TObjectPtr<UAnimSequence> WalkBackwardAnimation;
+
+	/** 行走动画 - 左移 */
+	UPROPERTY(EditDefaultsOnly, Category = "Animation|Locomotion")
+	TObjectPtr<UAnimSequence> WalkLeftAnimation;
+
+	/** 行走动画 - 右移 */
+	UPROPERTY(EditDefaultsOnly, Category = "Animation|Locomotion")
+	TObjectPtr<UAnimSequence> WalkRightAnimation;
+
+	/** 冲刺动画 - 前进 */
 	UPROPERTY(EditDefaultsOnly, Category = "Animation|Locomotion")
 	TObjectPtr<UAnimSequence> SprintForwardAnimation;
+
+	/** 冲刺动画 - 后退 */
+	UPROPERTY(EditDefaultsOnly, Category = "Animation|Locomotion")
+	TObjectPtr<UAnimSequence> SprintBackwardAnimation;
+
+	/** 冲刺动画 - 左移 */
+	UPROPERTY(EditDefaultsOnly, Category = "Animation|Locomotion")
+	TObjectPtr<UAnimSequence> SprintLeftAnimation;
+
+	/** 冲刺动画 - 右移 */
+	UPROPERTY(EditDefaultsOnly, Category = "Animation|Locomotion")
+	TObjectPtr<UAnimSequence> SprintRightAnimation;
 
 	/** 翻滚动画序列 */
 	UPROPERTY(EditDefaultsOnly, Category = "Animation|Combat")

@@ -78,8 +78,22 @@ void UWukongAnimInstance::UpdateMovementVariables()
     if (!IdleAnimation && Wukong)
     {
         IdleAnimation = Wukong->IdleAnimation;
-        WalkAnimation = Wukong->WalkForwardAnimation;
-        SprintAnimation = Wukong->SprintForwardAnimation;
+        
+        // 获取所有方向性动画引用
+        WalkForwardAnimation = Wukong->WalkForwardAnimation;
+        WalkBackwardAnimation = Wukong->WalkBackwardAnimation;
+        WalkLeftAnimation = Wukong->WalkLeftAnimation;
+        WalkRightAnimation = Wukong->WalkRightAnimation;
+        
+        SprintForwardAnimation = Wukong->SprintForwardAnimation;
+        SprintBackwardAnimation = Wukong->SprintBackwardAnimation;
+        SprintLeftAnimation = Wukong->SprintLeftAnimation;
+        SprintRightAnimation = Wukong->SprintRightAnimation;
+        
+        // 默认使用前进动画
+        WalkAnimation = WalkForwardAnimation;
+        SprintAnimation = SprintForwardAnimation;
+        CurrentLocomotionAnimation = IdleAnimation;
     }
 
     // 获取速度
@@ -114,6 +128,15 @@ void UWukongAnimInstance::UpdateMovementVariables()
         bIsSprinting = false;
         bIsAccelerating = false;
         LocomotionPlayRate = 1.0f;
+        
+        // 重置方向性移动变量
+        MovementDirection = EMovementDirection::Forward;
+        bIsMovingForward = false;
+        bIsMovingBackward = false;
+        bIsMovingLeft = false;
+        bIsMovingRight = false;
+        ForwardAxis = 0.0f;
+        RightAxis = 0.0f;
     }
     else
     {
@@ -132,11 +155,110 @@ void UWukongAnimInstance::UpdateMovementVariables()
         
         bIsMoving = Speed > 10.0f;
         
+        // ========== 计算方向性移动变量 ==========
+        // 根据 Direction 角度判断移动方向
+        // Direction: 0=前，180/-180=后，90=右，-90=左
+        
+        if (bIsMoving)
+        {
+            // 计算前后和左右轴值（基于方向角度）
+            float DirectionRad = FMath::DegreesToRadians(Direction);
+            ForwardAxis = FMath::Cos(DirectionRad);  // 前后：1=前，-1=后
+            RightAxis = FMath::Sin(DirectionRad);    // 左右：1=右，-1=左
+            
+            // 判断主要移动方向
+            float AbsDirection = FMath::Abs(Direction);
+            
+            if (AbsDirection <= 45.0f)
+            {
+                // 前进 (-45 到 45 度)
+                MovementDirection = EMovementDirection::Forward;
+                bIsMovingForward = true;
+                bIsMovingBackward = false;
+                bIsMovingLeft = false;
+                bIsMovingRight = false;
+            }
+            else if (AbsDirection >= 135.0f)
+            {
+                // 后退 (135 到 180 或 -135 到 -180 度)
+                MovementDirection = EMovementDirection::Backward;
+                bIsMovingForward = false;
+                bIsMovingBackward = true;
+                bIsMovingLeft = false;
+                bIsMovingRight = false;
+            }
+            else if (Direction < 0)
+            {
+                // 左移 (-135 到 -45 度)
+                MovementDirection = EMovementDirection::Left;
+                bIsMovingForward = false;
+                bIsMovingBackward = false;
+                bIsMovingLeft = true;
+                bIsMovingRight = false;
+            }
+            else
+            {
+                // 右移 (45 到 135 度)
+                MovementDirection = EMovementDirection::Right;
+                bIsMovingForward = false;
+                bIsMovingBackward = false;
+                bIsMovingLeft = false;
+                bIsMovingRight = true;
+            }
+        }
+        else
+        {
+            // 静止时重置
+            MovementDirection = EMovementDirection::Forward;
+            bIsMovingForward = false;
+            bIsMovingBackward = false;
+            bIsMovingLeft = false;
+            bIsMovingRight = false;
+            ForwardAxis = 0.0f;
+            RightAxis = 0.0f;
+        }
+        
         // 更新冲刺状态（只有悟空角色才有冲刺）
         bIsSprinting = Wukong ? Wukong->IsSprinting() : (Speed > 450.0f);
         
         // 更新走路状态（移动但不冲刺）
         bIsWalking = bIsMoving && !bIsSprinting;
+
+        // ========== 根据方向自动选择动画 ==========
+        // C++ 自动处理动画选择，蓝图只需读取 CurrentLocomotionAnimation
+        switch (MovementDirection)
+        {
+        case EMovementDirection::Forward:
+            WalkAnimation = WalkForwardAnimation;
+            SprintAnimation = SprintForwardAnimation;
+            break;
+        case EMovementDirection::Backward:
+            WalkAnimation = WalkBackwardAnimation ? WalkBackwardAnimation : WalkForwardAnimation;
+            SprintAnimation = SprintBackwardAnimation ? SprintBackwardAnimation : SprintForwardAnimation;
+            break;
+        case EMovementDirection::Left:
+            WalkAnimation = WalkLeftAnimation ? WalkLeftAnimation : WalkForwardAnimation;
+            SprintAnimation = SprintLeftAnimation ? SprintLeftAnimation : SprintForwardAnimation;
+            break;
+        case EMovementDirection::Right:
+            WalkAnimation = WalkRightAnimation ? WalkRightAnimation : WalkForwardAnimation;
+            SprintAnimation = SprintRightAnimation ? SprintRightAnimation : SprintForwardAnimation;
+            break;
+        }
+
+        // 根据当前状态选择最终使用的动画
+        if (!bIsMoving)
+        {
+            CurrentLocomotionAnimation = IdleAnimation;
+        }
+        else if (bIsSprinting)
+        {
+            CurrentLocomotionAnimation = SprintAnimation;
+        }
+        else
+        {
+            CurrentLocomotionAnimation = WalkAnimation;
+        }
 
         // 是否正在加速（检查当前加速度，对应原蓝图中的 isAccelerating）
         const FVector CurrentAcceleration = MovementComp->GetCurrentAcceleration();

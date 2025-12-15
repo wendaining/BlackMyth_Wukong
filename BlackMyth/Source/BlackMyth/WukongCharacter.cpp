@@ -27,6 +27,21 @@ AWukongCharacter::AWukongCharacter()
     // Set this character to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
     PrimaryActorTick.bCanEverTick = true;
 
+    // ========== 角色旋转设置（关键！影响方向动画） ==========
+    // 不让角色自动面向移动方向，这样按 S 时角色不会转身
+    bUseControllerRotationYaw = false;  // 不使用控制器旋转
+    
+    // 获取角色移动组件并设置旋转行为
+    if (UCharacterMovementComponent* MovementComp = GetCharacterMovement())
+    {
+        // 关闭"面向移动方向"，这是实现后退动画的关键
+        MovementComp->bOrientRotationToMovement = false;
+        
+        // 改用"面向控制器方向"，让角色朝向摄像机方向
+        MovementComp->bUseControllerDesiredRotation = true;
+        MovementComp->RotationRate = FRotator(0.0f, 500.0f, 0.0f);  // 旋转速度
+    }
+
     // 创建生命组件
     HealthComponent = CreateDefaultSubobject<UHealthComponent>(TEXT("HealthComponent"));
 
