@@ -171,15 +171,15 @@ void AWukongCharacter::Tick(float DeltaTime)
 {
     Super::Tick(DeltaTime);
 
-    // Update state machine
+    // 更新状态机
     UpdateState(DeltaTime);
 
-    // Update cooldowns
+    // 更新冷却
     UpdateCooldowns(DeltaTime);
 
     // 体力更新由StaminaComponent自己处理
 
-    // Update attack cooldown timer
+    // 更新攻击冷却计时器
     if (AttackCooldownTimer > 0.0f)
     {
         AttackCooldownTimer -= DeltaTime;
@@ -741,7 +741,7 @@ void AWukongCharacter::UpdateAttackingState(float DeltaTime)
             Movement->MaxWalkSpeed = CachedMaxWalkSpeed > 0.0f ? CachedMaxWalkSpeed : WalkSpeed;
         }
 
-        // Check for combo timeout
+        // 计算连击消耗的时间
         float TimeSinceLastAttack = GetWorld()->GetTimeSeconds() - LastAttackTime;
         float ComboResetTime = CombatComponent ? CombatComponent->ComboResetTime : 1.0f;
         if (TimeSinceLastAttack > ComboResetTime)
@@ -749,7 +749,7 @@ void AWukongCharacter::UpdateAttackingState(float DeltaTime)
             ResetCombo();
         }
 
-        // Return to appropriate state
+        // 返回合适的状态
         FVector InputDirection = GetMovementInputDirection();
         if (InputDirection.IsNearlyZero())
         {
@@ -1344,6 +1344,7 @@ void AWukongCharacter::PerformFreezeSpell()
         return;
     }
 
+    
     // 获取锁定的目标
     AActor* LockedTarget = TargetingComponent->GetLockedTarget();
     if (!LockedTarget)
