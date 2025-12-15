@@ -1,6 +1,6 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
-#include "Characters/NPCCharacter.h"
+#include "NPCCharacter.h"
 #include "Dialogue/DialogueComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
