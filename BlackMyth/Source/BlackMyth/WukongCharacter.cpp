@@ -3,7 +3,9 @@
 #include "WukongCharacter.h"
 #include "WukongClone.h"
 #include "EnemyBase.h"
+#include "NPCCharacter.h"
 #include "UI/PlayerHUDWidget.h"
+#include "UI/InteractionPromptWidget.h"
 #include "Blueprint/UserWidget.h"
 #include "Components/StaminaComponent.h"
 #include "Components/CombatComponent.h"
@@ -12,14 +14,19 @@
 #include "Components/TeamComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "Combat/TraceHitboxComponent.h"
+#include "Dialogue/DialogueComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "EnhancedInputComponent.h"
 #include "InputAction.h"
+#include "Kismet/GameplayStatics.h"
 #include "Kismet/KismetMathLibrary.h"
 #include "UObject/ConstructorHelpers.h"
 #include "Animation/AnimMontage.h"
 #include "Animation/AnimSequence.h"
 #include "TimerManager.h"
+#include "Engine/World.h"
+#include "Engine/OverlapResult.h"
+#include "CollisionQueryParams.h"
 
 // Sets default values
 AWukongCharacter::AWukongCharacter()
@@ -179,6 +186,11 @@ void AWukongCharacter::BeginPlay()
     {
         UE_LOG(LogTemp, Warning, TEXT("[Wukong] PlayerHUDClass not set! Please set it in Blueprint."));
     }
+
+    // 初始化交互系统
+    NearbyNPC = nullptr;
+    InteractionPromptWidget = nullptr;
+    InteractionCheckTimer = 0.0f;
 }
 
 // Called every frame
@@ -193,6 +205,14 @@ void AWukongCharacter::Tick(float DeltaTime)
     UpdateCooldowns(DeltaTime);
 
     // 体力更新由StaminaComponent自己处理
+
+    // 检测附近的NPC
+    InteractionCheckTimer += DeltaTime;
+    if (InteractionCheckTimer >= InteractionCheckInterval)
+    {
+        InteractionCheckTimer = 0.0f;
+        CheckForNearbyNPC();
+    }
 
     // 更新攻击冷却计时器
     if (AttackCooldownTimer > 0.0f)
@@ -346,6 +366,17 @@ void AWukongCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCom
         else
         {
             UE_LOG(LogTemp, Warning, TEXT("  SwitchTargetAction is NULL - Target switching disabled"));
+        }
+
+        // Bind interact action (E key)
+        if (InteractAction)
+        {
+            EnhancedInputComponent->BindAction(InteractAction, ETriggerEvent::Started, this, &AWukongCharacter::OnInteract);
+            UE_LOG(LogTemp, Warning, TEXT("  Bound InteractAction (E) to OnInteract"));
+        }
+        else
+        {
+            UE_LOG(LogTemp, Warning, TEXT("  InteractAction is NULL - Interaction disabled"));
         }
     }
     else
@@ -2017,4 +2048,145 @@ void AWukongCharacter::UpdateFacingTarget(float DeltaTime)
     NewRotation.Roll = 0.0f;
 
     SetActorRotation(NewRotation);
+}
+
+// ========== NPC交互系统实现 ==========
+
+void AWukongCharacter::CheckForNearbyNPC()
+{
+	// 使用OverlapMultiByObjectType检测所有Actor（避免碰撞通道问题）
+	TArray<FOverlapResult> OverlapResults;
+	FVector StartLocation = GetActorLocation();
+	FCollisionShape Sphere = FCollisionShape::MakeSphere(InteractionDistance);
+	
+	FCollisionQueryParams QueryParams;
+	QueryParams.AddIgnoredActor(this);
+	
+	// 使用WorldDynamic通道检测所有动态物体
+	FCollisionObjectQueryParams ObjectQueryParams;
+	ObjectQueryParams.AddObjectTypesToQuery(ECC_WorldDynamic);
+	ObjectQueryParams.AddObjectTypesToQuery(ECC_Pawn);
+	
+	bool bHit = GetWorld()->OverlapMultiByObjectType(
+		OverlapResults,
+		StartLocation,
+		FQuat::Identity,
+		ObjectQueryParams,
+		Sphere,
+		QueryParams
+	);
+
+	ANPCCharacter* ClosestNPC = nullptr;
+	float ClosestDistance = InteractionDistance;
+
+	if (bHit)
+	{
+		UE_LOG(LogTemp, Verbose, TEXT("[Interaction] Found %d overlapping actors"), OverlapResults.Num());
+		
+		for (const FOverlapResult& Overlap : OverlapResults)
+		{
+			if (ANPCCharacter* NPC = Cast<ANPCCharacter>(Overlap.GetActor()))
+			{
+				// 只在Verbose级别输出,避免刷屏
+				UE_LOG(LogTemp, Verbose, TEXT("[Interaction] Checking NPC: %s, CanInteract: %d"), 
+					*NPC->GetName(), NPC->CanBeInteractedWith());
+				
+				if (NPC->CanBeInteractedWith())
+				{
+					float Distance = FVector::Dist(StartLocation, NPC->GetActorLocation());
+					if (Distance < ClosestDistance)
+					{
+						ClosestNPC = NPC;
+						ClosestDistance = Distance;
+					}
+				}
+			}
+		}
+	}
+
+	// 更新当前NPC
+	if (ClosestNPC != NearbyNPC)
+	{
+		NearbyNPC = ClosestNPC;
+		
+		if (NearbyNPC)
+		{
+			UE_LOG(LogTemp, Log, TEXT("[Interaction] NPC in range: %s"), *NearbyNPC->GetName());
+			ShowInteractionPrompt();
+		}
+		else
+		{
+			UE_LOG(LogTemp, Log, TEXT("[Interaction] NPC out of range"));
+			HideInteractionPrompt();
+		}
+	}
+}
+
+void AWukongCharacter::ShowInteractionPrompt()
+{
+	if (!InteractionPromptWidget)
+	{
+		if (InteractionPromptWidgetClass)
+		{
+			if (APlayerController* PC = Cast<APlayerController>(GetController()))
+			{
+				InteractionPromptWidget = CreateWidget<UInteractionPromptWidget>(PC, InteractionPromptWidgetClass);
+				if (InteractionPromptWidget)
+				{
+					InteractionPromptWidget->AddToViewport(100); // 高优先级
+					UE_LOG(LogTemp, Log, TEXT("[Interaction] Created InteractionPromptWidget"));
+				}
+				else
+				{
+					UE_LOG(LogTemp, Error, TEXT("[Interaction] Failed to create InteractionPromptWidget!"));
+				}
+			}
+		}
+		else
+		{
+			UE_LOG(LogTemp, Error, TEXT("[Interaction] InteractionPromptWidgetClass is NULL! Set it in BP_Wukong!"));
+		}
+	}
+
+	if (InteractionPromptWidget)
+	{
+		InteractionPromptWidget->ShowPrompt(FText::FromString(TEXT("按 [E] 对话")));
+		UE_LOG(LogTemp, Log, TEXT("[Interaction] Showing prompt"));
+	}
+}
+
+void AWukongCharacter::HideInteractionPrompt()
+{
+	if (InteractionPromptWidget)
+	{
+		InteractionPromptWidget->HidePrompt();
+	}
+}
+
+void AWukongCharacter::OnInteract()
+{
+	UE_LOG(LogTemp, Log, TEXT("[Interaction] OnInteract called, NearbyNPC: %s"), 
+		NearbyNPC ? *NearbyNPC->GetName() : TEXT("NULL"));
+	
+	if (NearbyNPC && NearbyNPC->CanBeInteractedWith())
+	{
+		// 检查是否正在对话中
+		if (NearbyNPC->DialogueComponent && NearbyNPC->DialogueComponent->IsDialoguePlaying())
+		{
+			UE_LOG(LogTemp, Log, TEXT("[Interaction] Dialogue in progress, calling NextDialogue"));
+			// 对话中，按E继续下一句
+			NearbyNPC->DialogueComponent->NextDialogue();
+		}
+		else
+		{
+			UE_LOG(LogTemp, Log, TEXT("[Interaction] Starting new dialogue"));
+			// 不在对话中，开始新对话
+			HideInteractionPrompt();
+			NearbyNPC->StartDialogue();
+		}
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[Interaction] No nearby NPC or cannot interact!"));
+	}
 }

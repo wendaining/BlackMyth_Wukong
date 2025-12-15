@@ -12,6 +12,8 @@
 #include "DialogueComponent.generated.h"
 
 class APlayerController;
+class UDialogueWidget;
+class UFadeWidget;
 
 // 对话状态改变委托
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnDialogueStateChanged, bool, bIsPlaying);
@@ -41,6 +43,14 @@ public:
 	// 对话数据（可在蓝图中配置）
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Dialogue")
 	FDialogueTable DialogueTable;
+
+	// 对话UI类
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Dialogue|UI")
+	TSubclassOf<UDialogueWidget> DialogueWidgetClass;
+
+	// 黑屏过渡UI类
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Dialogue|UI")
+	TSubclassOf<UFadeWidget> FadeWidgetClass;
 
 	// 对话状态改变事件
 	UPROPERTY(BlueprintAssignable, Category = "Dialogue|Events")
@@ -102,6 +112,13 @@ protected:
 	FVector OriginalCameraLocation;
 	FRotator OriginalCameraRotation;
 	float OriginalCameraFOV;
+
+	// UI实例
+	UPROPERTY()
+	UDialogueWidget* DialogueWidgetInstance;
+
+	UPROPERTY()
+	UFadeWidget* FadeWidgetInstance;
 
 	// 自动播放计时器
 	FTimerHandle AutoPlayTimerHandle;

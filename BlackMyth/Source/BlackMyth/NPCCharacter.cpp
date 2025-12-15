@@ -16,9 +16,12 @@ ANPCCharacter::ANPCCharacter()
 	bCanInteract = true;
 	InteractionDistance = 300.0f;
 
-	// 禁用碰撞攻击（中立阵营，无法被攻击）
-	GetCapsuleComponent()->SetCollisionResponseToChannel(ECC_Pawn, ECR_Ignore);
-	GetCapsuleComponent()->SetCollisionResponseToChannel(ECC_WorldDynamic, ECR_Block);
+	// 设置碰撞：保持WorldDynamic通道响应，用于检测
+	GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+	GetCapsuleComponent()->SetCollisionObjectType(ECC_WorldDynamic);
+	GetCapsuleComponent()->SetCollisionResponseToAllChannels(ECR_Block);
+	GetCapsuleComponent()->SetCollisionResponseToChannel(ECC_Pawn, ECR_Overlap); // 允许玩家重叠检测
+	GetCapsuleComponent()->SetCollisionResponseToChannel(ECC_Camera, ECR_Ignore);
 	
 	// 禁用移动
 	GetCharacterMovement()->DisableMovement();

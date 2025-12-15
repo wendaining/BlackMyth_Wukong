@@ -15,6 +15,8 @@ class UTargetingComponent;
 class UTeamComponent;
 class UWukongAnimInstance;
 class UPlayerHUDWidget;
+class ANPCCharacter;
+class UInteractionPromptWidget;
 struct FInputActionValue;
 
 // 角色状态枚举
@@ -174,6 +176,10 @@ protected:
 	/** 定身术输入动作 (按键2) */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UInputAction> FreezeSpellAction;
+
+	/** 交互输入动作 (E键) */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input", meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<UInputAction> InteractAction;
 
 	// ========== 组件 ==========
 
@@ -625,4 +631,41 @@ private:
 	 * @return 蒙太奇时长，失败返回0
 	 */
 	float PlayAnimationAsMontageDynamic(UAnimSequence* AnimSequence, FName SlotName = FName("DefaultSlot"), float PlayRate = 1.0f);
+
+	// ========== NPC交互系统 ==========
+protected:
+	/** 交互距离 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Interaction")
+	float InteractionDistance = 300.0f;
+
+	/** 检测频率（秒） */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Interaction")
+	float InteractionCheckInterval = 0.2f;
+
+	/** 交互提示Widget类 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Interaction|UI")
+	TSubclassOf<UInteractionPromptWidget> InteractionPromptWidgetClass;
+
+	/** 当前可交互的NPC */
+	UPROPERTY()
+	ANPCCharacter* NearbyNPC;
+
+	/** 交互提示UI实例 */
+	UPROPERTY()
+	UInteractionPromptWidget* InteractionPromptWidget;
+
+	/** 检测计时器 */
+	float InteractionCheckTimer;
+
+	/** 检测附近的NPC */
+	void CheckForNearbyNPC();
+
+	/** 显示交互提示 */
+	void ShowInteractionPrompt();
+
+	/** 隐藏交互提示 */
+	void HideInteractionPrompt();
+
+	/** 处理交互输入 */
+	void OnInteract();
 };
