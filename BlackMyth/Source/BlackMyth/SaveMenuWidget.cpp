@@ -2,6 +2,9 @@
 #include "Kismet/GameplayStatics.h"
 #include "GameFramework/Character.h"
 #include "BlackMythSaveGame.h"
+#include "WukongCharacter.h"
+#include "Components/HealthComponent.h"
+#include "Components/StaminaComponent.h"
 
 void USaveMenuWidget::OnSaveSlotClicked(int32 SlotIndex) {
     if (SlotIndex < 1) {
@@ -30,11 +33,23 @@ void USaveMenuWidget::OnSaveSlotClicked(int32 SlotIndex) {
         return;
     }
 
-    // === 玩家状态 ===
+    // 玩家状态
     SaveGame->PlayerLocation = Player->GetActorLocation();
     SaveGame->PlayerRotation = Player->GetActorRotation();
 
-    // === 存档名（来自输入框）===
+    // 保存主角血量和体力
+    if (AWukongCharacter* Wukong = Cast<AWukongCharacter>(Player)) {
+        if (UHealthComponent* HealthComp = Wukong->GetHealthComponent()) {
+            SaveGame->PlayerHealth = HealthComp->GetCurrentHealth();
+            SaveGame->PlayerMaxHealth = HealthComp->GetMaxHealth();
+        }
+        if (UStaminaComponent* StaminaComp = Wukong->GetStaminaComponent()) {
+            SaveGame->PlayerStamina = StaminaComp->GetCurrentStamina();
+            SaveGame->PlayerMaxStamina = StaminaComp->GetMaxStamina();
+        }
+    }
+
+    // 存档名（来自输入框）
     if (SaveNameTextBox && !SaveNameTextBox->GetText().IsEmpty()) {
         SaveGame->SaveName = SaveNameTextBox->GetText().ToString();
     }
@@ -42,7 +57,7 @@ void USaveMenuWidget::OnSaveSlotClicked(int32 SlotIndex) {
         SaveGame->SaveName = FString::Printf(TEXT("Save Slot %d"), SlotIndex);
     }
 
-    // 记录存档时间（给 LoadMenu 显示用）
+    // 记录存档时间（给 LoadMenu 显示备用）
     SaveGame->SaveTime = FDateTime::Now();
 
     const FString SlotName = FString::Printf(TEXT("SaveSlot_%d"), SlotIndex);

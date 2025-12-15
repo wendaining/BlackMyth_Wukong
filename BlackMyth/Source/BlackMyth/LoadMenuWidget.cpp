@@ -4,6 +4,9 @@
 #include "BlackMythSaveGame.h"
 #include "Kismet/GameplayStatics.h"
 #include "GameFramework/Character.h"
+#include "WukongCharacter.h"
+#include "Components/HealthComponent.h"
+#include "Components/StaminaComponent.h"
 
 void ULoadMenuWidget::NativeConstruct()
 {
@@ -64,11 +67,28 @@ void ULoadMenuWidget::OnLoadSlotClicked(int32 SlotIndex)
     // 确保游戏未暂停
     UGameplayStatics::SetGamePaused(World, false);
 
-    // 恢复玩家位置（假设当前关卡就是存档关卡）
+    // 恢复玩家位置
     ACharacter* Player = UGameplayStatics::GetPlayerCharacter(World, 0);
     if (Player) {
         Player->SetActorLocation(SaveGame->PlayerLocation);
         Player->SetActorRotation(SaveGame->PlayerRotation);
+
+        // 恢复主角血量和体力
+        if (AWukongCharacter* Wukong = Cast<AWukongCharacter>(Player)) {
+            if (UHealthComponent* HealthComp = Wukong->GetHealthComponent()) {
+                HealthComp->SetHealth(SaveGame->PlayerHealth);
+            }
+            if (UStaminaComponent* StaminaComp = Wukong->GetStaminaComponent()) {
+                // 体力恢复
+                float StaminaDiff = SaveGame->PlayerStamina - StaminaComp->GetCurrentStamina();
+                if (StaminaDiff > 0) {
+                    StaminaComp->RestoreStamina(StaminaDiff);
+                }
+                else if (StaminaDiff < 0) {
+                    StaminaComp->ConsumeStamina(-StaminaDiff);
+                }
+            }
+        }
     }
 
     if (OwnerPauseWidget)

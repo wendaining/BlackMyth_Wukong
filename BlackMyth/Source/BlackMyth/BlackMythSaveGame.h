@@ -16,7 +16,20 @@ public:
     UPROPERTY()
     FRotator PlayerRotation;
 
-    // 存档名称（你输入的）
+    // 主角血量和体力（若无，默认为满）
+    UPROPERTY()
+    float PlayerHealth = 100.0f;
+
+    UPROPERTY()
+    float PlayerMaxHealth = 100.0f;
+
+    UPROPERTY()
+    float PlayerStamina = 100.0f;
+
+    UPROPERTY()
+    float PlayerMaxStamina = 100.0f;
+
+    // 存档名称（输入）
     UPROPERTY()
     FString SaveName;
 
