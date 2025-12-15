@@ -8,6 +8,12 @@
 
 /**
  * 单条对话数据
+ * 支持从CSV导入（通过DataTable）
+ * 
+ * CSV格式示例:
+ * ---,DialogueID,SpeakerName,DialogueText,DisplayDuration,EventTag
+ * Row1,Line001,老者,你好啊年轻人,0,
+ * Row2,Line002,老者,这是一段很长的对话...,5,event_dialogue_complete
  */
 USTRUCT(BlueprintType)
 struct FDialogueEntry : public FTableRowBase
@@ -15,7 +21,7 @@ struct FDialogueEntry : public FTableRowBase
 	GENERATED_BODY()
 
 public:
-	// 对话ID
+	// 对话ID（用于标识）
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Dialogue")
 	FName DialogueID;
 
@@ -27,65 +33,48 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Dialogue")
 	FText DialogueText;
 
-	// 摄像机位置偏移（相对于NPC）
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Dialogue|Camera")
-	FVector CameraOffset;
-
-	// 摄像机旋转（Pitch, Yaw, Roll）
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Dialogue|Camera")
-	FRotator CameraRotation;
-
-	// 摄像机视野角度(FOV)
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Dialogue|Camera")
-	float CameraFOV;
-
-	// 显示时长（秒），<=0表示需要玩家点击继续
+	// 显示时长（秒），0表示需要玩家点击继续
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Dialogue")
 	float DisplayDuration;
 
-	// 预留：触发事件标签（可以用来触发特殊效果、动画等）
+	// 预留：触发事件标签
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Dialogue|Advanced")
-	TArray<FName> EventTags;
-
-	// 预留：额外数据（JSON格式）
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Dialogue|Advanced")
-	FString ExtraData;
+	FString EventTag;
 
 	FDialogueEntry()
-		: CameraOffset(FVector(150.0f, 0.0f, 50.0f))
-		, CameraRotation(FRotator(-10.0f, 180.0f, 0.0f))
-		, CameraFOV(60.0f)
-		, DisplayDuration(0.0f)
+		: DisplayDuration(0.0f)
 	{
 	}
 };
 
 /**
- * 对话表数据（一个NPC的完整对话序列）
+ * 对话配置（绑定到NPC的对话设置）
  */
 USTRUCT(BlueprintType)
-struct FDialogueTable
+struct FDialogueTableConfig
 {
 	GENERATED_BODY()
 
 public:
-	// 对话表ID
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Dialogue")
-	FName TableID;
-
-	// 对话表名称
+	// 对话表名称（显示用）
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Dialogue")
 	FText TableName;
 
-	// 对话序列（按顺序播放）
+	// 从DataTable加载对话（推荐，支持CSV导入）
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Dialogue")
-	TArray<FDialogueEntry> DialogueSequence;
+	UDataTable* DialogueDataTable;
 
-	// 预留：前置条件标签（用来控制对话是否可触发）
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Dialogue|Advanced")
-	TArray<FName> PrerequisiteTags;
+	// 或者手动配置对话序列（用于简单测试）
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Dialogue")
+	TArray<FDialogueEntry> ManualDialogueSequence;
 
-	FDialogueTable()
+	// 是否使用DataTable（true=从DataTable读取，false=使用手动配置）
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Dialogue")
+	bool bUseDataTable;
+
+	FDialogueTableConfig()
+		: DialogueDataTable(nullptr)
+		, bUseDataTable(false)
 	{
 	}
 };
