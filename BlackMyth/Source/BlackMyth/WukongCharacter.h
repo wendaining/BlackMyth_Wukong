@@ -632,6 +632,61 @@ private:
 	 */
 	float PlayAnimationAsMontageDynamic(UAnimSequence* AnimSequence, FName SlotName = FName("DefaultSlot"), float PlayRate = 1.0f);
 
+	// ========== 音效系统 ==========
+protected:
+	/** 脚步声（走路和疾跑共用） */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Audio")
+	TObjectPtr<USoundBase> FootstepSound;
+
+	/** 走路脚步声音量 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Audio")
+	float WalkFootstepVolume = 0.5f;
+
+	/** 疾跑脚步声音量 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Audio")
+	float SprintFootstepVolume = 0.8f;
+
+	/** 攻击音效（所有攻击动作共用） */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Audio")
+	TObjectPtr<USoundBase> AttackSound;
+
+	/** 攻击音效音量 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Audio")
+	float AttackSoundVolume = 1.0f;
+
+	/** 闪避音效 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Audio")
+	TObjectPtr<USoundBase> DodgeSound;
+
+	/** 闪避音效音量 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Audio")
+	float DodgeSoundVolume = 0.7f;
+
+	/** 跳跃音效 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Audio")
+	TObjectPtr<USoundBase> JumpSound;
+
+	/** 跳跃音效音量 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Audio")
+	float JumpSoundVolume = 0.6f;
+
+public:
+	/** 播放脚步声（由动画通知调用） */
+	UFUNCTION(BlueprintCallable, Category = "Audio")
+	void PlayFootstepSound();
+
+	/** 播放攻击音效（由动画通知调用） */
+	UFUNCTION(BlueprintCallable, Category = "Audio")
+	void PlayAttackSound();
+
+	/** 播放闪避音效 */
+	UFUNCTION(BlueprintCallable, Category = "Audio")
+	void PlayDodgeSound();
+
+	/** 播放跳跃音效 */
+	UFUNCTION(BlueprintCallable, Category = "Audio")
+	void PlayJumpSound();
+
 	// ========== NPC交互系统 ==========
 protected:
 	/** 交互距离 */
