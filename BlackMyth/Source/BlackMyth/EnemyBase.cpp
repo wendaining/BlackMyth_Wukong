@@ -10,6 +10,7 @@
 #include "Components/HealthComponent.h"
 #include "Components/CombatComponent.h"
 #include "Components/TeamComponent.h"
+#include "Components/SceneStateComponent.h"
 #include "Combat/TraceHitboxComponent.h"
 #include "Components/WidgetComponent.h"
 #include "UI/EnemyHealthBarWidget.h"
@@ -19,6 +20,7 @@
 #include "NiagaraFunctionLibrary.h"
 #include "NiagaraComponent.h"
 #include "Blueprint/UserWidget.h"
+#include "GameFramework/GameStateBase.h"
 
 AEnemyBase::AEnemyBase()
 {
@@ -904,6 +906,15 @@ void AEnemyBase::OnTargetSensed(AActor* Target)
 	CombatTarget = Target;
 
 	UE_LOG(LogTemp, Warning, TEXT("AEnemyBase::OnTargetSensed - Target Sensed: %s"), *Target->GetName());
+
+	// 触发战斗BGM切换
+	if (AGameStateBase* GameState = GetWorld()->GetGameState())
+	{
+		if (USceneStateComponent* SceneComp = GameState->FindComponentByClass<USceneStateComponent>())
+		{
+			SceneComp->OnCombatInitiated();
+		}
+	}
 
 	// 停止移动 (防止滑步)
 	if (EnemyController)
