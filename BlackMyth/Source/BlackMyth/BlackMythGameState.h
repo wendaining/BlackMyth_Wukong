@@ -21,6 +21,10 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Scene")
 	USceneStateComponent* GetSceneStateComponent() const { return SceneStateComponent; }
 
+	/** 静态辅助函数：从任意位置获取场景状态组件 */
+	UFUNCTION(BlueprintCallable, Category = "Scene", meta = (WorldContext = "WorldContextObject"))
+	static USceneStateComponent* GetSceneState(const UObject* WorldContextObject);
+
 protected:
 	/** 场景状态组件 */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")

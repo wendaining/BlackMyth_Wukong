@@ -5,6 +5,7 @@
 #include "HealthComponent.h"
 #include "Kismet/GameplayStatics.h"
 #include "GameFramework/PlayerController.h"
+#include "Engine/OverlapResult.h"
 
 USceneStateComponent::USceneStateComponent()
 {

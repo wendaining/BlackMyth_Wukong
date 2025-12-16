@@ -115,7 +115,7 @@ public:
 
 	/** 战斗结束后延迟返回探索的时间（秒） */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat")
-	float CombatEndDelay = 3.0f;
+	float CombatEndDelay = 1.0f;
 
 protected:
 	// ========== 内部状态 ==========
