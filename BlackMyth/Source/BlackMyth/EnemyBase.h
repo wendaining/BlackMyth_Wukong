@@ -14,6 +14,8 @@ class UEnemyHealthBarWidget;
 class UTeamComponent;
 class UNiagaraSystem;
 class UNiagaraComponent;
+class UEnemyDodgeComponent;
+class UEnemyAlertComponent;
 
 /**
  * 敌人状态枚举
@@ -171,6 +173,14 @@ protected:
 	/** 阵营组件（用于敌我判定，默认为敌人阵营） */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	TObjectPtr<UTeamComponent> TeamComponent;
+
+	// 闪避组件（敌人AI增强） 
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
+	TObjectPtr<UEnemyDodgeComponent> DodgeComponent;
+
+	// 警戒组件（敌人协同系统） 
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
+	TObjectPtr<UEnemyAlertComponent> AlertComponent;
 
 	// 状态
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "State")

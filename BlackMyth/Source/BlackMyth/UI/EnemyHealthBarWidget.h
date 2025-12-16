@@ -1,5 +1,4 @@
 // 敌人头顶血条 Widget
-// MemberC 新建：每个敌人独立显示的血条 UI
 
 #pragma once
 
