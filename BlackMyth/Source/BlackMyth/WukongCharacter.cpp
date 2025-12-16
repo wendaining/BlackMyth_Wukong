@@ -1028,6 +1028,9 @@ void AWukongCharacter::PerformDodge()
     // 消耗体力
     StaminaComponent->ConsumeStamina(StaminaComponent->DodgeStaminaCost);
 
+    // 播放闪避音效
+    PlayDodgeSound();
+
     ChangeState(EWukongState::Dodging);
 
     // Determine dodge direction relative to actor
@@ -1665,6 +1668,9 @@ void AWukongCharacter::OnJumped_Implementation()
             StaminaComponent->JumpStaminaCost, StaminaComponent->GetCurrentStamina());
     }
 
+    // 播放跳跃音效
+    PlayJumpSound();
+
     // 播放跳跃蒙太奇
     if (JumpMontage)
     {
@@ -2188,5 +2194,41 @@ void AWukongCharacter::OnInteract()
 	else
 	{
 		UE_LOG(LogTemp, Warning, TEXT("[Interaction] No nearby NPC or cannot interact!"));
+	}
+}
+
+// ========== 音效系统 ==========
+
+void AWukongCharacter::PlayFootstepSound()
+{
+	if (FootstepSound)
+	{
+		// 根据是否冲刺决定音量
+		float Volume = bIsSprinting ? SprintFootstepVolume : WalkFootstepVolume;
+		UGameplayStatics::PlaySoundAtLocation(this, FootstepSound, GetActorLocation(), Volume);
+	}
+}
+
+void AWukongCharacter::PlayAttackSound()
+{
+	if (AttackSound)
+	{
+		UGameplayStatics::PlaySoundAtLocation(this, AttackSound, GetActorLocation(), AttackSoundVolume);
+	}
+}
+
+void AWukongCharacter::PlayDodgeSound()
+{
+	if (DodgeSound)
+	{
+		UGameplayStatics::PlaySoundAtLocation(this, DodgeSound, GetActorLocation(), DodgeSoundVolume);
+	}
+}
+
+void AWukongCharacter::PlayJumpSound()
+{
+	if (JumpSound)
+	{
+		UGameplayStatics::PlaySoundAtLocation(this, JumpSound, GetActorLocation(), JumpSoundVolume);
 	}
 }
