@@ -13,9 +13,11 @@
 #include "Components/TargetingComponent.h"
 #include "Components/TeamComponent.h"
 #include "Components/CapsuleComponent.h"
+#include "Components/SceneStateComponent.h"
 #include "Combat/TraceHitboxComponent.h"
 #include "Dialogue/DialogueComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
+#include "GameFramework/GameStateBase.h"
 #include "EnhancedInputComponent.h"
 #include "InputAction.h"
 #include "Kismet/GameplayStatics.h"
@@ -1568,6 +1570,15 @@ void AWukongCharacter::OnDamageDealtToEnemy(float Damage, AActor* Target, bool b
         PlayerHUD->UpdateComboCount(HitComboCount);
     }
 
+    // 触发战斗BGM切换（玩家攻击命中敌人时）
+    if (AGameStateBase* GameState = GetWorld()->GetGameState())
+    {
+        if (USceneStateComponent* SceneComp = GameState->FindComponentByClass<USceneStateComponent>())
+        {
+            SceneComp->OnCombatInitiated();
+        }
+    }
+
     // 重置连击计时器（2秒内无命中则重置）
     if (GetWorld())
     {
@@ -1581,7 +1592,7 @@ void AWukongCharacter::OnDamageDealtToEnemy(float Damage, AActor* Target, bool b
         );
     }
 
-    UE_LOG(LogTemp, Log, TEXT("OnDamageDealtToEnemy: Hit %s for %.1f damage, Combo: %d"), 
+    UE_LOG(LogTemp, Log, TEXT("OnDamageDealtToEnemy: Hit %s for %.1f damage, Combo: %d"),
         Target ? *Target->GetName() : TEXT("None"), Damage, HitComboCount);
 }
 
