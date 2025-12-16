@@ -11,6 +11,8 @@
 #include "Components/CombatComponent.h"
 #include "Components/TeamComponent.h"
 #include "Components/SceneStateComponent.h"
+#include "Components/EnemyDodgeComponent.h"
+#include "Components/EnemyAlertComponent.h"
 #include "Combat/TraceHitboxComponent.h"
 #include "Components/WidgetComponent.h"
 #include "UI/EnemyHealthBarWidget.h"
@@ -36,6 +38,12 @@ AEnemyBase::AEnemyBase()
 	// 创建阵营组件，设置为敌人阵营
 	TeamComponent = CreateDefaultSubobject<UTeamComponent>(TEXT("TeamComponent"));
 	TeamComponent->SetTeam(ETeam::Enemy);
+
+	// 创建闪避组件
+	DodgeComponent = CreateDefaultSubobject<UEnemyDodgeComponent>(TEXT("DodgeComponent"));
+
+	// 创建警戒组件
+	AlertComponent = CreateDefaultSubobject<UEnemyAlertComponent>(TEXT("AlertComponent"));
 
 	// 设置默认 AI 控制器
 	AIControllerClass = AEnemyAIController::StaticClass();
@@ -330,6 +338,22 @@ void AEnemyBase::Tick(float DeltaTime)
 void AEnemyBase::ReceiveDamage(float Damage, AActor* DamageInstigator)
 {
 	if (IsDead()) return;
+
+	// 闪避判定：在受到伤害前，尝试触发闪避
+	if (DodgeComponent && DamageInstigator)
+	{
+		FVector ThreatDir = (GetActorLocation() - DamageInstigator->GetActorLocation()).GetSafeNormal();
+		if (DodgeComponent->IsInDodge()) // 检查是否在无敌状态
+  		{
+      		return; // 无敌状态下不受伤
+  		}
+
+  // 再尝试触发新闪避
+  if (DodgeComponent->TryDodge(ThreatDir))
+  {
+      return; // 触发闪避也不受伤
+  }
+	}
 
 	if (HealthComponent)
 	{
@@ -943,6 +967,13 @@ void AEnemyBase::OnTargetSensed(AActor* Target)
 	if (AggroSound)
 	{
 		UGameplayStatics::PlaySoundAtLocation(this, AggroSound, GetActorLocation());
+	}
+
+	/* 警戒广播：通知周围的敌人发现了目标 */
+	if (AlertComponent)
+	{
+		AlertComponent->BroadcastAlert(Target, 1000.0f); /* 1000单位范围内的敌人都会警戒 */
+		AlertComponent->ShowAlertIcon(true); /* 显示自己的警戒图标 */
 	}
 
 	// 播放咆哮动画
