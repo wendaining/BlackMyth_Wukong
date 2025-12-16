@@ -640,11 +640,11 @@ protected:
 
 	/** 走路脚步声音量 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Audio")
-	float WalkFootstepVolume = 0.5f;
+	float WalkFootstepVolume = 0.2f;
 
 	/** 疾跑脚步声音量 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Audio")
-	float SprintFootstepVolume = 0.8f;
+	float SprintFootstepVolume = 0.4f;
 
 	/** 攻击音效（所有攻击动作共用） */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Audio")
