@@ -39,15 +39,15 @@ protected:
 
 	/** 闪避触发概率（0-1，0表示不闪避，1表示必闪） */
 	UPROPERTY(EditDefaultsOnly, Category = "Dodge", meta = (ClampMin = "0.0", ClampMax = "1.0"))
-	float DodgeChance = 0.3f;
+	float DodgeChance = 0.5f;
 
 	/** 闪避冷却时间（秒） */
 	UPROPERTY(EditDefaultsOnly, Category = "Dodge", meta = (ClampMin = "0.0"))
-	float DodgeCooldown = 3.0f;
+	float DodgeCooldown = 0.2f;
 
 	/** 闪避距离（单位：cm） */
 	UPROPERTY(EditDefaultsOnly, Category = "Dodge", meta = (ClampMin = "0.0"))
-	float DodgeDistance = 400.0f;
+	float DodgeDistance = 20.0f;
 
 	/** 闪避无敌帧时长（秒） */
 	UPROPERTY(EditDefaultsOnly, Category = "Dodge", meta = (ClampMin = "0.0"))
@@ -70,10 +70,4 @@ private:
 
 	/** 无敌帧计时器 */
 	FTimerHandle InvincibilityTimer;
-
-	/** 开启无敌帧 */
-	void EnableInvincibility();
-
-	/** 关闭无敌帧 */
-	void DisableInvincibility();
 };

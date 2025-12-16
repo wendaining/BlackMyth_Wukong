@@ -100,11 +100,16 @@ bool UEnemyDodgeComponent::TryDodge(const FVector& ThreatDirection)
 	}
 
 	// 应用位移（使用 LaunchCharacter 实现物理闪避）
-	const FVector LaunchVelocity = DodgeDirection * DodgeDistance * 2.0f; // 乘以2是因为LaunchCharacter会受重力影响
-	OwnerEnemy->LaunchCharacter(LaunchVelocity, true, false);
+	const FVector LaunchVelocity = DodgeDirection * DodgeDistance;
 
-	// 开启无敌帧
-	EnableInvincibility();
+	// 让敌人转向闪避方向
+	if (!DodgeDirection.IsNearlyZero())
+	{
+		FRotator NewRotation = DodgeDirection.Rotation();
+		OwnerEnemy->SetActorRotation(NewRotation);
+	}
+
+	OwnerEnemy->LaunchCharacter(LaunchVelocity, true, false);
 
 	// 设置闪避结束计时器
 	if (AnimDuration > 0.0f)
@@ -135,31 +140,8 @@ bool UEnemyDodgeComponent::TryDodge(const FVector& ThreatDirection)
 // 闪避结束回调
 void UEnemyDodgeComponent::OnDodgeEnd()
 {
-	DisableInvincibility();
 	bIsInDodge = false;
 
 	UE_LOG(LogTemp, Log, TEXT("[%s] Dodge ended."),
-		OwnerEnemy ? *OwnerEnemy->GetName() : TEXT("Unknown"));
-}
-
-// 开启无敌帧
-void UEnemyDodgeComponent::EnableInvincibility()
-{
-	// 无敌帧通过 bIsInDodge 标志实现
-	// 在 EnemyBase::ReceiveDamage 中，如果 DodgeComponent->TryDodge() 返回 true，
-	// 则不会受到伤害，实现了无敌效果
-
-	UE_LOG(LogTemp, Log, TEXT("[%s] Invincibility enabled (Duration: %.2f s)"),
-		OwnerEnemy ? *OwnerEnemy->GetName() : TEXT("Unknown"), InvincibilityDuration);
-
-	// 如果需要在特定时间后关闭无敌帧（而不是等动画结束）
-	// 可以在这里设置单独的计时器
-	// 但当前设计是闪避期间全程无敌，所以不需要
-}
-
-// 关闭无敌帧
-void UEnemyDodgeComponent::DisableInvincibility()
-{
-	UE_LOG(LogTemp, Log, TEXT("[%s] Invincibility disabled."),
 		OwnerEnemy ? *OwnerEnemy->GetName() : TEXT("Unknown"));
 }
