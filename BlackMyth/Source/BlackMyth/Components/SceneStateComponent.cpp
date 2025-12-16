@@ -162,7 +162,7 @@ void USceneStateComponent::PlayMusicForState(ESceneState State)
 		);
 
 		if (CurrentMusicComponent)
-		{
+		{	
 			// 淡入效果
 			CurrentMusicComponent->FadeIn(MusicFadeInTime, MusicVolume);
 
