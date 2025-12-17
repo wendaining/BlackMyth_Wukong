@@ -69,7 +69,7 @@ AWukongCharacter::AWukongCharacter()
     // 创建阵营组件（默认为玩家阵营）
     TeamComponent = CreateDefaultSubobject<UTeamComponent>(TEXT("TeamComponent"));
 
-    // 所有动画资产和输入动作都应在蓝图子类 (BP_Wukong) 中设置
+    // 所有动画资产和输入动作都应在蓝图类 (BP_Wukong) 中设置
     // 不在 C++ 构造函数中硬编码加载路径，以便于在编辑器中灵活配置
 }
 
