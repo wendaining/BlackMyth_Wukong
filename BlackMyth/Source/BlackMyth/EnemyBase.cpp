@@ -1308,6 +1308,9 @@ void AEnemyBase::WriteEnemySaveData(FEnemySaveData& OutData) const
 	// 敌人类型
 	OutData.EnemyClass = this->GetClass();
 
+	// Spawner名称
+	OutData.SpawnerName = SpawnerName;
+
 	// 等级（暂时设为1，如果有Level属性再修改）
 	OutData.Level = 1;
 }
@@ -1322,6 +1325,9 @@ void AEnemyBase::LoadEnemySaveData(const FEnemySaveData& InData)
 
 	// 恢复唯一ID
 	EnemyID = InData.EnemyID;
+
+	// 恢复Spawner名称
+	SpawnerName = InData.SpawnerName;
 
 	if (InData.bIsDead)
 	{

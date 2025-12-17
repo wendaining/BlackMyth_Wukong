@@ -143,6 +143,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "AI")
 	void SetCombatTarget(AActor* NewTarget);
 
+	// 生成此敌人的Spawner名称（用于存档系统）
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Save")
+	FString SpawnerName;
+
 	// ========== 新增：头顶血条 ==========
 
 	// 血条 Widget 组件

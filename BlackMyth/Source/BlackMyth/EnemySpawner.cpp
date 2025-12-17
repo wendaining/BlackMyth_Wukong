@@ -35,6 +35,7 @@ AEnemyBase* AEnemySpawner::SpawnEnemy(TSubclassOf<AEnemyBase> EnemyClass, const 
 
     if (SpawnedEnemy)
     {
+        SpawnedEnemy->SpawnerName = GetName(); // 设置Spawner名称
         SpawnedEnemy->InitEnemy(Level, true);
         SpawnedEnemies.Add(SpawnedEnemy);
     }

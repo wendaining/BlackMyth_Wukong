@@ -52,13 +52,14 @@ void USaveMenuWidget::OnSaveSlotClicked(int32 SlotIndex) {
 	TArray<AActor*> FoundSpawners;
 	UGameplayStatics::GetAllActorsOfClass(World, AEnemySpawner::StaticClass(), FoundSpawners);
 
-	if (FoundSpawners.Num() > 0)
+	SaveGame->Enemies.Empty();
+
+	// 遍历所有EnemySpawner，保存它们生成的所有敌人
+	for (AActor* SpawnerActor : FoundSpawners)
 	{
-		AEnemySpawner* Spawner = Cast<AEnemySpawner>(FoundSpawners[0]);
+		AEnemySpawner* Spawner = Cast<AEnemySpawner>(SpawnerActor);
 		if (Spawner)
 		{
-			SaveGame->Enemies.Empty();
-
 			for (AEnemyBase* Enemy : Spawner->SpawnedEnemies)
 			{
 				if (IsValid(Enemy))

@@ -19,6 +19,10 @@ public:
     UPROPERTY()
     TSubclassOf<AEnemyBase> EnemyClass = nullptr;
 
+    // 生成此敌人的Spawner名称
+    UPROPERTY()
+    FString SpawnerName;
+
     // 等级
     UPROPERTY()
     int32 Level = 1;

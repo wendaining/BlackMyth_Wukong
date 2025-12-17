@@ -92,12 +92,12 @@ void ULoadMenuWidget::OnLoadSlotClicked(int32 SlotIndex) {
 	TArray<AActor*> FoundSpawners;
 	UGameplayStatics::GetAllActorsOfClass(World, AEnemySpawner::StaticClass(), FoundSpawners);
 
-	if (FoundSpawners.Num() > 0)
+	// 先清空所有Spawner的敌人
+	for (AActor* SpawnerActor : FoundSpawners)
 	{
-		AEnemySpawner* Spawner = Cast<AEnemySpawner>(FoundSpawners[0]);
+		AEnemySpawner* Spawner = Cast<AEnemySpawner>(SpawnerActor);
 		if (Spawner)
 		{
-			// 先清空已有怪物
 			for (AEnemyBase* Enemy : Spawner->SpawnedEnemies)
 			{
 				if (IsValid(Enemy))
@@ -106,23 +106,41 @@ void ULoadMenuWidget::OnLoadSlotClicked(int32 SlotIndex) {
 				}
 			}
 			Spawner->SpawnedEnemies.Empty();
+		}
+	}
 
-			// 遍历存档数据，生成怪物
-			for (const FEnemySaveData& Data : SaveGame->Enemies)
+	// 遍历存档数据，根据SpawnerName生成怪物
+	for (const FEnemySaveData& Data : SaveGame->Enemies)
+	{
+		if (!Data.EnemyClass || Data.SpawnerName.IsEmpty())
+		{
+			continue;
+		}
+
+		// 找到对应的Spawner
+		AEnemySpawner* TargetSpawner = nullptr;
+		for (AActor* SpawnerActor : FoundSpawners)
+		{
+			if (SpawnerActor->GetName() == Data.SpawnerName)
 			{
-				if (!Data.EnemyClass)
-				{
-					continue;
-				}
-
-				AEnemyBase* NewEnemy = Spawner->SpawnEnemy(Data.EnemyClass, Data.Location, Data.Rotation, Data.Level);
-				if (NewEnemy)
-				{
-					NewEnemy->LoadEnemySaveData(Data);
-				}
+				TargetSpawner = Cast<AEnemySpawner>(SpawnerActor);
+				break;
 			}
+		}
 
+		// 如果没找到对应的Spawner，用第一个可用的
+		if (!TargetSpawner && FoundSpawners.Num() > 0)
+		{
+			TargetSpawner = Cast<AEnemySpawner>(FoundSpawners[0]);
+		}
 
+		if (TargetSpawner)
+		{
+			AEnemyBase* NewEnemy = TargetSpawner->SpawnEnemy(Data.EnemyClass, Data.Location, Data.Rotation, Data.Level);
+			if (NewEnemy)
+			{
+				NewEnemy->LoadEnemySaveData(Data);
+			}
 		}
 	}
 
