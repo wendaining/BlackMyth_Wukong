@@ -99,13 +99,14 @@ void AWukongCharacter::BeginPlay()
         // 跳跃初速度
         Movement->JumpZVelocity = JumpVelocity;
 
-        // 启用 Root Motion 时的强制位移处理
-        // 这可以防止某些动画播放完后角色被拉回原位
-        // 但更根本的解决方法是在动画资源中启用 Root Motion，并在 AnimBP 中设置 Root Motion Mode
+        // 在动画资源中启用 Root Motion，并在 AnimBP 中设置 Root Motion Mode
+        // 以防止完成有位移的动作之后，角色被强制拉回原地
     }
     
     UE_LOG(LogTemp, Log, TEXT("BeginPlay: WalkSpeed=%f, GravityScale=%f, AirControl=%f, BrakingDecelFalling=%f, JumpVelocity=%f"), 
         WalkSpeed, GravityScale, AirControl, BrakingDecelerationFalling, JumpVelocity);
+
+    // 
 
     // 配置 TraceHitboxComponent
     if (WeaponTraceHitbox)
@@ -150,7 +151,7 @@ void AWukongCharacter::BeginPlay()
         CombatComponent->OnDamageDealt.AddDynamic(this, &AWukongCharacter::OnDamageDealtToEnemy);
     }
 
-    // 设置玩家阵营（确保敌人 AI 能识别我们为敌对目标）
+    // 设置玩家阵营（确保敌人 AI 能识别玩家为敌对目标）
     if (TeamComponent)
     {
         TeamComponent->SetTeam(ETeam::Player);
@@ -173,7 +174,7 @@ void AWukongCharacter::BeginPlay()
     }
     else
     {
-        UE_LOG(LogTemp, Warning, TEXT("[Wukong] PlayerHUDClass not set! Please set it in Blueprint."));
+        UE_LOG(LogTemp, Warning, TEXT("[Wukong] PlayerHUDClass not set! Set it in Blueprint."));
     }
 
     // 初始化交互系统
@@ -182,7 +183,7 @@ void AWukongCharacter::BeginPlay()
     InteractionCheckTimer = 0.0f;
 }
 
-// Called every frame
+// 每帧都调用
 void AWukongCharacter::Tick(float DeltaTime)
 {
     Super::Tick(DeltaTime);
@@ -209,7 +210,7 @@ void AWukongCharacter::Tick(float DeltaTime)
         AttackCooldownTimer -= DeltaTime;
     }
 
-    // Update invincibility timer
+    // 更新InvincibilityTimer （无敌时间）
     if (bIsInvincible && InvincibilityTimer > 0.0f)
     {
         InvincibilityTimer -= DeltaTime;
@@ -223,7 +224,7 @@ void AWukongCharacter::Tick(float DeltaTime)
     UpdateFacingTarget(DeltaTime);
 }
 
-// Called to bind functionality to input
+// 把蓝图里配置的各个 InputAction 资产在运行时绑定到角色的对应方法上，确保按键触发后调用正确函数
 void AWukongCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 {
     Super::SetupPlayerInputComponent(PlayerInputComponent);
@@ -237,7 +238,7 @@ void AWukongCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCom
     {
         UE_LOG(LogTemp, Warning, TEXT("  EnhancedInputComponent is valid"));
         
-        // Bind dodge action
+        // 绑定dodge Action
         if (DodgeAction)
         {
             EnhancedInputComponent->BindAction(DodgeAction, ETriggerEvent::Started, this, &AWukongCharacter::OnDodgePressed);
@@ -248,7 +249,7 @@ void AWukongCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCom
             UE_LOG(LogTemp, Error, TEXT("  DodgeAction is NULL! Dodge will not work!"));
         }
 
-        // Bind attack action
+        // 绑定攻击Action
         if (AttackAction)
         {
             EnhancedInputComponent->BindAction(AttackAction, ETriggerEvent::Started, this, &AWukongCharacter::PerformAttack);
@@ -259,21 +260,21 @@ void AWukongCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCom
             UE_LOG(LogTemp, Error, TEXT("  AttackAction is NULL! Attack will not work!"));
         }
 
-        // Bind heavy attack action
+        // 绑定重击Action
         if (HeavyAttackAction)
         {
             EnhancedInputComponent->BindAction(HeavyAttackAction, ETriggerEvent::Started, this, &AWukongCharacter::PerformHeavyAttack);
             UE_LOG(LogTemp, Warning, TEXT("  Bound HeavyAttackAction to PerformHeavyAttack"));
         }
 
-        // Bind pole stance action
+        // 绑定立棍Action
         if (PoleStanceAction)
         {
             EnhancedInputComponent->BindAction(PoleStanceAction, ETriggerEvent::Started, this, &AWukongCharacter::PerformPoleStance);
             UE_LOG(LogTemp, Warning, TEXT("  Bound PoleStanceAction to PerformPoleStance"));
         }
 
-        // Bind staff spin action
+        // 绑定甩花棍Action
         if (StaffSpinAction)
         {
             EnhancedInputComponent->BindAction(StaffSpinAction, ETriggerEvent::Started, this, &AWukongCharacter::PerformStaffSpin);
@@ -281,14 +282,14 @@ void AWukongCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCom
             UE_LOG(LogTemp, Warning, TEXT("  Bound StaffSpinAction to PerformStaffSpin"));
         }
 
-        // Bind item use action
+        // 绑定使用道具Action
         if (UseItemAction)
         {
             EnhancedInputComponent->BindAction(UseItemAction, ETriggerEvent::Started, this, &AWukongCharacter::UseItem);
             UE_LOG(LogTemp, Warning, TEXT("  Bound UseItemAction to UseItem"));
         }
 
-        // Bind shadow clone action (1 key)
+        // 绑定影分身技能Action（按1）
         if (ShadowCloneAction)
         {
             EnhancedInputComponent->BindAction(ShadowCloneAction, ETriggerEvent::Started, this, &AWukongCharacter::PerformShadowClone);
@@ -299,7 +300,7 @@ void AWukongCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCom
             UE_LOG(LogTemp, Error, TEXT("  ShadowCloneAction is NULL! Shadow Clone (Key 1) will not work! Assign IA_ShadowClone in BP_Wukong."));
         }
 
-        // Bind freeze spell action (2 key)
+        // 绑定定身术技能Action（按2）
         if (FreezeSpellAction)
         {
             EnhancedInputComponent->BindAction(FreezeSpellAction, ETriggerEvent::Started, this, &AWukongCharacter::PerformFreezeSpell);
@@ -310,7 +311,7 @@ void AWukongCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCom
             UE_LOG(LogTemp, Warning, TEXT("  FreezeSpellAction is NULL! Freeze Spell (Key 2) will not work! Assign IA_FreezeSpell in BP_Wukong."));
         }
 
-        // Bind sprint action
+        // 绑定冲刺Action
         if (SprintAction)
         {
             EnhancedInputComponent->BindAction(SprintAction, ETriggerEvent::Started, this, &AWukongCharacter::OnSprintStarted);
@@ -322,20 +323,7 @@ void AWukongCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCom
             UE_LOG(LogTemp, Error, TEXT("  SprintAction is NULL! Sprint will not work!"));
         }
 
-        // Bind ability action (Q key) - REMOVED in favor of specific skills
-        /*
-        if (AbilityAction)
-        {
-            EnhancedInputComponent->BindAction(AbilityAction, ETriggerEvent::Started, this, &AWukongCharacter::OnAbilityPressed);
-            UE_LOG(LogTemp, Warning, TEXT("  Bound AbilityAction (Q) to OnAbilityPressed"));
-        }
-        else
-        {
-            UE_LOG(LogTemp, Warning, TEXT("  AbilityAction is NULL - Q ability disabled (create IA_Ability asset)"));
-        }
-        */
-
-        // Bind lock-on action (Mouse Middle Button)
+        // 绑定视角锁定Action
         if (LockOnAction)
         {
             EnhancedInputComponent->BindAction(LockOnAction, ETriggerEvent::Started, this, &AWukongCharacter::OnLockOnPressed);
@@ -346,7 +334,7 @@ void AWukongCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCom
             UE_LOG(LogTemp, Warning, TEXT("  LockOnAction is NULL - Lock-on disabled"));
         }
 
-        // Bind switch target action (Mouse Wheel)
+        // 绑定切换视角锁定对象Action
         if (SwitchTargetAction)
         {
             EnhancedInputComponent->BindAction(SwitchTargetAction, ETriggerEvent::Triggered, this, &AWukongCharacter::OnSwitchTarget);
@@ -357,7 +345,7 @@ void AWukongCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCom
             UE_LOG(LogTemp, Warning, TEXT("  SwitchTargetAction is NULL - Target switching disabled"));
         }
 
-        // Bind interact action (E key)
+        // 绑定交互Action
         if (InteractAction)
         {
             EnhancedInputComponent->BindAction(InteractAction, ETriggerEvent::Started, this, &AWukongCharacter::OnInteract);
@@ -403,7 +391,7 @@ void AWukongCharacter::Attack()
 
 
 
-// Input Handlers
+// 处理输入
 void AWukongCharacter::OnDodgePressed()
 {
     UE_LOG(LogTemp, Warning, TEXT("OnDodgePressed() called! CurrentState=%d"), (int32)CurrentState);
@@ -440,6 +428,7 @@ void AWukongCharacter::OnDodgePressed()
 
 void AWukongCharacter::OnAttackPressed()
 {
+    // 限制这几个情况下的攻击
     if (CurrentState == EWukongState::Dodging || 
         CurrentState == EWukongState::HitStun ||
         CurrentState == EWukongState::Dead)
@@ -447,14 +436,15 @@ void AWukongCharacter::OnAttackPressed()
         return;
     }
 
-    // Add to input buffer
+    // 先缓冲
     InputBuffer.Add(TEXT("Attack"));
 
-    // Process input immediately if not attacking
+    // 如果没有处于攻击状态，就立即调用刚刚存在缓冲里面的攻击
     if (CurrentState != EWukongState::Attacking)
     {
         ProcessInputBuffer();
     }
+    // 这是为了提高手感，让攻击在合适的时机接续
 }
 
 void AWukongCharacter::OnSprintStarted()
@@ -624,7 +614,6 @@ void AWukongCharacter::ChangeState(EWukongState NewState)
     PreviousState = CurrentState;
     CurrentState = NewState;
 
-    // State entry logic
     switch (CurrentState)
     {
     case EWukongState::Idle:
@@ -755,7 +744,7 @@ void AWukongCharacter::UpdateAttackingState(float DeltaTime)
     // 攻击期间禁止移动输入生效（但允许转向，如果需要完全锁死转向，可以在 Move 函数里加判断）
     // 注意：这里不需要额外代码，因为在 Move() 函数里我们已经判断了 IsAttacking 就不处理 AddMovementInput
 
-    // Process input buffer during attack window
+    // 调用刚刚存在缓冲区里面的Attack
     if (AttackTimer < AttackDuration * 0.5f && InputBuffer.Num() > 0)
     {
         ProcessInputBuffer();
@@ -831,10 +820,9 @@ void AWukongCharacter::UpdateHitStunState(float DeltaTime)
 
 void AWukongCharacter::UpdateDeadState(float DeltaTime)
 {
-    // Dead state - no updates needed
+    // 角色死亡什么都不需要做
 }
 
-// Combat Methods
 void AWukongCharacter::PerformAttack()
 {
     // 检查死亡状态 - 死亡后不能攻击
@@ -896,7 +884,6 @@ void AWukongCharacter::PerformAttack()
         bIsInAir = Movement->IsFalling();
     }
 
-    // Play attack animation montage
     if (UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance())
     {
         if (bIsInAir)
@@ -975,13 +962,13 @@ void AWukongCharacter::ProcessInputBuffer()
         return;
     }
 
-    // Remove old inputs from buffer
+    // 清空缓冲
     float CurrentTime = GetWorld()->GetTimeSeconds();
     InputBuffer.RemoveAll([CurrentTime, this](const FString& Input) {
         return (CurrentTime - LastAttackTime) > InputBufferTime;
     });
 
-    // Process first input in buffer
+    // 执行缓冲区中的第一次攻击
     if (InputBuffer.Num() > 0)
     {
         FString NextInput = InputBuffer[0];
@@ -994,7 +981,6 @@ void AWukongCharacter::ProcessInputBuffer()
     }
 }
 
-// Dodge Methods
 void AWukongCharacter::PerformDodge()
 {
     UE_LOG(LogTemp, Log, TEXT("PerformDodge() called"));
@@ -1024,26 +1010,26 @@ void AWukongCharacter::PerformDodge()
     {
         DodgeDirection = InputDirection;
         
-        // Calculate dot product to determine direction relative to actor forward
+        // 计算向量点积以判定方向
         FVector ActorForward = GetActorForwardVector();
         FVector ActorRight = GetActorRightVector();
         
         float ForwardDot = FVector::DotProduct(ActorForward, InputDirection);
         float RightDot = FVector::DotProduct(ActorRight, InputDirection);
 
-        if (ForwardDot > 0.707f) // Forward
+        if (ForwardDot > 0.707f)
         {
             MontageToPlay = DodgeFwdMontage;
         }
-        else if (ForwardDot < -0.707f) // Backward
+        else if (ForwardDot < -0.707f)
         {
             MontageToPlay = DodgeBwdMontage;
         }
-        else if (RightDot > 0.0f) // Right
+        else if (RightDot > 0.0f)
         {
             MontageToPlay = DodgeRightMontage;
         }
-        else // Left
+        else
         {
             MontageToPlay = DodgeLeftMontage;
         }
@@ -1057,20 +1043,12 @@ void AWukongCharacter::PerformDodge()
     DodgeDirection.Normalize();
     bIsDodging = true;
 
-    // Play dodge animation
     if (MontageToPlay)
     {
         PlayMontage(MontageToPlay);
     }
     else
     {
-        // Fallback to old single montage if specific ones aren't set
-        /*
-        if (DodgeMontage)
-        {
-             PlayMontage(DodgeMontage);
-        }
-        else */ 
         if (DodgeAnimation)
         {
              PlayAnimationAsMontageDynamic(DodgeAnimation, FName("DefaultSlot"), 1.0f);
@@ -1455,11 +1433,11 @@ void AWukongCharacter::UpdateDodgeMovement(float DeltaTime)
         return;
     }
 
-    // Calculate dodge velocity based on remaining time
+    // 基于剩余时间，计算翻滚的速度
     float DodgeSpeed = DodgeDistance / DodgeDuration;
     FVector DodgeVelocity = DodgeDirection * DodgeSpeed * DeltaTime;
 
-    // Apply dodge movement
+    // 执行翻滚动作
     FHitResult HitResult;
     AddActorWorldOffset(DodgeVelocity, true, &HitResult);
 }
@@ -1508,7 +1486,6 @@ void AWukongCharacter::UpdateCooldowns(float DeltaTime)
         }
     }
 
-    // Remove expired cooldowns
     for (const FString& CooldownName : ExpiredCooldowns)
     {
         CooldownMap.Remove(CooldownName);
@@ -1794,16 +1771,15 @@ float AWukongCharacter::PlayAnimationAsMontageDynamic(UAnimSequence* AnimSequenc
         return 0.0f;
     }
 
-    // Try to create and play montage with the requested slot name first
+    // 自动找一个可用的蒙太奇插槽，把纯动画序列即时包装成蒙太奇播放
     TArray<FName> SlotCandidates;
     if (!SlotName.IsNone())
     {
         SlotCandidates.Add(SlotName);
     }
-    // Common Paragon/UE slot fallbacks
+    // 一些可能的slot名，纯粹防御性编程
     SlotCandidates.Add(FName("DefaultGroup.FullBody"));
     SlotCandidates.Add(FName("FullBody"));
-    // Paragon AnimBP may use UpperBody slot for many actions
     SlotCandidates.Add(FName("DefaultGroup.UpperBody"));
     SlotCandidates.Add(FName("UpperBody"));
     SlotCandidates.Add(FName("DefaultSlot"));
@@ -1814,8 +1790,8 @@ float AWukongCharacter::PlayAnimationAsMontageDynamic(UAnimSequence* AnimSequenc
         UAnimMontage* TempMontage = UAnimMontage::CreateSlotAnimationAsDynamicMontage(
             AnimSequence,
             CandidateSlot,
-            0.12f, // BlendInTime (snappier)
-            0.12f, // BlendOutTime
+            0.12f, // 渐入时间
+            0.12f, // 淡出时间
             PlayRate
         );
 

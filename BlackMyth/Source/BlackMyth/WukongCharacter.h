@@ -32,8 +32,6 @@ enum class EWukongState : uint8
 	Dead          // 死亡
 };
 
-// 生命值变化委托已迁移到 UHealthComponent
-// 体力值变化委托已迁移到 UStaminaComponent
 
 UCLASS()
 class BLACKMYTH_API AWukongCharacter : public ABlackMythCharacter
