@@ -2300,6 +2300,13 @@ void AWukongCharacter::TransformToButterfly()
 {
 	UE_LOG(LogTemp, Warning, TEXT(">>> TransformToButterfly() - Starting transformation!"));
 
+	// 解除锁定状态（变身后不应该保持锁定）
+	if (TargetingComponent && TargetingComponent->IsTargeting())
+	{
+		TargetingComponent->ClearTarget();
+		UE_LOG(LogTemp, Log, TEXT("TransformToButterfly: Cleared target lock"));
+	}
+
 	// 检查蝴蝶Pawn类是否配置
 	if (!ButterflyPawnClass)
 	{
