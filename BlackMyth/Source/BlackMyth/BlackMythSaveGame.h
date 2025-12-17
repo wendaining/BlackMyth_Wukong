@@ -6,34 +6,38 @@
 
 UCLASS()
 class BLACKMYTH_API UBlackMythSaveGame : public USaveGame {
-    GENERATED_BODY()
+  GENERATED_BODY()
 
-public:
-    // Íæ¼Ò×´Ì¬
-    UPROPERTY()
-    FVector PlayerLocation;
+ public:
+  /** ç©å®¶åœ¨ä¸–ç•Œä¸­çš„ä½ç½®ã€‚ */
+  UPROPERTY()
+  FVector PlayerLocation;
 
-    UPROPERTY()
-    FRotator PlayerRotation;
+  /** ç©å®¶çš„æ—‹è½¬è§’åº¦ã€‚ */
+  UPROPERTY()
+  FRotator PlayerRotation;
 
-    // Ö÷½ÇÑªÁ¿ºÍÌåÁ¦£¨ÈôÎŞ£¬Ä¬ÈÏÎªÂú£©
-    UPROPERTY()
-    float PlayerHealth = 100.0f;
+  /** å½“å‰è¡€é‡å€¼ã€‚ */
+  UPROPERTY()
+  float PlayerHealth = 100.0f;
 
-    UPROPERTY()
-    float PlayerMaxHealth = 100.0f;
+  /** æœ€å¤§è¡€é‡å€¼ã€‚ */
+  UPROPERTY()
+  float PlayerMaxHealth = 100.0f;
 
-    UPROPERTY()
-    float PlayerStamina = 100.0f;
+  /** å½“å‰ä½“åŠ›å€¼ã€‚ */
+  UPROPERTY()
+  float PlayerStamina = 100.0f;
 
-    UPROPERTY()
-    float PlayerMaxStamina = 100.0f;
+  /** æœ€å¤§ä½“åŠ›å€¼ã€‚ */
+  UPROPERTY()
+  float PlayerMaxStamina = 100.0f;
 
-    // ´æµµÃû³Æ£¨ÊäÈë£©
-    UPROPERTY()
-    FString SaveName;
+  /** å­˜æ¡£æ˜¾ç¤ºåç§°ã€‚ */
+  UPROPERTY()
+  FString SaveName;
 
-    // ´æµµÊ±¼ä
-    UPROPERTY()
-    FDateTime SaveTime;
+  /** å­˜æ¡£åˆ›å»ºæ—¶é—´ã€‚ */
+  UPROPERTY()
+  FDateTime SaveTime;
 };

@@ -10,11 +10,11 @@ class BLACKMYTH_API UBlackMythGameInstance : public UGameInstance
     GENERATED_BODY()
 
 public:
-    // ÊÇ·ñ´Ó¶Áµµ½øÈë
+    // æ˜¯å¦ä»è¯»æ¡£è¿›å…¥
     UPROPERTY()
     bool bLoadGameRequested = false;
 
-    // Ñ¡ÔñµÄ´æµµ²Û
+    // é€‰æ‹©çš„å­˜æ¡£æ§½
     UPROPERTY()
     int32 SelectedLoadSlot = 0;
 };

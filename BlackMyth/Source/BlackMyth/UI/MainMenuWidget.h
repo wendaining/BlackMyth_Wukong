@@ -7,22 +7,22 @@
 #include "MainMenuWidget.generated.h"
 
 /**
- * Ö÷²Ëµ¥½çÃæµÄĞ¡²¿¼ş¡£±©Â¶¿ªÊ¼¡¢ÍË³ö¡¢ÉèÖÃµÈ°´Å¥¹©À¶Í¼°ó¶¨¡£
+ * ä¸»èœå•ç•Œé¢çš„å°éƒ¨ä»¶ã€‚æš´éœ²å¼€å§‹ã€é€€å‡ºã€è®¾ç½®ç­‰æŒ‰é’®ä¾›è“å›¾ç»‘å®šã€‚
  */
 UCLASS()
 class BLACKMYTH_API UMainMenuWidget : public UUserWidget {
     GENERATED_BODY()
 
 public:
-    /** ¿ªÊ¼ÓÎÏ·£¨°ó¶¨µ½¿ªÊ¼°´Å¥£©¡£ */
+    /** å¼€å§‹æ¸¸æˆï¼ˆç»‘å®šåˆ°å¼€å§‹æŒ‰é’®ï¼‰ã€‚ */
     UFUNCTION(BlueprintCallable, Category = "MainMenu")
     void StartGame();
 
-    /** ÍË³öÓÎÏ·£¨°ó¶¨µ½ÍË³ö°´Å¥£©¡£ */
+    /** é€€å‡ºæ¸¸æˆï¼ˆç»‘å®šåˆ°é€€å‡ºæŒ‰é’®ï¼‰ã€‚ */
     UFUNCTION(BlueprintCallable, Category = "MainMenu")
     void QuitGame();
 
-    /** ´ò¿ª¶Áµµ£¨°ó¶¨µ½¶Áµµ°´Å¥£©¡£ */
+    /** æ‰“å¼€è¯»æ¡£ï¼ˆç»‘å®šåˆ°è¯»æ¡£æŒ‰é’®ï¼‰ã€‚ */
     UFUNCTION(BlueprintCallable, Category = "MainMenu")
     void LoadGame();
 };

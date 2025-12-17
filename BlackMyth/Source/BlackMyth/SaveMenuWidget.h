@@ -9,35 +9,39 @@
 #include "SaveMenuWidget.generated.h"
 
 /**
- * ´æµµ½çÃæ Widget¡£
- * ¸ºÔğ½«µ±Ç°ÓÎÏ·×´Ì¬Ğ´ÈëÖ¸¶¨´æµµ²Û¡£
+ * å­˜æ¡£ç•Œé¢ Widgetã€‚
+ * è´Ÿè´£å°†å½“å‰æ¸¸æˆçŠ¶æ€å†™å…¥æŒ‡å®šå­˜æ¡£æ§½ã€‚
  */
 UCLASS()
 class BLACKMYTH_API USaveMenuWidget : public UUserWidget {
-    GENERATED_BODY()
+  GENERATED_BODY()
 
-protected:
-    // µ± Widget ±»´´½¨²¢¼ÓÈë½çÃæÊ±µ÷ÓÃ
-    virtual void NativeConstruct() override;
+ protected:
+  /** Widget æ„å»ºå®Œæˆåè°ƒç”¨ï¼Œç”¨äºåˆ·æ–°å­˜æ¡£ä¿¡æ¯ã€‚ */
+  virtual void NativeConstruct() override;
 
-    void UpdateSlotInfo(int32 SlotIndex, UTextBlock* Text);
+  /** æ›´æ–°æŒ‡å®šå­˜æ¡£æ§½çš„æ˜¾ç¤ºæ–‡æœ¬ã€‚ */
+  void UpdateSlotInfo(int32 SlotIndex, UTextBlock* Text);
 
-public:
-    // °ó¶¨ WBP ÖĞµÄÊäÈë¿ò
-    UPROPERTY(meta = (BindWidget))
-    UEditableTextBox* SaveNameTextBox;
+ public:
+  /** å­˜æ¡£åç§°è¾“å…¥æ¡†ã€‚ */
+  UPROPERTY(meta = (BindWidget))
+  UEditableTextBox* SaveNameTextBox;
 
-    /** µã»÷´æµµ²Û£¨1~3£©¡£ */
-    UFUNCTION(BlueprintCallable, Category = "Save")
-    void OnSaveSlotClicked(int32 SlotIndex);
+  /** ç‚¹å‡»å­˜æ¡£æ§½ï¼ˆ1~3ï¼‰ã€‚ */
+  UFUNCTION(BlueprintCallable, Category = "Save")
+  void OnSaveSlotClicked(int32 SlotIndex);
 
-    UPROPERTY(meta = (BindWidget))
-    UTextBlock* SaveSlot1Text;
+  /** å­˜æ¡£æ§½ 1 æ˜¾ç¤ºæ–‡æœ¬ã€‚ */
+  UPROPERTY(meta = (BindWidget))
+  UTextBlock* SaveSlot1Text;
 
-    UPROPERTY(meta = (BindWidget))
-    UTextBlock* SaveSlot2Text;
+  /** å­˜æ¡£æ§½ 2 æ˜¾ç¤ºæ–‡æœ¬ã€‚ */
+  UPROPERTY(meta = (BindWidget))
+  UTextBlock* SaveSlot2Text;
 
-    UPROPERTY(meta = (BindWidget))
-    UTextBlock* SaveSlot3Text;
+  /** å­˜æ¡£æ§½ 3 æ˜¾ç¤ºæ–‡æœ¬ã€‚ */
+  UPROPERTY(meta = (BindWidget))
+  UTextBlock* SaveSlot3Text;
 };
 

@@ -7,8 +7,8 @@
 #include "MainMenuGameMode.generated.h"
 
 /**
- * Ö÷²Ëµ¥×¨ÓÃµÄÓÎÏ·Ä£Ê½¡£¸ºÔğ´´½¨²¢ÏÔÊ¾Ö÷²Ëµ¥½çÃæ£¬
- * ²¢½«ÊäÈëÇĞ»»Îª½ö UI Ä£Ê½£¬·½±ãÍæ¼ÒÓÃÊó±ê²Ù×÷²Ëµ¥¡£
+ * ä¸»èœå•ä¸“ç”¨çš„æ¸¸æˆæ¨¡å¼ã€‚è´Ÿè´£åˆ›å»ºå¹¶æ˜¾ç¤ºä¸»èœå•ç•Œé¢ï¼Œ
+ * å¹¶å°†è¾“å…¥åˆ‡æ¢ä¸ºä»… UI æ¨¡å¼ï¼Œæ–¹ä¾¿ç©å®¶ç”¨é¼ æ ‡æ“ä½œèœå•ã€‚
  */
 UCLASS()
 class BLACKMYTH_API AMainMenuGameMode : public AGameModeBase {
@@ -16,15 +16,15 @@ class BLACKMYTH_API AMainMenuGameMode : public AGameModeBase {
 
 public:
     /**
-     * ÔÚ BeginPlay Ê±´´½¨Ö÷²Ëµ¥ UI£¬²¢ÉèÖÃÎª½ö UI µÄÊäÈëÄ£Ê½¡£
+     * åœ¨ BeginPlay æ—¶åˆ›å»ºä¸»èœå• UIï¼Œå¹¶è®¾ç½®ä¸ºä»… UI çš„è¾“å…¥æ¨¡å¼ã€‚
      */
     virtual void BeginPlay() override;
 
 protected:
-    /** Ö÷²Ëµ¥µÄÀ¶Í¼ Widget Àà£¨ÔÚ±à¼­Æ÷ÖĞÉèÖÃ£©¡£ */
+    /** ä¸»èœå•çš„è“å›¾ Widget ç±»ï¼ˆåœ¨ç¼–è¾‘å™¨ä¸­è®¾ç½®ï¼‰ã€‚ */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "UI")
     TSubclassOf<class UUserWidget> MainMenuWidgetClass;
-    /** ÔËĞĞÊ±´´½¨µÄÖ÷²Ëµ¥ÊµÀı¡£ */
+    /** è¿è¡Œæ—¶åˆ›å»ºçš„ä¸»èœå•å®ä¾‹ã€‚ */
     UPROPERTY()
     class UUserWidget* MainMenuWidget;
 };

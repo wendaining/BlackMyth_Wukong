@@ -9,7 +9,7 @@ ABlackMythPlayerController::ABlackMythPlayerController()
 {
 
     bShowMouseCursor = false;
-    // ²éÕÒ²¢»º´æ³£ÓÃµÄÀ¶Í¼Àà/¶ÔÏó¡£
+    // æŸ¥æ‰¾å¹¶ç¼“å­˜å¸¸ç”¨çš„è“å›¾ç±»/å¯¹è±¡ã€‚
     static ConstructorHelpers::FClassFinder<UUserWidget> PauseMenuBPClass(
         TEXT("/Game/_BlackMythGame/Blueprints/Menu/WBP_PauseMenu"));
     if (PauseMenuBPClass.Succeeded()) {
@@ -32,7 +32,7 @@ ABlackMythPlayerController::ABlackMythPlayerController()
 void ABlackMythPlayerController::BeginPlay() {
     Super::BeginPlay();
 
-    // Èç¹û¿ÉÓÃ£¬Îª±¾µØÍæ¼ÒÌí¼ÓÔöÇ¿ÊäÈëÓ³Éä¡£
+    // å¦‚æœå¯ç”¨ï¼Œä¸ºæœ¬åœ°ç©å®¶æ·»åŠ å¢å¼ºè¾“å…¥æ˜ å°„ã€‚
     if (UEnhancedInputLocalPlayerSubsystem* Subsystem =
             ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(GetLocalPlayer())) {
         if (PlayerMappingContext != nullptr) {
@@ -40,7 +40,7 @@ void ABlackMythPlayerController::BeginPlay() {
         }
     }
 
-    // ¶ÁÈ¡ OpenLevel ´«½øÀ´µÄ²ÎÊı
+    // è¯»å– OpenLevel ä¼ è¿›æ¥çš„å‚æ•°
     if (GetWorld()->URL.HasOption(TEXT("LoadGame")))
     {
         FTimerHandle Handle;
@@ -58,7 +58,7 @@ void ABlackMythPlayerController::SetupInputComponent() {
     Super::SetupInputComponent();
 
     if (UEnhancedInputComponent* enhanced = Cast<UEnhancedInputComponent>(InputComponent)) {
-        // °ó¶¨ÔİÍ£¶¯×÷£¨ÈçÒÑÅäÖÃ£©ÒÔÇĞ»»ÔİÍ£²Ëµ¥¡£
+        // ç»‘å®šæš‚åœåŠ¨ä½œï¼ˆå¦‚å·²é…ç½®ï¼‰ä»¥åˆ‡æ¢æš‚åœèœå•ã€‚
         if (PauseAction != nullptr) {
             enhanced->BindAction(PauseAction, ETriggerEvent::Triggered, this,
                                  &ABlackMythPlayerController::TogglePauseMenu);
@@ -83,7 +83,7 @@ void ABlackMythPlayerController::TogglePauseMenu(const FInputActionValue& /*Valu
     const bool was_paused = world->IsPaused();
 
     if (!was_paused) {
-        // ÏÔÊ¾ÔİÍ£½çÃæ£¬ÇĞ»»Îª½ö UI µÄÊäÈëÄ£Ê½¡£
+        // æ˜¾ç¤ºæš‚åœç•Œé¢ï¼Œåˆ‡æ¢ä¸ºä»… UI çš„è¾“å…¥æ¨¡å¼ã€‚
         if (PauseMenuInstance != nullptr) {
             PauseMenuInstance->AddToViewport();
         }
@@ -98,7 +98,7 @@ void ABlackMythPlayerController::TogglePauseMenu(const FInputActionValue& /*Valu
             SetInputMode(input_mode);
         }
     } else {
-        // Òş²ØÔİÍ£½çÃæ£¬»Ö¸´ÓÎÏ·ÊäÈë¡£
+        // éšè—æš‚åœç•Œé¢ï¼Œæ¢å¤æ¸¸æˆè¾“å…¥ã€‚
         ContinueGame();
     }
 }
@@ -122,7 +122,7 @@ void ABlackMythPlayerController::EnterLoadGameFromPause()
 {
     if (!PauseMenuClass) return;
 
-    // 1. ´´½¨ / ÏÔÊ¾ PauseMenu
+    // 1. åˆ›å»º / æ˜¾ç¤º PauseMenu
     if (!PauseMenuInstance)
     {
         PauseMenuInstance = CreateWidget<UUserWidget>(this, PauseMenuClass);
@@ -133,13 +133,13 @@ void ABlackMythPlayerController::EnterLoadGameFromPause()
         PauseMenuInstance->AddToViewport();
     }
 
-    // 2. ÔİÍ£ÓÎÏ·
+    // 2. æš‚åœæ¸¸æˆ
     UGameplayStatics::SetGamePaused(GetWorld(), true);
 
     bShowMouseCursor = true;
     SetInputMode(FInputModeUIOnly());
 
-    // 3. ½øÈë¶Áµµ½çÃæ
+    // 3. è¿›å…¥è¯»æ¡£ç•Œé¢
     if (UPauseMenuWidget* PauseWidget =
         Cast<UPauseMenuWidget>(PauseMenuInstance))
     {

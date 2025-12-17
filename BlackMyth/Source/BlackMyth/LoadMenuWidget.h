@@ -8,37 +8,38 @@
 #include "LoadMenuWidget.generated.h"
 
 /**
- * ¶Áµµ½çÃæ Widget¡£
- * ÏÔÊ¾ÒÑÓĞ´æµµĞÅÏ¢£¬²¢´ÓÖ¸¶¨²ÛÎ»»Ö¸´ÓÎÏ·×´Ì¬¡£
+ * è¯»æ¡£ç•Œé¢ Widgetã€‚
+ * æ˜¾ç¤ºå·²æœ‰å­˜æ¡£ä¿¡æ¯ï¼Œå¹¶ä»æŒ‡å®šæ§½ä½æ¢å¤æ¸¸æˆçŠ¶æ€ã€‚
  */
 UCLASS()
 class BLACKMYTH_API ULoadMenuWidget : public UUserWidget {
-    GENERATED_BODY()
+  GENERATED_BODY()
 
-protected:
-    /** Widget ¹¹½¨Íê³Éºóµ÷ÓÃ£¬ÓÃÓÚË¢ĞÂ´æµµĞÅÏ¢¡£ */
-    virtual void NativeConstruct() override;
+ protected:
+  /** Widget æ„å»ºå®Œæˆåè°ƒç”¨ï¼Œç”¨äºåˆ·æ–°å­˜æ¡£ä¿¡æ¯ã€‚ */
+  virtual void NativeConstruct() override;
 
-    /** ¸üĞÂÖ¸¶¨´æµµ²ÛµÄÏÔÊ¾ÎÄ±¾¡£ */
-    void UpdateSlotInfo(int32 SlotIndex, UTextBlock* Text);
+  /** æ›´æ–°æŒ‡å®šå­˜æ¡£æ§½çš„æ˜¾ç¤ºæ–‡æœ¬ã€‚ */
+  void UpdateSlotInfo(int32 SlotIndex, UTextBlock* Text);
 
-public:
-    /** ´æµµ²Û 1 ÏÔÊ¾ÎÄ±¾ */
-    UPROPERTY(meta = (BindWidget))
-    UTextBlock* LoadSlot1Text;
+ public:
+  /** å­˜æ¡£æ§½ 1 æ˜¾ç¤ºæ–‡æœ¬ */
+  UPROPERTY(meta = (BindWidget))
+  UTextBlock* LoadSlot1Text;
 
-    /** ´æµµ²Û 2 ÏÔÊ¾ÎÄ±¾ */
-    UPROPERTY(meta = (BindWidget))
-    UTextBlock* LoadSlot2Text;
+  /** å­˜æ¡£æ§½ 2 æ˜¾ç¤ºæ–‡æœ¬ */
+  UPROPERTY(meta = (BindWidget))
+  UTextBlock* LoadSlot2Text;
 
-    /** ´æµµ²Û 3 ÏÔÊ¾ÎÄ±¾ */
-    UPROPERTY(meta = (BindWidget))
-    UTextBlock* LoadSlot3Text;
+  /** å­˜æ¡£æ§½ 3 æ˜¾ç¤ºæ–‡æœ¬ */
+  UPROPERTY(meta = (BindWidget))
+  UTextBlock* LoadSlot3Text;
 
-    UPROPERTY()
-    UUserWidget* OwnerPauseWidget;
+  /** æ‰€å±çš„æš‚åœèœå• Widgetï¼Œç”¨äºå…³é—­æ—¶æ¸…ç†ã€‚ */
+  UPROPERTY()
+  UUserWidget* OwnerPauseWidget;
 
-    /** µã»÷¶Áµµ²Û£¨1~3£©¡£ */
-    UFUNCTION(BlueprintCallable, Category = "Load")
-    void OnLoadSlotClicked(int32 SlotIndex);
+  /** ç‚¹å‡»è¯»æ¡£æ§½ï¼ˆ1~3ï¼‰ã€‚ */
+  UFUNCTION(BlueprintCallable, Category = "Load")
+  void OnLoadSlotClicked(int32 SlotIndex);
 };

@@ -10,7 +10,7 @@ void AMainMenuGameMode::BeginPlay()
 {
     Super::BeginPlay();
 
-    // ÔÚ BeginPlay ÖÐ´´½¨Ö÷²Ëµ¥²¢ÉèÖÃÊäÈëÎª½ö UI¡£
+    // åœ¨ BeginPlay ä¸­åˆ›å»ºä¸»èœå•å¹¶è®¾ç½®è¾“å…¥ä¸ºä»… UIã€‚
     if (UWorld* world = GetWorld()) {
         APlayerController* pc = world->GetFirstPlayerController();
         if (pc != nullptr) {

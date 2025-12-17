@@ -7,93 +7,83 @@
 #include "Components/StaminaComponent.h"
 
 void USaveMenuWidget::OnSaveSlotClicked(int32 SlotIndex) {
-    if (SlotIndex < 1) {
-        return;
+  if (SlotIndex < 1) {
+    return;
+  }
+
+  UWorld* World = GetWorld();
+  if (!World) {
+    return;
+  }
+
+  ACharacter* Player = UGameplayStatics::GetPlayerCharacter(World, 0);
+  if (!Player) {
+    return;
+  }
+
+  // ÂàõÂª∫ÊàñË¶ÜÁõñÂ≠òÊ°£
+  UBlackMythSaveGame* SaveGame = Cast<UBlackMythSaveGame>(
+      UGameplayStatics::CreateSaveGameObject(
+          UBlackMythSaveGame::StaticClass()));
+
+  if (!SaveGame) {
+    return;
+  }
+
+  // ‰øùÂ≠òÁé©ÂÆ∂Áä∂ÊÄÅ
+  SaveGame->PlayerLocation = Player->GetActorLocation();
+  SaveGame->PlayerRotation = Player->GetActorRotation();
+
+  // ‰øùÂ≠ò‰∏ªËßíË°ÄÈáèÂíå‰ΩìÂäõ
+  if (AWukongCharacter* Wukong = Cast<AWukongCharacter>(Player)) {
+    if (UHealthComponent* HealthComp = Wukong->GetHealthComponent()) {
+      SaveGame->PlayerHealth = HealthComp->GetCurrentHealth();
+      SaveGame->PlayerMaxHealth = HealthComp->GetMaxHealth();
     }
-
-    UWorld* World = GetWorld();
-    if (!World) {
-        return;
+    if (UStaminaComponent* StaminaComp = Wukong->GetStaminaComponent()) {
+      SaveGame->PlayerStamina = StaminaComp->GetCurrentStamina();
+      SaveGame->PlayerMaxStamina = StaminaComp->GetMaxStamina();
     }
+  }
 
-    ACharacter* Player = UGameplayStatics::GetPlayerCharacter(World, 0);
-    if (!Player) {
-        return;
-    }
+  // Â≠òÊ°£ÂêçÔºàÊù•Ëá™ËæìÂÖ•Ê°ÜÔºâ
+  if (SaveNameTextBox && !SaveNameTextBox->GetText().IsEmpty()) {
+    SaveGame->SaveName = SaveNameTextBox->GetText().ToString();
+  } else {
+    SaveGame->SaveName = FString::Printf(TEXT("Save Slot %d"), SlotIndex);
+  }
 
-    // ¥¥Ω®ªÚ∏≤∏«¥Êµµ
-    UBlackMythSaveGame* SaveGame =
-        Cast<UBlackMythSaveGame>(
-            UGameplayStatics::CreateSaveGameObject(
-                UBlackMythSaveGame::StaticClass()
-            )
-        );
+  // ËÆ∞ÂΩïÂ≠òÊ°£Êó∂Èó¥ÔºàÁªô LoadMenu ÊòæÁ§∫Â§áÁî®Ôºâ
+  SaveGame->SaveTime = FDateTime::Now();
 
-    if (!SaveGame) {
-        return;
-    }
+  const FString SlotName = FString::Printf(TEXT("SaveSlot_%d"), SlotIndex);
+  UGameplayStatics::SaveGameToSlot(SaveGame, SlotName, 0);
 
-    // ÕÊº“◊¥Ã¨
-    SaveGame->PlayerLocation = Player->GetActorLocation();
-    SaveGame->PlayerRotation = Player->GetActorRotation();
-
-    // ±£¥Ê÷˜Ω«—™¡ø∫ÕÃÂ¡¶
-    if (AWukongCharacter* Wukong = Cast<AWukongCharacter>(Player)) {
-        if (UHealthComponent* HealthComp = Wukong->GetHealthComponent()) {
-            SaveGame->PlayerHealth = HealthComp->GetCurrentHealth();
-            SaveGame->PlayerMaxHealth = HealthComp->GetMaxHealth();
-        }
-        if (UStaminaComponent* StaminaComp = Wukong->GetStaminaComponent()) {
-            SaveGame->PlayerStamina = StaminaComp->GetCurrentStamina();
-            SaveGame->PlayerMaxStamina = StaminaComp->GetMaxStamina();
-        }
-    }
-
-    // ¥Êµµ√˚£®¿¥◊‘ ‰»ÎøÚ£©
-    if (SaveNameTextBox && !SaveNameTextBox->GetText().IsEmpty()) {
-        SaveGame->SaveName = SaveNameTextBox->GetText().ToString();
-    }
-    else {
-        SaveGame->SaveName = FString::Printf(TEXT("Save Slot %d"), SlotIndex);
-    }
-
-    // º«¬º¥Êµµ ±º‰£®∏¯ LoadMenu œ‘ æ±∏”√£©
-    SaveGame->SaveTime = FDateTime::Now();
-
-    const FString SlotName = FString::Printf(TEXT("SaveSlot_%d"), SlotIndex);
-    UGameplayStatics::SaveGameToSlot(SaveGame, SlotName, 0);
-
-    RemoveFromParent();
+  RemoveFromParent();
 }
 
-void USaveMenuWidget::NativeConstruct()
-{
-    Super::NativeConstruct();
+void USaveMenuWidget::NativeConstruct() {
+  Super::NativeConstruct();
 
-    UpdateSlotInfo(1, SaveSlot1Text);
-    UpdateSlotInfo(2, SaveSlot2Text);
-    UpdateSlotInfo(3, SaveSlot3Text);
+  UpdateSlotInfo(1, SaveSlot1Text);
+  UpdateSlotInfo(2, SaveSlot2Text);
+  UpdateSlotInfo(3, SaveSlot3Text);
 }
 
-void USaveMenuWidget::UpdateSlotInfo(int32 SlotIndex, UTextBlock* Text)
-{
-    if (!Text) return;
+void USaveMenuWidget::UpdateSlotInfo(int32 SlotIndex, UTextBlock* Text) {
+  if (!Text) return;
 
-    const FString SlotName = FString::Printf(TEXT("SaveSlot_%d"), SlotIndex);
+  const FString SlotName = FString::Printf(TEXT("SaveSlot_%d"), SlotIndex);
 
-    if (UGameplayStatics::DoesSaveGameExist(SlotName, 0))
-    {
-        UBlackMythSaveGame* SaveGame =
-            Cast<UBlackMythSaveGame>(
-                UGameplayStatics::LoadGameFromSlot(SlotName, 0)
-            );
+  if (UGameplayStatics::DoesSaveGameExist(SlotName, 0)) {
+    UBlackMythSaveGame* SaveGame = Cast<UBlackMythSaveGame>(
+        UGameplayStatics::LoadGameFromSlot(SlotName, 0));
 
-        if (SaveGame)
-        {
-            Text->SetText(FText::FromString(SaveGame->SaveName));
-            return;
-        }
+    if (SaveGame) {
+      Text->SetText(FText::FromString(SaveGame->SaveName));
+      return;
     }
+  }
 
-    Text->SetText(FText::FromString(TEXT("ø’¥Êµµ")));
+  Text->SetText(FText::FromString(TEXT("Á©∫Â≠òÊ°£")));
 }

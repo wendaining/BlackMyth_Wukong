@@ -8,26 +8,26 @@
 
 void UMainMenuWidget::StartGame()
 {
-    // 1. ¹Ø±ÕÖ÷²Ëµ¥ UI
+    // 1. å…³é—­ä¸»èœå• UI
     RemoveFromParent();
 
-    // 2. »Ö¸´ÓÎÏ·ÊäÈë£¬Òş²ØÊó±ê
+    // 2. æ¢å¤æ¸¸æˆè¾“å…¥ï¼Œéšè—é¼ æ ‡
     if (UWorld* world = GetWorld()) {
         if (APlayerController* pc = world->GetFirstPlayerController()) {
             pc->SetInputMode(FInputModeGameOnly());
             pc->bShowMouseCursor = false;
         }
     }
-    // 3. ½øÈëÓÎÏ·µØÍ¼
+    // 3. è¿›å…¥æ¸¸æˆåœ°å›¾
     UGameplayStatics::OpenLevel(this, FName(TEXT("/Game/ThirdPerson/Maps/ThirdPersonMap")));
-    // ¼´½«Ê¹ÓÃµÄµØÍ¼
+    // å³å°†ä½¿ç”¨çš„åœ°å›¾
     // /Game/JapaneseFeudalCastle/Levels/L_Showcase.L_Showcase'
 }
 
 void UMainMenuWidget::QuitGame()
 {
     APlayerController* PC = GetWorld()->GetFirstPlayerController();
-    // ¹Ø±Õ UI£¨¿ÉÑ¡£©²¢ÍË³öÓÎÏ·
+    // å…³é—­ UIï¼ˆå¯é€‰ï¼‰å¹¶é€€å‡ºæ¸¸æˆ
     RemoveFromParent();
 
     UKismetSystemLibrary::QuitGame(this, PC, EQuitPreference::Quit, true);
@@ -37,7 +37,7 @@ void UMainMenuWidget::LoadGame()
 {
     RemoveFromParent();
 
-    // LoadGame=1 ÊÇ×Ô¶¨Òå²ÎÊı
+    // LoadGame=1 æ˜¯è‡ªå®šä¹‰å‚æ•°
     UGameplayStatics::OpenLevel(
         this,
         FName(TEXT("/Game/ThirdPerson/Maps/ThirdPersonMap")),

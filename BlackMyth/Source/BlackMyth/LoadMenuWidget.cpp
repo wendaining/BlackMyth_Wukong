@@ -8,101 +8,94 @@
 #include "Components/HealthComponent.h"
 #include "Components/StaminaComponent.h"
 
-void ULoadMenuWidget::NativeConstruct()
-{
-    Super::NativeConstruct();
+void ULoadMenuWidget::NativeConstruct() {
+  Super::NativeConstruct();
 
-    UpdateSlotInfo(1, LoadSlot1Text);
-    UpdateSlotInfo(2, LoadSlot2Text);
-    UpdateSlotInfo(3, LoadSlot3Text);
+  UpdateSlotInfo(1, LoadSlot1Text);
+  UpdateSlotInfo(2, LoadSlot2Text);
+  UpdateSlotInfo(3, LoadSlot3Text);
 }
 
-void ULoadMenuWidget::UpdateSlotInfo(int32 SlotIndex, UTextBlock* Text)
-{
-    if (!Text) {
-        return;
+void ULoadMenuWidget::UpdateSlotInfo(int32 SlotIndex, UTextBlock* Text) {
+  if (!Text) {
+    return;
+  }
+
+  const FString SlotName = FString::Printf(TEXT("SaveSlot_%d"), SlotIndex);
+
+  if (UGameplayStatics::DoesSaveGameExist(SlotName, 0)) {
+    UBlackMythSaveGame* SaveGame = Cast<UBlackMythSaveGame>(
+        UGameplayStatics::LoadGameFromSlot(SlotName, 0));
+
+    if (SaveGame) {
+      Text->SetText(FText::FromString(SaveGame->SaveName));
+      return;
     }
+  }
 
-    const FString SlotName = FString::Printf(TEXT("SaveSlot_%d"), SlotIndex);
-
-    if (UGameplayStatics::DoesSaveGameExist(SlotName, 0)) {
-        UBlackMythSaveGame* SaveGame =
-            Cast<UBlackMythSaveGame>(
-                UGameplayStatics::LoadGameFromSlot(SlotName, 0));
-
-        if (SaveGame) {
-            Text->SetText(FText::FromString(SaveGame->SaveName));
-            return;
-        }
-    }
-
-    Text->SetText(FText::FromString(TEXT("ø’¥Êµµ")));
+  Text->SetText(FText::FromString(TEXT("Á©∫Â≠òÊ°£")));
 }
 
-void ULoadMenuWidget::OnLoadSlotClicked(int32 SlotIndex)
-{
-    if (SlotIndex < 1) {
-        return;
-    }
+void ULoadMenuWidget::OnLoadSlotClicked(int32 SlotIndex) {
+  if (SlotIndex < 1) {
+    return;
+  }
 
-    const FString SlotName = FString::Printf(TEXT("SaveSlot_%d"), SlotIndex);
+  const FString SlotName = FString::Printf(TEXT("SaveSlot_%d"), SlotIndex);
 
-    if (!UGameplayStatics::DoesSaveGameExist(SlotName, 0)) {
-        return;
-    }
+  if (!UGameplayStatics::DoesSaveGameExist(SlotName, 0)) {
+    return;
+  }
 
-    UBlackMythSaveGame* SaveGame =
-        Cast<UBlackMythSaveGame>(
-            UGameplayStatics::LoadGameFromSlot(SlotName, 0));
+  UBlackMythSaveGame* SaveGame = Cast<UBlackMythSaveGame>(
+      UGameplayStatics::LoadGameFromSlot(SlotName, 0));
 
-    if (!SaveGame) {
-        return;
-    }
+  if (!SaveGame) {
+    return;
+  }
 
-    UWorld* World = GetWorld();
-    if (!World) {
-        return;
-    }
+  UWorld* World = GetWorld();
+  if (!World) {
+    return;
+  }
 
-    // »∑±£”Œœ∑Œ¥‘›Õ£
-    UGameplayStatics::SetGamePaused(World, false);
+  // Á°Æ‰øùÊ∏∏ÊàèÊú™ÊöÇÂÅú
+  UGameplayStatics::SetGamePaused(World, false);
 
-    // ª÷∏¥ÕÊº“Œª÷√
-    ACharacter* Player = UGameplayStatics::GetPlayerCharacter(World, 0);
-    if (Player) {
-        Player->SetActorLocation(SaveGame->PlayerLocation);
-        Player->SetActorRotation(SaveGame->PlayerRotation);
+  // ÊÅ¢Â§çÁé©ÂÆ∂‰ΩçÁΩÆ
+  ACharacter* Player = UGameplayStatics::GetPlayerCharacter(World, 0);
+  if (Player) {
+    Player->SetActorLocation(SaveGame->PlayerLocation);
+    Player->SetActorRotation(SaveGame->PlayerRotation);
 
-        // ª÷∏¥÷˜Ω«—™¡ø∫ÕÃÂ¡¶
-        if (AWukongCharacter* Wukong = Cast<AWukongCharacter>(Player)) {
-            if (UHealthComponent* HealthComp = Wukong->GetHealthComponent()) {
-                HealthComp->SetHealth(SaveGame->PlayerHealth);
-            }
-            if (UStaminaComponent* StaminaComp = Wukong->GetStaminaComponent()) {
-                // ÃÂ¡¶ª÷∏¥
-                float StaminaDiff = SaveGame->PlayerStamina - StaminaComp->GetCurrentStamina();
-                if (StaminaDiff > 0) {
-                    StaminaComp->RestoreStamina(StaminaDiff);
-                }
-                else if (StaminaDiff < 0) {
-                    StaminaComp->ConsumeStamina(-StaminaDiff);
-                }
-            }
+    // ÊÅ¢Â§ç‰∏ªËßíË°ÄÈáèÂíå‰ΩìÂäõ
+    if (AWukongCharacter* Wukong = Cast<AWukongCharacter>(Player)) {
+      if (UHealthComponent* HealthComp = Wukong->GetHealthComponent()) {
+        HealthComp->SetHealth(SaveGame->PlayerHealth);
+      }
+      if (UStaminaComponent* StaminaComp = Wukong->GetStaminaComponent()) {
+        // ‰ΩìÂäõÊÅ¢Â§çÔºöËÆ°ÁÆóÂ∑ÆÂÄºÂπ∂Ë∞ÉÊï¥Âà∞ÁõÆÊ†áÂÄº
+        float StaminaDiff = SaveGame->PlayerStamina - StaminaComp->GetCurrentStamina();
+        if (StaminaDiff > 0) {
+          StaminaComp->RestoreStamina(StaminaDiff);
+        } else if (StaminaDiff < 0) {
+          StaminaComp->ConsumeStamina(-StaminaDiff);
         }
+      }
     }
+  }
 
-    if (OwnerPauseWidget)
-    {
-        OwnerPauseWidget->RemoveFromParent();
-    }
-    RemoveFromParent();
+  if (OwnerPauseWidget) {
+    OwnerPauseWidget->RemoveFromParent();
+  }
+  RemoveFromParent();
 
-    // »°œ˚‘›Õ£
-    UGameplayStatics::SetGamePaused(World, false);
+  // ÂèñÊ∂àÊöÇÂÅú
+  UGameplayStatics::SetGamePaused(World, false);
 
-    // ª÷∏¥”Œœ∑ ‰»Î
-    if (APlayerController* PC = World->GetFirstPlayerController()) {
-        PC->SetInputMode(FInputModeGameOnly());
-        PC->bShowMouseCursor = false;
-    }
+  // ÊÅ¢Â§çÊ∏∏ÊàèËæìÂÖ•
+  if (APlayerController* PC = World->GetFirstPlayerController()) {
+    PC->SetInputMode(FInputModeGameOnly());
+    PC->bShowMouseCursor = false;
+  }
 }
