@@ -181,6 +181,12 @@ void AWukongCharacter::BeginPlay()
     NearbyNPC = nullptr;
     InteractionPromptWidget = nullptr;
     InteractionCheckTimer = 0.0f;
+
+    // 初始化变身系统
+    bIsTransformed = false;
+    TransformCooldownTimer = 0.0f;
+    TransformDurationTimer = 0.0f;
+    ButterflyPawnInstance = nullptr;
 }
 
 // 每帧都调用
@@ -222,6 +228,16 @@ void AWukongCharacter::Tick(float DeltaTime)
 
     // 锁定目标时角色面向目标
     UpdateFacingTarget(DeltaTime);
+
+    // 更新变身冷却计时器
+    if (TransformCooldownTimer > 0.0f)
+    {
+        TransformCooldownTimer -= DeltaTime;
+        if (TransformCooldownTimer < 0.0f)
+        {
+            TransformCooldownTimer = 0.0f;
+        }
+    }
 }
 
 // 把蓝图里配置的各个 InputAction 资产在运行时绑定到角色的对应方法上，确保按键触发后调用正确函数
@@ -354,6 +370,17 @@ void AWukongCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCom
         else
         {
             UE_LOG(LogTemp, Warning, TEXT("  InteractAction is NULL - Interaction disabled"));
+        }
+
+        // 绑定变身术Action（按3）
+        if (TransformAction)
+        {
+            EnhancedInputComponent->BindAction(TransformAction, ETriggerEvent::Started, this, &AWukongCharacter::PerformTransform);
+            UE_LOG(LogTemp, Warning, TEXT("  Bound TransformAction to PerformTransform"));
+        }
+        else
+        {
+            UE_LOG(LogTemp, Warning, TEXT("  TransformAction is NULL! Transform (Key 3) will not work! Assign IA_Transform in BP_Wukong."));
         }
     }
     else
@@ -2199,4 +2226,199 @@ void AWukongCharacter::PlayJumpSound()
 	{
 		UGameplayStatics::PlaySoundAtLocation(this, JumpSound, GetActorLocation(), JumpSoundVolume);
 	}
+}
+// ========== 变身术系统 ==========
+
+void AWukongCharacter::PerformTransform()
+{
+	UE_LOG(LogTemp, Warning, TEXT(">>> PerformTransform() CALLED! bIsTransformed=%d"), bIsTransformed);
+
+	// 如果已经变身了，不能再次变身
+	if (bIsTransformed)
+	{
+		UE_LOG(LogTemp, Log, TEXT("PerformTransform: Already transformed"));
+		return;
+	}
+
+	// 检查冷却
+	if (TransformCooldownTimer > 0.0f)
+	{
+		UE_LOG(LogTemp, Log, TEXT("PerformTransform: On cooldown (%.1f seconds remaining)"), TransformCooldownTimer);
+		return;
+	}
+
+	// 检查状态 - 死亡、翻滚、硬直、攻击中不能变身
+	if (CurrentState == EWukongState::Dead ||
+		CurrentState == EWukongState::Dodging ||
+		CurrentState == EWukongState::HitStun ||
+		CurrentState == EWukongState::Attacking)
+	{
+		UE_LOG(LogTemp, Log, TEXT("PerformTransform: Blocked by state"));
+		return;
+	}
+
+	// 对话中不能变身
+	if (bIsInDialogue)
+	{
+		UE_LOG(LogTemp, Log, TEXT("PerformTransform: Blocked by dialogue"));
+		return;
+	}
+
+	// 执行变身
+	TransformToButterfly();
+}
+
+void AWukongCharacter::TransformToButterfly()
+{
+	UE_LOG(LogTemp, Warning, TEXT(">>> TransformToButterfly() - Starting transformation!"));
+
+	// 检查蝴蝶Pawn类是否配置
+	if (!ButterflyPawnClass)
+	{
+		UE_LOG(LogTemp, Error, TEXT("TransformToButterfly: ButterflyPawnClass is NULL! Set it in BP_Wukong."));
+		return;
+	}
+
+	APlayerController* PC = Cast<APlayerController>(GetController());
+	if (!PC)
+	{
+		UE_LOG(LogTemp, Error, TEXT("TransformToButterfly: No PlayerController!"));
+		return;
+	}
+
+	// 在悟空位置生成蝴蝶
+	FVector SpawnLocation = GetActorLocation() + FVector(0.0f, 0.0f, 50.0f); // 稍微抬高一点
+	FRotator SpawnRotation = GetActorRotation();
+
+	FActorSpawnParameters SpawnParams;
+	SpawnParams.Owner = this;
+	SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
+
+	ButterflyPawnInstance = GetWorld()->SpawnActor<APawn>(
+		ButterflyPawnClass,
+		SpawnLocation,
+		SpawnRotation,
+		SpawnParams
+	);
+
+	if (!ButterflyPawnInstance)
+	{
+		UE_LOG(LogTemp, Error, TEXT("TransformToButterfly: Failed to spawn butterfly!"));
+		return;
+	}
+
+	// 标记变身状态
+	bIsTransformed = true;
+
+	// 隐藏悟空
+	SetActorHiddenInGame(true);
+	SetActorEnableCollision(false);
+
+	// 禁用悟空的移动
+	if (UCharacterMovementComponent* Movement = GetCharacterMovement())
+	{
+		Movement->DisableMovement();
+	}
+
+	// 控制器切换到蝴蝶
+	PC->Possess(ButterflyPawnInstance);
+
+	// 启动变身持续时间计时器
+	TransformDurationTimer = TransformDuration;
+	if (GetWorld())
+	{
+		GetWorld()->GetTimerManager().SetTimer(
+			TransformTimerHandle,
+			this,
+			&AWukongCharacter::OnTransformDurationEnd,
+			TransformDuration,
+			false
+		);
+	}
+
+	UE_LOG(LogTemp, Warning, TEXT("TransformToButterfly: SUCCESS! Duration=%.1f seconds"), TransformDuration);
+}
+
+void AWukongCharacter::TransformBackToWukong()
+{
+	UE_LOG(LogTemp, Warning, TEXT(">>> TransformBackToWukong() - Reverting transformation!"));
+
+	if (!bIsTransformed)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("TransformBackToWukong: Not transformed, skipping"));
+		return;
+	}
+
+	APlayerController* PC = nullptr;
+	
+	// 获取控制器（当前控制蝴蝶的）
+	if (ButterflyPawnInstance)
+	{
+		PC = Cast<APlayerController>(ButterflyPawnInstance->GetController());
+	}
+
+	if (!PC)
+	{
+		// 尝试获取玩家0的控制器
+		PC = UGameplayStatics::GetPlayerController(GetWorld(), 0);
+	}
+
+	if (!PC)
+	{
+		UE_LOG(LogTemp, Error, TEXT("TransformBackToWukong: No PlayerController found!"));
+		return;
+	}
+
+	// 把悟空移动到蝴蝶当前位置
+	if (ButterflyPawnInstance)
+	{
+		FVector ButterflyLocation = ButterflyPawnInstance->GetActorLocation();
+		FRotator ButterflyRotation = ButterflyPawnInstance->GetActorRotation();
+		ButterflyRotation.Pitch = 0.0f; // 清除俯仰角
+		ButterflyRotation.Roll = 0.0f;
+		
+		SetActorLocation(ButterflyLocation);
+		SetActorRotation(ButterflyRotation);
+	}
+
+	// 显示悟空
+	SetActorHiddenInGame(false);
+	SetActorEnableCollision(true);
+
+	// 恢复悟空的移动
+	if (UCharacterMovementComponent* Movement = GetCharacterMovement())
+	{
+		Movement->SetMovementMode(MOVE_Walking);
+	}
+
+	// 控制器切回悟空
+	PC->Possess(this);
+
+	// 销毁蝴蝶
+	if (ButterflyPawnInstance)
+	{
+		ButterflyPawnInstance->Destroy();
+		ButterflyPawnInstance = nullptr;
+	}
+
+	// 重置状态
+	bIsTransformed = false;
+	ChangeState(EWukongState::Idle);
+
+	// 启动冷却
+	TransformCooldownTimer = TransformCooldown;
+
+	// 清除计时器
+	if (GetWorld())
+	{
+		GetWorld()->GetTimerManager().ClearTimer(TransformTimerHandle);
+	}
+
+	UE_LOG(LogTemp, Warning, TEXT("TransformBackToWukong: SUCCESS! Cooldown=%.1f seconds"), TransformCooldown);
+}
+
+void AWukongCharacter::OnTransformDurationEnd()
+{
+	UE_LOG(LogTemp, Warning, TEXT(">>> OnTransformDurationEnd() - Transform duration expired!"));
+	TransformBackToWukong();
 }

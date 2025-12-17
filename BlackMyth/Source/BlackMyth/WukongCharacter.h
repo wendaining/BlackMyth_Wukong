@@ -175,6 +175,10 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UInputAction> FreezeSpellAction;
 
+	/** 变身术输入动作 (按键3) */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input", meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<UInputAction> TransformAction;
+
 	/** 交互输入动作 (E键) */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UInputAction> InteractAction;
@@ -714,4 +718,56 @@ protected:
 
 	/** 处理交互输入 */
 	void OnInteract();
+
+	// ========== 变身术系统 ==========
+protected:
+	/** 是否处于变身状态 */
+	UPROPERTY(BlueprintReadOnly, Category = "Transform")
+	bool bIsTransformed;
+
+	/** 变身冷却时间（秒） */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Transform")
+	float TransformCooldown = 60.0f;
+
+	/** 变身持续时间（秒） */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Transform")
+	float TransformDuration = 30.0f;
+
+	/** 变身冷却计时器 */
+	float TransformCooldownTimer;
+
+	/** 变身持续计时器 */
+	float TransformDurationTimer;
+
+	/** 蝴蝶Pawn类（在蓝图中配置） */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Transform")
+	TSubclassOf<APawn> ButterflyPawnClass;
+
+	/** 当前生成的蝴蝶Pawn实例 */
+	UPROPERTY()
+	APawn* ButterflyPawnInstance;
+
+	/** 执行变身术 */
+	void PerformTransform();
+
+	/** 变身为蝴蝶 */
+	void TransformToButterfly();
+
+	/** 变回悟空 */
+	void TransformBackToWukong();
+
+	/** 变身结束计时器回调 */
+	void OnTransformDurationEnd();
+
+	/** 变身结束计时器Handle */
+	FTimerHandle TransformTimerHandle;
+
+public:
+	/** 是否处于变身状态 */
+	UFUNCTION(BlueprintPure, Category = "Transform")
+	bool IsTransformed() const { return bIsTransformed; }
+
+	/** 获取变身冷却剩余时间 */
+	UFUNCTION(BlueprintPure, Category = "Transform")
+	float GetTransformCooldownRemaining() const { return TransformCooldownTimer; }
 };
