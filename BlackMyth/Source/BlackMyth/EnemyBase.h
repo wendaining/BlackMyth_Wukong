@@ -17,6 +17,8 @@ class UNiagaraComponent;
 class UEnemyDodgeComponent;
 class UEnemyAlertComponent;
 
+struct FEnemySaveData;
+
 /**
  * 敌人状态枚举
  */
@@ -32,6 +34,8 @@ enum class EEnemyState : uint8
 	EES_Dead UMETA(DisplayName = "Dead"),
 	EES_NoState UMETA(DisplayName = "NoState")
 };
+
+struct FEnemySaveData;
 
 /**
  * 敌人基类
@@ -129,7 +133,7 @@ protected:
 	bool InTargetRange(AActor* Target, double Radius);
 
 public:
-	bool IsDead();
+	bool IsDead() const;
 
 	/** 清除战斗目标（用于惟空变身时脱战） */
 	UFUNCTION(BlueprintCallable, Category = "AI")
@@ -432,4 +436,19 @@ public:
 	/** 定身持续特效组件引用（用于解除时销毁） */
 	UPROPERTY()
 	TObjectPtr<UNiagaraComponent> ActiveFreezeEffectComponent;
+
+	// ========== 存档数据 ==========
+
+	/** 生成存档数据 */
+	void WriteEnemySaveData(struct FEnemySaveData& OutData) const;
+
+	/** 从存档数据恢复 */
+	void LoadEnemySaveData(const struct FEnemySaveData& InData);
+
+	/** 刷怪时初始化敌人属性 */
+	UFUNCTION(BlueprintCallable)
+	virtual void InitEnemy(int32 InLevel, bool bIsFromSave = false);
+
+	UPROPERTY()
+	FGuid EnemyID;
 };

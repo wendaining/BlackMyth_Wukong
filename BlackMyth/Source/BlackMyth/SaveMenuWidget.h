@@ -6,6 +6,7 @@
 #include "Blueprint/UserWidget.h"
 #include "Components/EditableTextBox.h"
 #include "Components/TextBlock.h"
+#include "EnemySpawner.h"
 #include "SaveMenuWidget.generated.h"
 
 /**
@@ -14,34 +15,33 @@
  */
 UCLASS()
 class BLACKMYTH_API USaveMenuWidget : public UUserWidget {
-  GENERATED_BODY()
+	GENERATED_BODY()
 
- protected:
-  /** Widget 构建完成后调用，用于刷新存档信息。 */
-  virtual void NativeConstruct() override;
+protected:
+	/** Widget 构建完成后调用，用于刷新存档信息。 */
+	virtual void NativeConstruct() override;
 
-  /** 更新指定存档槽的显示文本。 */
-  void UpdateSlotInfo(int32 SlotIndex, UTextBlock* Text);
+	/** 更新指定存档槽的显示文本。 */
+	void UpdateSlotInfo(int32 SlotIndex, UTextBlock* Text);
 
- public:
-  /** 存档名称输入框。 */
-  UPROPERTY(meta = (BindWidget))
-  UEditableTextBox* SaveNameTextBox;
+public:
+	/** 存档名称输入框。 */
+	UPROPERTY(meta = (BindWidget))
+	UEditableTextBox* SaveNameTextBox;
 
-  /** 点击存档槽（1~3）。 */
-  UFUNCTION(BlueprintCallable, Category = "Save")
-  void OnSaveSlotClicked(int32 SlotIndex);
+	/** 点击存档槽（1~3）。 */
+	UFUNCTION(BlueprintCallable, Category = "Save")
+	void OnSaveSlotClicked(int32 SlotIndex);
 
-  /** 存档槽 1 显示文本。 */
-  UPROPERTY(meta = (BindWidget))
-  UTextBlock* SaveSlot1Text;
+	/** 存档槽 1 显示文本。 */
+	UPROPERTY(meta = (BindWidget))
+	UTextBlock* SaveSlot1Text;
 
-  /** 存档槽 2 显示文本。 */
-  UPROPERTY(meta = (BindWidget))
-  UTextBlock* SaveSlot2Text;
+	/** 存档槽 2 显示文本。 */
+	UPROPERTY(meta = (BindWidget))
+	UTextBlock* SaveSlot2Text;
 
-  /** 存档槽 3 显示文本。 */
-  UPROPERTY(meta = (BindWidget))
-  UTextBlock* SaveSlot3Text;
+	/** 存档槽 3 显示文本。 */
+	UPROPERTY(meta = (BindWidget))
+	UTextBlock* SaveSlot3Text;
 };
-

@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
 #include "Components/TextBlock.h"
+#include "EnemySpawner.h"
 #include "LoadMenuWidget.generated.h"
 
 /**
