@@ -10,49 +10,52 @@ class UUserWidget;
 struct FInputActionValue;
 
 /**
- * Íæ¼Ò¿ØÖÆÆ÷£º¸ºÔğÊäÈëÓ³ÉäºÍÔİÍ£²Ëµ¥µÄÇĞ»»¡£
+ * ç©å®¶æ§åˆ¶å™¨ï¼šè´Ÿè´£è¾“å…¥æ˜ å°„å’Œæš‚åœèœå•çš„åˆ‡æ¢ã€‚
  *
- * ËµÃ÷£º
- * - ¹¹Ôìº¯ÊıÔÚÊµÏÖÎÄ¼şÖĞÊ¹ÓÃ³õÊ¼»¯ÁĞ±í³õÊ¼»¯³ÉÔ±¡£
- * - ÖØĞ´µÄĞéº¯ÊıÊ¹ÓÃ `override` ±ê×¢¡£
+ * è¯´æ˜ï¼š
+ * - æ„é€ å‡½æ•°åœ¨å®ç°æ–‡ä»¶ä¸­ä½¿ç”¨åˆå§‹åŒ–åˆ—è¡¨åˆå§‹åŒ–æˆå‘˜ã€‚
+ * - é‡å†™çš„è™šå‡½æ•°ä½¿ç”¨ `override` æ ‡æ³¨ã€‚
  */
 UCLASS()
 class BLACKMYTH_API ABlackMythPlayerController : public APlayerController {
     GENERATED_BODY()
 
 public:
-    /** ¹¹Ôìº¯Êı¡£ */
+    /** æ„é€ å‡½æ•°ã€‚ */
     ABlackMythPlayerController();
 
     /**
-     * ±¾µØÍæ¼ÒÊ¹ÓÃµÄÊäÈëÓ³ÉäÉÏÏÂÎÄ£¨ÔÚ±à¼­Æ÷ÖĞÉèÖÃ£©¡£
-     * UPROPERTY ±£³ÖÔ­Ê¼·ÃÎÊĞÔÒÔ±ãÀ¶Í¼/±à¼­Æ÷Ê¹ÓÃ¡£
+     * æœ¬åœ°ç©å®¶ä½¿ç”¨çš„è¾“å…¥æ˜ å°„ä¸Šä¸‹æ–‡ï¼ˆåœ¨ç¼–è¾‘å™¨ä¸­è®¾ç½®ï¼‰ã€‚
+     * UPROPERTY ä¿æŒåŸå§‹è®¿é—®æ€§ä»¥ä¾¿è“å›¾/ç¼–è¾‘å™¨ä½¿ç”¨ã€‚
      */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
     UInputMappingContext* PlayerMappingContext;
 
-    /** ÓÃÓÚÇĞ»»ÔİÍ£²Ëµ¥µÄÊäÈë¶¯×÷£¨ÔÚ±à¼­Æ÷ÖĞÉèÖÃ£©¡£ */
+    /** ç”¨äºåˆ‡æ¢æš‚åœèœå•çš„è¾“å…¥åŠ¨ä½œï¼ˆåœ¨ç¼–è¾‘å™¨ä¸­è®¾ç½®ï¼‰ã€‚ */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
     UInputAction* PauseAction;
 
-    /** ¼ÌĞøÓÎÏ·¡£ */
+    /** ç»§ç»­æ¸¸æˆã€‚ */
     void ContinueGame();
 protected:
-    /** ÔÚ BeginPlay ÖĞÎª±¾µØÍæ¼ÒÌí¼ÓÔöÇ¿ÊäÈëÓ³ÉäÉÏÏÂÎÄ¡£ */
+    /** åœ¨ BeginPlay ä¸­ä¸ºæœ¬åœ°ç©å®¶æ·»åŠ å¢å¼ºè¾“å…¥æ˜ å°„ä¸Šä¸‹æ–‡ã€‚ */
     virtual void BeginPlay() override;
 
-    /** °ó¶¨ÊäÈë×é¼ş£¨Enhanced Input£©¡£ */
+    /** ç»‘å®šè¾“å…¥ç»„ä»¶ï¼ˆEnhanced Inputï¼‰ã€‚ */
     virtual void SetupInputComponent() override;
 
-    /** ÔİÍ£²Ëµ¥µÄ Widget Àà£¨ÔÚ±à¼­Æ÷ÖĞÉèÖÃ£©¡£ */
+    UFUNCTION()
+    void EnterLoadGameFromPause();
+
+    /** æš‚åœèœå•çš„ Widget ç±»ï¼ˆåœ¨ç¼–è¾‘å™¨ä¸­è®¾ç½®ï¼‰ã€‚ */
     UPROPERTY(EditAnywhere, Category = "UI")
     TSubclassOf<UUserWidget> PauseMenuClass;
 
-    /** ÔËĞĞÊ±´´½¨µÄÔİÍ£²Ëµ¥ÊµÀı¡£ */
+    /** è¿è¡Œæ—¶åˆ›å»ºçš„æš‚åœèœå•å®ä¾‹ã€‚ */
     UPROPERTY()
     UUserWidget* PauseMenuInstance;
 
-    /** µ± PauseAction ´¥·¢Ê±ÇĞ»»ÔİÍ£²Ëµ¥µÄÏÔÊ¾×´Ì¬¡£ */
+    /** å½“ PauseAction è§¦å‘æ—¶åˆ‡æ¢æš‚åœèœå•çš„æ˜¾ç¤ºçŠ¶æ€ã€‚ */
     void TogglePauseMenu(const FInputActionValue& Value);
 
 };

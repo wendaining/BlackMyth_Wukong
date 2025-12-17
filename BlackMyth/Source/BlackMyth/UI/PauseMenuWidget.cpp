@@ -5,16 +5,17 @@
 #include "Kismet/GameplayStatics.h"
 #include "GameFramework/PlayerController.h"
 #include "BlackMythPlayerController.h"
+#include "../LoadMenuWidget.h"
 
 void UPauseMenuWidget::OnResumeClicked()
 {
-    // 1. »Ö¸´ÓÎÏ·ÔİÍ£×´Ì¬
+    // 1. æ¢å¤æ¸¸æˆæš‚åœçŠ¶æ€
     UGameplayStatics::SetGamePaused(GetWorld(), false);
 
-    // 2. ¹Ø±ÕÔİÍ£²Ëµ¥£¨ÒÆ³ı×Ô¼º£©
+    // 2. å…³é—­æš‚åœèœå•ï¼ˆç§»é™¤è‡ªå·±ï¼‰
     RemoveFromParent();
 
-    // 3. »Ö¸´ÊäÈëÄ£Ê½ºÍÊó±êÒş²Ø
+    // 3. æ¢å¤è¾“å…¥æ¨¡å¼å’Œé¼ æ ‡éšè—
     if (APlayerController* PC = GetWorld()->GetFirstPlayerController())
     {
         FInputModeGameOnly InputMode;
@@ -25,28 +26,59 @@ void UPauseMenuWidget::OnResumeClicked()
 
 void UPauseMenuWidget::OnLoadClicked()
 {
+    APlayerController* PC = GetOwningPlayer();
+    if (!PC) {
+        return;
+    }
+
+    // åŠ è½½è¯»æ¡£ç•Œé¢è“å›¾ç±»
+    TSubclassOf<ULoadMenuWidget> LoadWidgetClass =
+        LoadClass<ULoadMenuWidget>(
+            nullptr,
+            TEXT("/Game/_BlackMythGame/Blueprints/Menu/WBP_LoadMenu.WBP_LoadMenu_C")
+        );
+
+    if (!LoadWidgetClass) {
+        return;
+    }
+
+    // åˆ›å»ºâ€œçœŸæ­£çš„â€è¯»æ¡£ç•Œé¢
+    ULoadMenuWidget* LoadMenuWidget =
+        CreateWidget<ULoadMenuWidget>(PC, LoadWidgetClass);
+
+    if (!LoadMenuWidget) {
+        return;
+    }
+
+    // å…³é”®ä¸€å¥ï¼šå‘Šè¯‰è¯»æ¡£ç•Œé¢â€œä½ æ˜¯è°â€
+    LoadMenuWidget->OwnerPauseWidget = this;
+
+    // æ˜¾ç¤ºè¯»æ¡£ç•Œé¢
+    LoadMenuWidget->AddToViewport();
+
+    // UI è¾“å…¥
+    PC->SetInputMode(FInputModeUIOnly());
+    PC->bShowMouseCursor = true;
+}
+
+void UPauseMenuWidget::OnSaveClicked()
+{
     UWorld* World = GetWorld();
     if (!World) {
         return;
     }
 
-    // ¼ÓÔØ¶Áµµ½çÃæÀ¶Í¼Àà
-    UClass* LoadWidgetClass = LoadClass<UUserWidget>(
+    // åŠ è½½å­˜æ¡£ç•Œé¢è“å›¾ç±»
+    UClass* SaveWidgetClass = LoadClass<UUserWidget>(
         nullptr,
-        TEXT("/Game/_BlackMythGame/Blueprints/Menu/WBP_LoadMenu.WBP_LoadMenu_C")
+        TEXT("/Game/_BlackMythGame/Blueprints/Menu/WBP_SaveMenu.WBP_SaveMenu_C")
     );
 
-    if (LoadWidgetClass == nullptr) {
-        UE_LOG(LogTemp, Warning, TEXT("Failed to load WBP_LoadMenu class."));
-        return;
-    }
-
-    // ´´½¨²¢ÏÔÊ¾¶Áµµ½çÃæ
-    if (UUserWidget* LoadUI = CreateWidget<UUserWidget>(World, LoadWidgetClass)) {
-        LoadUI->AddToViewport();
+    // åˆ›å»ºå¹¶æ˜¾ç¤ºå­˜æ¡£ç•Œé¢
+    if (UUserWidget* SaveUI = CreateWidget<UUserWidget>(World, SaveWidgetClass)) {
+        SaveUI->AddToViewport();
     }
 }
-
 
 void UPauseMenuWidget::OnQuitClicked()
 {
