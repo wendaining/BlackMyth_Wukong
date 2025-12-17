@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "BlackMythCharacter.h"
 #include "Components/WidgetComponent.h"
+#include "StatusEffect/StatusEffectTypes.h"
 #include "EnemyBase.generated.h"
 
 class UBehaviorTree;
@@ -16,6 +17,7 @@ class UNiagaraSystem;
 class UNiagaraComponent;
 class UEnemyDodgeComponent;
 class UEnemyAlertComponent;
+class UStatusEffectComponent;
 
 /**
  * 敌人状态枚举
@@ -186,9 +188,13 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	TObjectPtr<UEnemyDodgeComponent> DodgeComponent;
 
-	// 警戒组件（敌人协同系统） 
+	// 警戒组件（敌人协同系统）
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	TObjectPtr<UEnemyAlertComponent> AlertComponent;
+
+	// 状态效果组件（管理中毒、减速等状态）
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
+	TObjectPtr<UStatusEffectComponent> StatusEffectComponent;
 
 	// 状态
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "State")
@@ -341,6 +347,23 @@ protected:
 	/** 当前持有的武器实例 */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Combat|Weapon")
 	TObjectPtr<AActor> CurrentWeapon;
+
+	// ========== 状态效果攻击配置 ==========
+
+	/** 攻击附带的状态效果列表（可在蓝图中配置多个效果） */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat|StatusEffect")
+	TArray<FStatusEffectConfig> AttackStatusEffects;
+
+	/** 获取状态效果组件 */
+	UFUNCTION(BlueprintPure, Category = "StatusEffect")
+	UStatusEffectComponent* GetStatusEffectComponent() const { return StatusEffectComponent; }
+
+	/**
+	 * 对目标施加攻击附带的状态效果
+	 * @param Target 目标Actor（需要拥有StatusEffectComponent）
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Combat|StatusEffect")
+	void ApplyAttackStatusEffects(AActor* Target);
 
 public:
 	/** 发现目标时调用 */
