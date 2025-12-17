@@ -2,7 +2,78 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/SaveGame.h"
+#include "EnemyBase.h"
 #include "BlackMythSaveGame.generated.h"
+
+USTRUCT(BlueprintType)
+struct FEnemySaveData
+{
+    GENERATED_BODY()
+
+public:
+    // 唯一标识敌人
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Save")
+    FGuid EnemyID = FGuid::NewGuid();
+
+    // 敌人蓝图类
+    UPROPERTY()
+    TSubclassOf<AEnemyBase> EnemyClass = nullptr;
+
+    // 生成此敌人的Spawner名称
+    UPROPERTY()
+    FString SpawnerName;
+
+    // 等级
+    UPROPERTY()
+    int32 Level = 1;
+
+    // 基础状态
+    UPROPERTY()
+    bool bIsDead = false;
+
+    UPROPERTY()
+    float CurrentHealth = 100.f; // 可按敌人默认血量修改
+
+    UPROPERTY()
+    float CurrentPoise = 0.f;
+
+    UPROPERTY()
+    EEnemyState EnemyState = EEnemyState::EES_NoState;
+
+    // 位置与旋转
+    UPROPERTY()
+    FVector Location = FVector::ZeroVector;
+
+    UPROPERTY()
+    FRotator Rotation = FRotator::ZeroRotator;
+
+    // 眩晕状态
+    UPROPERTY()
+    bool bIsStunned = false;
+
+    UPROPERTY()
+    float StunRemainingTime = 0.f;
+
+    // 定身状态
+    UPROPERTY()
+    bool bIsFrozen = false;
+
+    UPROPERTY()
+    float FrozenAnimPosition = 0.f;
+
+    UPROPERTY()
+    EEnemyState StateBeforeFreeze = EEnemyState::EES_NoState;
+
+    UPROPERTY()
+    float MovementSpeedBeforeFreeze = 0.f;
+
+    // 武器信息
+    UPROPERTY()
+    TSubclassOf<AActor> WeaponClass = nullptr;
+
+    UPROPERTY()
+    FName WeaponSocketName = FName("weapon_r");
+};
 
 UCLASS()
 class BLACKMYTH_API UBlackMythSaveGame : public USaveGame {
@@ -40,4 +111,9 @@ class BLACKMYTH_API UBlackMythSaveGame : public USaveGame {
   /** 存档创建时间。 */
   UPROPERTY()
   FDateTime SaveTime;
+
+  // 敌人数据
+  UPROPERTY()
+
+  TArray<FEnemySaveData> Enemies;
 };

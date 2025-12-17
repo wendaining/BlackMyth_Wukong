@@ -1,4 +1,5 @@
 #include "EnemyBase.h"
+#include "BlackMythSaveGame.h"
 #include "WukongCharacter.h"
 #include "Components/CapsuleComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
@@ -877,7 +878,7 @@ bool AEnemyBase::IsAttacking()
 	return EnemyState == EEnemyState::EES_Attacking;
 }
 
-bool AEnemyBase::IsDead()
+bool AEnemyBase::IsDead() const
 {
 	return EnemyState == EEnemyState::EES_Dead;
 }
@@ -1278,4 +1279,108 @@ void AEnemyBase::RemoveFreeze()
 void AEnemyBase::OnFreezeTimerExpired()
 {
 	RemoveFreeze();
+}
+
+// ========== 保存敌人存档数据 ==========
+void AEnemyBase::WriteEnemySaveData(FEnemySaveData& OutData) const
+{
+	// 唯一ID
+	OutData.EnemyID = EnemyID;
+
+	// 基础状态
+	OutData.bIsDead = IsDead();
+	OutData.CurrentHealth = HealthComponent ? HealthComponent->GetCurrentHealth() : 0.f;
+	OutData.CurrentPoise = CurrentPoise;
+	OutData.EnemyState = EnemyState;
+
+	// 位置与旋转
+	OutData.Location = GetActorLocation();
+	OutData.Rotation = GetActorRotation();
+
+	// 定身状态
+	OutData.bIsFrozen = bIsFrozen;
+	OutData.FrozenAnimPosition = FrozenAnimPosition;
+	OutData.StateBeforeFreeze = StateBeforeFreeze;
+	OutData.MovementSpeedBeforeFreeze = MovementSpeedBeforeFreeze;
+
+	// 武器
+	OutData.WeaponClass = WeaponClass;
+	OutData.WeaponSocketName = WeaponSocketName;
+
+	// 敌人类型
+	OutData.EnemyClass = this->GetClass();
+
+	// Spawner名称
+	OutData.SpawnerName = SpawnerName;
+
+	// 等级（暂时设为1，如果有Level属性再修改）
+	OutData.Level = 1;
+}
+
+// ========== 导入敌人存档数据 ==========
+void AEnemyBase::LoadEnemySaveData(const FEnemySaveData& InData)
+{
+	if (!InData.EnemyClass)
+	{
+		return;
+	}
+
+	// 恢复唯一ID
+	EnemyID = InData.EnemyID;
+
+	// 恢复Spawner名称
+	SpawnerName = InData.SpawnerName;
+
+	if (InData.bIsDead)
+	{
+		Die(); // 确保死掉的怪不会复活
+		return;
+	}
+
+	// 设置位置和旋转
+	SetActorLocation(InData.Location, false, nullptr, ETeleportType::TeleportPhysics);
+	SetActorRotation(InData.Rotation);
+
+	// 设置血量
+	if (HealthComponent)
+	{
+		HealthComponent->SetHealth(InData.CurrentHealth);
+	}
+	CurrentPoise = InData.CurrentPoise;
+
+	// 恢复状态
+	EnemyState = InData.EnemyState;
+
+	// 恢复定身
+	bIsFrozen = InData.bIsFrozen;
+	if (bIsFrozen)
+	{
+		StateBeforeFreeze = InData.StateBeforeFreeze;
+		FrozenAnimPosition = InData.FrozenAnimPosition;
+		MovementSpeedBeforeFreeze = InData.MovementSpeedBeforeFreeze;
+		GetCharacterMovement()->MaxWalkSpeed = 0.f;
+	}
+
+	// 恢复武器
+	if (InData.WeaponClass)
+	{
+		if (!CurrentWeapon)
+		{
+			FActorSpawnParameters SpawnParams;
+			SpawnParams.Owner = this;
+			CurrentWeapon = GetWorld()->SpawnActor<AActor>(InData.WeaponClass, SpawnParams);
+			if (CurrentWeapon)
+			{
+				CurrentWeapon->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetNotIncludingScale, InData.WeaponSocketName);
+			}
+		}
+	}
+}
+
+void AEnemyBase::InitEnemy(int32 InLevel, bool bIsFromSave)
+{
+	if (!bIsFromSave)
+	{
+		// 正常生成怪物的初始化，比如血量、状态
+	}
 }
