@@ -770,14 +770,14 @@ protected:
 	UPROPERTY()
 	APawn* ButterflyPawnInstance;
 
+	/** 变身前悟空的位置（用于将悟空移到地下隐藏） */
+	FVector PreTransformLocation;
+
 	/** 执行变身术 */
 	void PerformTransform();
 
 	/** 变身为蝴蝶 */
 	void TransformToButterfly();
-
-	/** 变回悟空 */
-	void TransformBackToWukong();
 
 	/** 变身结束计时器回调 */
 	void OnTransformDurationEnd();
@@ -785,7 +785,13 @@ protected:
 	/** 变身结束计时器Handle */
 	FTimerHandle TransformTimerHandle;
 
+	/** 清除所有敌人的仇恨 */
+	void ClearAllEnemyAggro();
+
 public:
+	/** 变回悟空（public以便ButterflyPawn调用） */
+	void TransformBackToWukong();
+
 	/** 是否处于变身状态 */
 	UFUNCTION(BlueprintPure, Category = "Transform")
 	bool IsTransformed() const { return bIsTransformed; }

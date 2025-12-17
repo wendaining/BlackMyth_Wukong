@@ -4,6 +4,7 @@
 #include "WukongClone.h"
 #include "EnemyBase.h"
 #include "NPCCharacter.h"
+#include "ButterflyPawn.h"
 #include "UI/PlayerHUDWidget.h"
 #include "UI/InteractionPromptWidget.h"
 #include "Blueprint/UserWidget.h"
@@ -2339,7 +2340,10 @@ void AWukongCharacter::TransformToButterfly()
 	// 标记变身状态
 	bIsTransformed = true;
 
-	// 隐藏悟空
+	// 保存悟空当前位置
+	PreTransformLocation = GetActorLocation();
+
+	// 隐藏悟空并禁用碰撞
 	SetActorHiddenInGame(true);
 	SetActorEnableCollision(false);
 
@@ -2349,20 +2353,21 @@ void AWukongCharacter::TransformToButterfly()
 		Movement->DisableMovement();
 	}
 
+	// 将悟空附加到蝴蝶上（这样悟空会跟随蝴蝶移动，变回时已经在正确位置）
+	// 敌人AI会通过检查bIsTransformed来忽略悟空
+	AttachToActor(ButterflyPawnInstance, FAttachmentTransformRules::SnapToTargetNotIncludingScale);
+
+	// 清除所有敌人的仇恨（让敌人"无视"蝴蝶）
+	ClearAllEnemyAggro();
+
 	// 控制器切换到蝴蝶
 	PC->Possess(ButterflyPawnInstance);
 
-	// 启动变身持续时间计时器
-	TransformDurationTimer = TransformDuration;
-	if (GetWorld())
+	// 初始化蝴蝶Pawn的变身计时器（由蝴蝶自己管理计时，因为悟空被UnPossess后计时器可能不可靠）
+	if (AButterflyPawn* ButterflyPawn = Cast<AButterflyPawn>(ButterflyPawnInstance))
 	{
-		GetWorld()->GetTimerManager().SetTimer(
-			TransformTimerHandle,
-			this,
-			&AWukongCharacter::OnTransformDurationEnd,
-			TransformDuration,
-			false
-		);
+		ButterflyPawn->InitializeTransform(this, TransformDuration);
+		UE_LOG(LogTemp, Log, TEXT("TransformToButterfly: Initialized butterfly timer with duration=%.1f"), TransformDuration);
 	}
 
 	UE_LOG(LogTemp, Warning, TEXT("TransformToButterfly: SUCCESS! Duration=%.1f seconds"), TransformDuration);
@@ -2398,37 +2403,42 @@ void AWukongCharacter::TransformBackToWukong()
 		return;
 	}
 
-	// 把悟空移动到蝴蝶当前位置
+	// 解除悟空与蝴蝶的附加关系
+	DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
+	
+	// 悟空现在已经在蝴蝶位置了（因为一直附加着）
+	FVector CurrentLocation = GetActorLocation();
+	FRotator FinalRotation = FRotator::ZeroRotator;
+	
 	if (ButterflyPawnInstance)
 	{
-		FVector ButterflyLocation = ButterflyPawnInstance->GetActorLocation();
-		FRotator ButterflyRotation = ButterflyPawnInstance->GetActorRotation();
-		ButterflyRotation.Pitch = 0.0f; // 清除俯仰角
-		ButterflyRotation.Roll = 0.0f;
+		FinalRotation = ButterflyPawnInstance->GetActorRotation();
+		FinalRotation.Pitch = 0.0f;
+		FinalRotation.Roll = 0.0f;
 		
-		SetActorLocation(ButterflyLocation);
-		SetActorRotation(ButterflyRotation);
+		UE_LOG(LogTemp, Warning, TEXT("TransformBackToWukong: Wukong location after detach: X=%.1f, Y=%.1f, Z=%.1f"),
+			CurrentLocation.X, CurrentLocation.Y, CurrentLocation.Z);
+		
+		// 销毁蝴蝶
+		ButterflyPawnInstance->Destroy();
+		ButterflyPawnInstance = nullptr;
 	}
 
-	// 显示悟空
+	// 设置旋转
+	SetActorRotation(FinalRotation);
+
+	// 显示悟空并恢复碰撞
 	SetActorHiddenInGame(false);
 	SetActorEnableCollision(true);
 
-	// 恢复悟空的移动
+	// 恢复移动模式
 	if (UCharacterMovementComponent* Movement = GetCharacterMovement())
 	{
-		Movement->SetMovementMode(MOVE_Walking);
+		Movement->SetMovementMode(MOVE_Falling);
 	}
 
 	// 控制器切回悟空
 	PC->Possess(this);
-
-	// 销毁蝴蝶
-	if (ButterflyPawnInstance)
-	{
-		ButterflyPawnInstance->Destroy();
-		ButterflyPawnInstance = nullptr;
-	}
 
 	// 重置状态
 	bIsTransformed = false;
@@ -2499,4 +2509,21 @@ void AWukongCharacter::CheckDialogueDistance()
 		bIsInDialogue = false;
 		CurrentDialogueNPC = nullptr;
 	}
+}
+
+void AWukongCharacter::ClearAllEnemyAggro()
+{
+	// 获取所有敌人并清除他们的仇恨
+	TArray<AActor*> FoundEnemies;
+	UGameplayStatics::GetAllActorsOfClass(GetWorld(), AEnemyBase::StaticClass(), FoundEnemies);
+
+	for (AActor* Actor : FoundEnemies)
+	{
+		if (AEnemyBase* Enemy = Cast<AEnemyBase>(Actor))
+		{
+			Enemy->ClearCombatTarget();
+		}
+	}
+
+	UE_LOG(LogTemp, Log, TEXT("[Transform] Cleared aggro from %d enemies"), FoundEnemies.Num());
 }

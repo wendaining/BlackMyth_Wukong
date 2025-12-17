@@ -169,12 +169,14 @@ void AEnemyAIController::OnPerceptionUpdated(const TArray<AActor*>& UpdatedActor
 					
 					if (bIsHostile)
 					{
-						// 检查目标是否已经死亡
+						// 检查目标是否已经死亡或处于变身状态
 						bool bTargetIsDead = false;
+						bool bTargetIsTransformed = false;
 						
 						if (AWukongCharacter* WukongChar = Cast<AWukongCharacter>(Actor))
 						{
 							bTargetIsDead = WukongChar->IsDead();
+							bTargetIsTransformed = WukongChar->IsTransformed();
 						}
 						else if (AWukongClone* CloneActor = Cast<AWukongClone>(Actor))
 						{
@@ -182,6 +184,13 @@ void AEnemyAIController::OnPerceptionUpdated(const TArray<AActor*>& UpdatedActor
 							{
 								bTargetIsDead = CloneHealth->IsDead();
 							}
+						}
+						
+						// 如果目标处于变身状态，完全忽略
+						if (bTargetIsTransformed)
+						{
+							UE_LOG(LogTemp, Log, TEXT("OnPerceptionUpdated: Ignoring transformed Wukong"));
+							continue;
 						}
 						
 						if (bTargetIsDead)
