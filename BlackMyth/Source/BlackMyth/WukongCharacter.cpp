@@ -77,19 +77,6 @@ AWukongCharacter::AWukongCharacter()
 void AWukongCharacter::BeginPlay()
 {
     Super::BeginPlay();
-    
-    // 确保 AttackMontages 数组已填充（兼容旧的单个属性设置方式）
-    if (AttackMontages.Num() == 0)
-    {
-        if (AttackMontage1) AttackMontages.Add(AttackMontage1);
-        if (AttackMontage2) AttackMontages.Add(AttackMontage2);
-        if (AttackMontage3) AttackMontages.Add(AttackMontage3);
-        
-        if (AttackMontages.Num() > 0)
-        {
-            UE_LOG(LogTemp, Log, TEXT("BeginPlay: Populated AttackMontages from individual properties. Count=%d"), AttackMontages.Num());
-        }
-    }
 
     CurrentState = EWukongState::Idle;
 
@@ -399,12 +386,6 @@ void AWukongCharacter::Attack()
 
     // 检查攻击冷却 - 防止点击过快
     if (AttackCooldownTimer > 0.0f)
-    {
-        return;
-    }
-
-    // 检查是否有攻击动画
-    if (AttackMontages.Num() == 0)
     {
         return;
     }

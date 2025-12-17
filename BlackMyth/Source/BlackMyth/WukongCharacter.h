@@ -500,13 +500,6 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "FreezeSpell")
 	TObjectPtr<UAnimMontage> FreezeSpellMontage;
 
-	/** 
-	 * 攻击蒙太奇容器
-	 * 使用 TObjectPtr 遵循 UE5 推荐的智能指针写法
-	 */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat")
-	TArray<TObjectPtr<UAnimMontage>> AttackMontages;
-
 	/** 执行攻击 */
 	void Attack();
 
