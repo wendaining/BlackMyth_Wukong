@@ -277,8 +277,8 @@ void AEnemyBase::Tick(float DeltaTime)
 
 		// 始终面向目标 (当不移动时)
 		// 解决“乱转”问题：当敌人停止移动准备攻击时，平滑旋转朝向目标
-		// [修复] 增加 !IsStunned() 检查，防止眩晕时还在转
-		if (!IsChasing() && !GetCharacterMovement()->IsFalling() && !IsStunned())
+		// [修复] 增加 !IsStunned() 和 !IsFrozen() 检查，防止眩晕或定身时还在转
+		if (!IsChasing() && !GetCharacterMovement()->IsFalling() && !IsStunned() && !IsFrozen())
 		{
 			FVector Direction = CombatTarget->GetActorLocation() - GetActorLocation();
 			Direction.Z = 0.0f; // 只在水平面旋转
@@ -1109,6 +1109,8 @@ void AEnemyBase::ApplyFreeze(float Duration)
 		if (EnemyController)
 		{
 			EnemyController->StopMovement();
+			// 清除焦点（防止 AI Controller 自动转向目标）
+			EnemyController->ClearFocus(EAIFocusPriority::Gameplay);
 			// 暂停行为树
 			if (UBrainComponent* Brain = EnemyController->GetBrainComponent())
 			{
