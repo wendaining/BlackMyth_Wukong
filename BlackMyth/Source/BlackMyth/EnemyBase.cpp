@@ -1,4 +1,5 @@
 #include "EnemyBase.h"
+#include "WukongCharacter.h"
 #include "Components/CapsuleComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "EnemyAIController.h"
@@ -881,6 +882,55 @@ bool AEnemyBase::IsDead()
 	return EnemyState == EEnemyState::EES_Dead;
 }
 
+void AEnemyBase::ClearCombatTarget()
+{
+	if (CombatTarget)
+	{
+		UE_LOG(LogTemp, Log, TEXT("[%s] ClearCombatTarget - Lost sight of target"), *GetName());
+	}
+	CombatTarget = nullptr;
+	
+	// 如果在追击或攻击状态，回到巡逻状态
+	if (EnemyState == EEnemyState::EES_Chasing || 
+		EnemyState == EEnemyState::EES_Attacking ||
+		EnemyState == EEnemyState::EES_Engaged)
+	{
+		EnemyState = EEnemyState::EES_Patrolling;
+		bHasAggroed = false;
+		
+		// 停止移动
+		if (EnemyController)
+		{
+			EnemyController->StopMovement();
+		}
+		
+		// 恢复巡逻速度
+		if (UCharacterMovementComponent* Movement = GetCharacterMovement())
+		{
+			Movement->MaxWalkSpeed = PatrollingSpeed;
+		}
+	}
+}
+
+void AEnemyBase::SetCombatTarget(AActor* NewTarget)
+{
+	// 如果目标是处于变身状态的悟空，忽略
+	if (AWukongCharacter* Wukong = Cast<AWukongCharacter>(NewTarget))
+	{
+		if (Wukong->IsTransformed())
+		{
+			UE_LOG(LogTemp, Log, TEXT("[%s] SetCombatTarget - Ignoring transformed Wukong"), *GetName());
+			return;
+		}
+	}
+	
+	CombatTarget = NewTarget;
+	if (CombatTarget)
+	{
+		UE_LOG(LogTemp, Log, TEXT("[%s] SetCombatTarget - New target: %s"), *GetName(), *CombatTarget->GetName());
+	}
+}
+
 bool AEnemyBase::IsEngaged()
 {
 	return EnemyState == EEnemyState::EES_Engaged;
@@ -933,6 +983,16 @@ void AEnemyBase::OnTargetSensed(AActor* Target)
 {
 	// 如果已经发现过，或者已经死了，就不再处理
 	if (bHasAggroed || IsDead()) return;
+
+	// 检查目标是否是处于变身状态的悟空，如果是则忽略
+	if (AWukongCharacter* Wukong = Cast<AWukongCharacter>(Target))
+	{
+		if (Wukong->IsTransformed())
+		{
+			UE_LOG(LogTemp, Log, TEXT("AEnemyBase::OnTargetSensed - Ignoring transformed Wukong"));
+			return;
+		}
+	}
 
 	bHasAggroed = true;
 	CombatTarget = Target;

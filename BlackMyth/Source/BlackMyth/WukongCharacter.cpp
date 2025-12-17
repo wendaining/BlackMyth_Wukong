@@ -4,6 +4,7 @@
 #include "WukongClone.h"
 #include "EnemyBase.h"
 #include "NPCCharacter.h"
+#include "ButterflyPawn.h"
 #include "UI/PlayerHUDWidget.h"
 #include "UI/InteractionPromptWidget.h"
 #include "Blueprint/UserWidget.h"
@@ -181,6 +182,13 @@ void AWukongCharacter::BeginPlay()
     NearbyNPC = nullptr;
     InteractionPromptWidget = nullptr;
     InteractionCheckTimer = 0.0f;
+
+    // 初始化变身系统
+    bIsTransformed = false;
+    ButterflyPawnInstance = nullptr;
+    // 初始化对话状态
+    bIsInDialogue = false;
+    CurrentDialogueNPC = nullptr;
 }
 
 // 每帧都调用
@@ -202,6 +210,12 @@ void AWukongCharacter::Tick(float DeltaTime)
     {
         InteractionCheckTimer = 0.0f;
         CheckForNearbyNPC();
+    }
+
+    // 对话中检测距离，超出则自动结束对话
+    if (bIsInDialogue)
+    {
+        CheckDialogueDistance();
     }
 
     // 更新攻击冷却计时器
@@ -355,6 +369,17 @@ void AWukongCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCom
         {
             UE_LOG(LogTemp, Warning, TEXT("  InteractAction is NULL - Interaction disabled"));
         }
+
+        // 绑定变身术Action（按3）
+        if (TransformAction)
+        {
+            EnhancedInputComponent->BindAction(TransformAction, ETriggerEvent::Started, this, &AWukongCharacter::PerformTransform);
+            UE_LOG(LogTemp, Warning, TEXT("  Bound TransformAction to PerformTransform"));
+        }
+        else
+        {
+            UE_LOG(LogTemp, Warning, TEXT("  TransformAction is NULL! Transform (Key 3) will not work! Assign IA_Transform in BP_Wukong."));
+        }
     }
     else
     {
@@ -395,11 +420,12 @@ void AWukongCharacter::Attack()
 void AWukongCharacter::OnDodgePressed()
 {
     UE_LOG(LogTemp, Warning, TEXT("OnDodgePressed() called! CurrentState=%d"), (int32)CurrentState);
-    
+
     if (CurrentState == EWukongState::Attacking || 
         CurrentState == EWukongState::Dodging || 
         CurrentState == EWukongState::HitStun ||
-        CurrentState == EWukongState::Dead)
+        CurrentState == EWukongState::Dead ||
+        bIsInDialogue)
     {
         UE_LOG(LogTemp, Warning, TEXT("OnDodgePressed() blocked by state"));
         return;
@@ -431,7 +457,8 @@ void AWukongCharacter::OnAttackPressed()
     // 限制这几个情况下的攻击
     if (CurrentState == EWukongState::Dodging || 
         CurrentState == EWukongState::HitStun ||
-        CurrentState == EWukongState::Dead)
+        CurrentState == EWukongState::Dead || 
+        bIsInDialogue)
     {
         return;
     }
@@ -452,7 +479,8 @@ void AWukongCharacter::OnSprintStarted()
     if (CurrentState == EWukongState::Attacking || 
         CurrentState == EWukongState::Dodging ||
         CurrentState == EWukongState::HitStun ||
-        CurrentState == EWukongState::Dead)
+        CurrentState == EWukongState::Dead || 
+        bIsInDialogue)
     {
         return;
     }
@@ -482,7 +510,7 @@ void AWukongCharacter::OnSprintStopped()
 
 float AWukongCharacter::TakeDamage(float DamageAmount, FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser)
 {
-    // 调用父类逻辑 (虽然父类可能没做什么，但保持好习惯)
+    // 调用父类逻辑
     float ActualDamage = Super::TakeDamage(DamageAmount, DamageEvent, EventInstigator, DamageCauser);
 
     // 将通用伤害转发给我们的自定义伤害处理函数
@@ -1058,10 +1086,11 @@ void AWukongCharacter::PerformDodge()
 
 void AWukongCharacter::PerformHeavyAttack()
 {
-    // 死亡、翻滚、硬直状态下不能重击
+    // 死亡、翻滚、硬直状态、对话下不能重击
     if (CurrentState == EWukongState::Dead ||
         CurrentState == EWukongState::Dodging ||
-        CurrentState == EWukongState::HitStun)
+        CurrentState == EWukongState::HitStun ||
+        bIsInDialogue)
     {
         return;
     }
@@ -1114,10 +1143,11 @@ void AWukongCharacter::PerformHeavyAttack()
 
 void AWukongCharacter::PerformStaffSpin()
 {
-    // 死亡、翻滚、硬直状态下不能使用棍花
+    // 死亡、翻滚、硬直、对话状态下不能使用棍花
     if (CurrentState == EWukongState::Dead ||
         CurrentState == EWukongState::Dodging ||
-        CurrentState == EWukongState::HitStun)
+        CurrentState == EWukongState::HitStun || 
+        bIsInDialogue)
     {
         return;
     }
@@ -1166,10 +1196,11 @@ void AWukongCharacter::PerformStaffSpin()
 
 void AWukongCharacter::PerformPoleStance()
 {
-    // 死亡、翻滚、硬直状态下不能使用立棍法
+    // 死亡、翻滚、硬直、对话状态下不能使用立棍法
     if (CurrentState == EWukongState::Dead ||
         CurrentState == EWukongState::Dodging ||
-        CurrentState == EWukongState::HitStun)
+        CurrentState == EWukongState::HitStun || 
+        bIsInDialogue)
     {
         return;
     }
@@ -1218,6 +1249,12 @@ void AWukongCharacter::PerformPoleStance()
 
 void AWukongCharacter::UseItem()
 {
+    // 对话中禁止使用道具
+    if (bIsInDialogue)
+    {
+        return;
+    }
+
     if (DrinkGourdMontage)
     {
         PlayMontage(DrinkGourdMontage);
@@ -1228,10 +1265,11 @@ void AWukongCharacter::PerformShadowClone()
 {
     UE_LOG(LogTemp, Warning, TEXT(">>> PerformShadowClone() CALLED! CurrentState=%d"), (int32)CurrentState);
 
-    // 死亡、翻滚、硬直状态下不能使用影分身
+    // 死亡、翻滚、硬直、对话状态下不能使用影分身
     if (CurrentState == EWukongState::Dead ||
         CurrentState == EWukongState::Dodging ||
-        CurrentState == EWukongState::HitStun)
+        CurrentState == EWukongState::HitStun || 
+        bIsInDialogue)
     {
         UE_LOG(LogTemp, Log, TEXT("PerformShadowClone: Blocked by state"));
         return;
@@ -1331,10 +1369,11 @@ void AWukongCharacter::PerformFreezeSpell()
 {
     UE_LOG(LogTemp, Warning, TEXT(">>> PerformFreezeSpell() CALLED! CurrentState=%d"), (int32)CurrentState);
 
-    // 死亡、翻滚、硬直状态下不能使用定身术
+    // 死亡、翻滚、硬直、对话状态下不能使用定身术
     if (CurrentState == EWukongState::Dead ||
         CurrentState == EWukongState::Dodging ||
-        CurrentState == EWukongState::HitStun)
+        CurrentState == EWukongState::HitStun || 
+        bIsInDialogue)
     {
         UE_LOG(LogTemp, Log, TEXT("PerformFreezeSpell: Blocked by state"));
         return;
@@ -1449,6 +1488,12 @@ bool AWukongCharacter::IsCooldownActive(const FString& CooldownName) const
     return (CooldownTime != nullptr && *CooldownTime > 0.0f);
 }
 
+float AWukongCharacter::GetTransformCooldownRemaining() const
+{
+    const float* CooldownTime = CooldownMap.Find(TEXT("Transform"));
+    return (CooldownTime != nullptr) ? *CooldownTime : 0.0f;
+}
+
 void AWukongCharacter::StartCooldown(const FString& CooldownName, float Duration)
 {
     CooldownMap.Add(CooldownName, Duration);
@@ -1468,6 +1513,10 @@ void AWukongCharacter::StartCooldown(const FString& CooldownName, float Duration
         else if (CooldownName == TEXT("FreezeSpell"))
         {
             PlayerHUD->TriggerSkillCooldown(1, Duration);
+        }
+        else if (CooldownName == TEXT("Transform"))
+        {
+            PlayerHUD->TriggerSkillCooldown(2, Duration);
         }
         // 可以继续添加更多技能映射
     }
@@ -1610,6 +1659,12 @@ float AWukongCharacter::GetBaseAttackPower() const
 
 bool AWukongCharacter::CanJumpInternal_Implementation() const
 {
+    // 对话中禁止跳跃
+    if (bIsInDialogue)
+    {
+        return false;
+    }
+
     // 先检查父类的跳跃条件
     if (!Super::CanJumpInternal_Implementation())
     {
@@ -2199,4 +2254,281 @@ void AWukongCharacter::PlayJumpSound()
 	{
 		UGameplayStatics::PlaySoundAtLocation(this, JumpSound, GetActorLocation(), JumpSoundVolume);
 	}
+}
+// ========== 变身术系统 ==========
+
+void AWukongCharacter::PerformTransform()
+{
+	UE_LOG(LogTemp, Warning, TEXT(">>> PerformTransform() CALLED! bIsTransformed=%d"), bIsTransformed);
+
+	// 如果已经变身了，不能再次变身
+	if (bIsTransformed)
+	{
+		UE_LOG(LogTemp, Log, TEXT("PerformTransform: Already transformed"));
+		return;
+	}
+
+	// 检查冷却（使用统一的冷却系统）
+	if (IsCooldownActive(TEXT("Transform")))
+	{
+		UE_LOG(LogTemp, Log, TEXT("PerformTransform: On cooldown"));
+		return;
+	}
+
+	// 检查状态 - 死亡、翻滚、硬直、攻击中不能变身
+	if (CurrentState == EWukongState::Dead ||
+		CurrentState == EWukongState::Dodging ||
+		CurrentState == EWukongState::HitStun ||
+		CurrentState == EWukongState::Attacking)
+	{
+		UE_LOG(LogTemp, Log, TEXT("PerformTransform: Blocked by state"));
+		return;
+	}
+
+	// 对话中不能变身
+	if (bIsInDialogue)
+	{
+		UE_LOG(LogTemp, Log, TEXT("PerformTransform: Blocked by dialogue"));
+		return;
+	}
+
+	// 执行变身
+	TransformToButterfly();
+}
+
+void AWukongCharacter::TransformToButterfly()
+{
+	UE_LOG(LogTemp, Warning, TEXT(">>> TransformToButterfly() - Starting transformation!"));
+
+	// 解除锁定状态（变身后不应该保持锁定）
+	if (TargetingComponent && TargetingComponent->IsTargeting())
+	{
+		TargetingComponent->ClearTarget();
+		UE_LOG(LogTemp, Log, TEXT("TransformToButterfly: Cleared target lock"));
+	}
+
+	// 检查蝴蝶Pawn类是否配置
+	if (!ButterflyPawnClass)
+	{
+		UE_LOG(LogTemp, Error, TEXT("TransformToButterfly: ButterflyPawnClass is NULL! Set it in BP_Wukong."));
+		return;
+	}
+
+	APlayerController* PC = Cast<APlayerController>(GetController());
+	if (!PC)
+	{
+		UE_LOG(LogTemp, Error, TEXT("TransformToButterfly: No PlayerController!"));
+		return;
+	}
+
+	// 在悟空位置生成蝴蝶
+	FVector SpawnLocation = GetActorLocation() + FVector(0.0f, 0.0f, 50.0f); // 稍微抬高一点
+	FRotator SpawnRotation = GetActorRotation();
+
+	FActorSpawnParameters SpawnParams;
+	SpawnParams.Owner = this;
+	SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
+
+	ButterflyPawnInstance = GetWorld()->SpawnActor<APawn>(
+		ButterflyPawnClass,
+		SpawnLocation,
+		SpawnRotation,
+		SpawnParams
+	);
+
+	if (!ButterflyPawnInstance)
+	{
+		UE_LOG(LogTemp, Error, TEXT("TransformToButterfly: Failed to spawn butterfly!"));
+		return;
+	}
+
+	// 标记变身状态
+	bIsTransformed = true;
+
+	// 保存悟空当前位置
+	PreTransformLocation = GetActorLocation();
+
+	// 隐藏悟空并禁用碰撞
+	SetActorHiddenInGame(true);
+	SetActorEnableCollision(false);
+
+	// 禁用悟空的移动
+	if (UCharacterMovementComponent* Movement = GetCharacterMovement())
+	{
+		Movement->DisableMovement();
+	}
+
+	// 将悟空附加到蝴蝶上（这样悟空会跟随蝴蝶移动，变回时已经在正确位置）
+	// 敌人AI会通过检查bIsTransformed来忽略悟空
+	AttachToActor(ButterflyPawnInstance, FAttachmentTransformRules::SnapToTargetNotIncludingScale);
+
+	// 清除所有敌人的仇恨（让敌人"无视"蝴蝶）
+	ClearAllEnemyAggro();
+
+	// 控制器切换到蝴蝶
+	PC->Possess(ButterflyPawnInstance);
+
+	// 初始化蝴蝶Pawn的变身计时器（由蝴蝶自己管理计时，因为悟空被UnPossess后计时器可能不可靠）
+	if (AButterflyPawn* ButterflyPawn = Cast<AButterflyPawn>(ButterflyPawnInstance))
+	{
+		ButterflyPawn->InitializeTransform(this, TransformDuration);
+		UE_LOG(LogTemp, Log, TEXT("TransformToButterfly: Initialized butterfly timer with duration=%.1f"), TransformDuration);
+	}
+
+	UE_LOG(LogTemp, Warning, TEXT("TransformToButterfly: SUCCESS! Duration=%.1f seconds"), TransformDuration);
+}
+
+void AWukongCharacter::TransformBackToWukong()
+{
+	UE_LOG(LogTemp, Warning, TEXT(">>> TransformBackToWukong() - Reverting transformation!"));
+
+	if (!bIsTransformed)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("TransformBackToWukong: Not transformed, skipping"));
+		return;
+	}
+
+	APlayerController* PC = nullptr;
+	
+	// 获取控制器（当前控制蝴蝶的）
+	if (ButterflyPawnInstance)
+	{
+		PC = Cast<APlayerController>(ButterflyPawnInstance->GetController());
+	}
+
+	if (!PC)
+	{
+		// 尝试获取玩家0的控制器
+		PC = UGameplayStatics::GetPlayerController(GetWorld(), 0);
+	}
+
+	if (!PC)
+	{
+		UE_LOG(LogTemp, Error, TEXT("TransformBackToWukong: No PlayerController found!"));
+		return;
+	}
+
+	// 解除悟空与蝴蝶的附加关系
+	DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
+	
+	// 悟空现在已经在蝴蝶位置了（因为一直附加着）
+	FVector CurrentLocation = GetActorLocation();
+	FRotator FinalRotation = FRotator::ZeroRotator;
+	
+	if (ButterflyPawnInstance)
+	{
+		FinalRotation = ButterflyPawnInstance->GetActorRotation();
+		FinalRotation.Pitch = 0.0f;
+		FinalRotation.Roll = 0.0f;
+		
+		UE_LOG(LogTemp, Warning, TEXT("TransformBackToWukong: Wukong location after detach: X=%.1f, Y=%.1f, Z=%.1f"),
+			CurrentLocation.X, CurrentLocation.Y, CurrentLocation.Z);
+		
+		// 销毁蝴蝶
+		ButterflyPawnInstance->Destroy();
+		ButterflyPawnInstance = nullptr;
+	}
+
+	// 设置旋转
+	SetActorRotation(FinalRotation);
+
+	// 显示悟空并恢复碰撞
+	SetActorHiddenInGame(false);
+	SetActorEnableCollision(true);
+
+	// 恢复移动模式
+	if (UCharacterMovementComponent* Movement = GetCharacterMovement())
+	{
+		Movement->SetMovementMode(MOVE_Falling);
+	}
+
+	// 控制器切回悟空
+	PC->Possess(this);
+
+	// 重置状态
+	bIsTransformed = false;
+	ChangeState(EWukongState::Idle);
+
+	// 启动冷却（同时触发UI更新）
+	StartCooldown(TEXT("Transform"), TransformCooldown);
+
+	// 清除计时器
+	if (GetWorld())
+	{
+		GetWorld()->GetTimerManager().ClearTimer(TransformTimerHandle);
+	}
+
+	UE_LOG(LogTemp, Warning, TEXT("TransformBackToWukong: SUCCESS! Cooldown=%.1f seconds"), TransformCooldown);
+}
+
+void AWukongCharacter::OnTransformDurationEnd()
+{
+	UE_LOG(LogTemp, Warning, TEXT(">>> OnTransformDurationEnd() - Transform duration expired!"));
+	TransformBackToWukong();
+}
+// ========== 对话系统 ==========
+
+void AWukongCharacter::SetInDialogue(bool bInDialogue)
+{
+	bIsInDialogue = bInDialogue;
+	
+	if (bInDialogue)
+	{
+		// 记录当前对话的NPC
+		CurrentDialogueNPC = NearbyNPC;
+		UE_LOG(LogTemp, Log, TEXT("[Dialogue] Entered dialogue mode with %s"), 
+			CurrentDialogueNPC ? *CurrentDialogueNPC->GetName() : TEXT("NULL"));
+	}
+	else
+	{
+		// 对话结束，清空记录
+		CurrentDialogueNPC = nullptr;
+		UE_LOG(LogTemp, Log, TEXT("[Dialogue] Exited dialogue mode"));
+	}
+}
+
+void AWukongCharacter::CheckDialogueDistance()
+{
+	// 如果没有在对话中或没有对话NPC，直接返回
+	if (!bIsInDialogue || !CurrentDialogueNPC)
+	{
+		return;
+	}
+
+	// 计算与NPC的距离
+	float Distance = FVector::Dist(GetActorLocation(), CurrentDialogueNPC->GetActorLocation());
+	
+	// 超过阈值，自动结束对话
+	if (Distance > DialogueBreakDistance)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[Dialogue] Distance %.1f > %.1f, auto-ending dialogue"), 
+			Distance, DialogueBreakDistance);
+		
+		// 调用NPC的DialogueComponent结束对话
+		if (CurrentDialogueNPC->DialogueComponent)
+		{
+			CurrentDialogueNPC->DialogueComponent->EndDialogue();
+		}
+		
+		// 重置状态（EndDialogue会调用SetInDialogue(false)，但这里double check）
+		bIsInDialogue = false;
+		CurrentDialogueNPC = nullptr;
+	}
+}
+
+void AWukongCharacter::ClearAllEnemyAggro()
+{
+	// 获取所有敌人并清除他们的仇恨
+	TArray<AActor*> FoundEnemies;
+	UGameplayStatics::GetAllActorsOfClass(GetWorld(), AEnemyBase::StaticClass(), FoundEnemies);
+
+	for (AActor* Actor : FoundEnemies)
+	{
+		if (AEnemyBase* Enemy = Cast<AEnemyBase>(Actor))
+		{
+			Enemy->ClearCombatTarget();
+		}
+	}
+
+	UE_LOG(LogTemp, Log, TEXT("[Transform] Cleared aggro from %d enemies"), FoundEnemies.Num());
 }

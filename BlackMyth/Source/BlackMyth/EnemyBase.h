@@ -131,6 +131,14 @@ protected:
 public:
 	bool IsDead();
 
+	/** 清除战斗目标（用于惟空变身时脱战） */
+	UFUNCTION(BlueprintCallable, Category = "AI")
+	void ClearCombatTarget();
+
+	/** 设置战斗目标 */
+	UFUNCTION(BlueprintCallable, Category = "AI")
+	void SetCombatTarget(AActor* NewTarget);
+
 	// ========== 新增：头顶血条 ==========
 
 	// 血条 Widget 组件

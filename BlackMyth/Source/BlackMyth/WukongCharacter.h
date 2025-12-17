@@ -114,6 +114,14 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Movement")
 	bool IsSprinting() const { return bIsSprinting; }
 
+	/** 是否正在对话中（禁用除E外的所有输入） */
+	UFUNCTION(BlueprintPure, Category = "Dialogue")
+	bool IsInDialogue() const { return bIsInDialogue; }
+
+	/** 设置对话状态（由DialogueComponent调用） */
+	UFUNCTION(BlueprintCallable, Category = "Dialogue")
+	void SetInDialogue(bool bInDialogue);
+
 	/** 获取移动速度 */
 	UFUNCTION(BlueprintPure, Category = "Movement")
 	float GetMovementSpeed() const;
@@ -174,6 +182,10 @@ protected:
 	/** 定身术输入动作 (按键2) */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UInputAction> FreezeSpellAction;
+
+	/** 变身术输入动作 (按键3) */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input", meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<UInputAction> TransformAction;
 
 	/** 交互输入动作 (E键) */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input", meta = (AllowPrivateAccess = "true"))
@@ -703,8 +715,23 @@ protected:
 	/** 检测计时器 */
 	float InteractionCheckTimer;
 
+	/** 对话状态标志 - 对话中禁用除E键外的所有操作 */
+	UPROPERTY(BlueprintReadOnly, Category = "Dialogue")
+	bool bIsInDialogue;
+
+	/** 当前对话的NPC（用于距离检测） */
+	UPROPERTY()
+	ANPCCharacter* CurrentDialogueNPC;
+
+	/** 对话自动结束的最大距离 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Dialogue")
+	float DialogueBreakDistance = 500.0f;
+
 	/** 检测附近的NPC */
 	void CheckForNearbyNPC();
+
+	/** 检测对话距离，超出则自动结束 */
+	void CheckDialogueDistance();
 
 	/** 显示交互提示 */
 	void ShowInteractionPrompt();
@@ -714,4 +741,56 @@ protected:
 
 	/** 处理交互输入 */
 	void OnInteract();
+
+	// ========== 变身术系统 ==========
+protected:
+	/** 是否处于变身状态 */
+	UPROPERTY(BlueprintReadOnly, Category = "Transform")
+	bool bIsTransformed;
+
+	/** 变身冷却时间（秒） */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Transform")
+	float TransformCooldown = 60.0f;
+
+	/** 变身持续时间（秒） */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Transform")
+	float TransformDuration = 30.0f;
+
+	/** 蝴蝶Pawn类（在蓝图中配置） */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Transform")
+	TSubclassOf<APawn> ButterflyPawnClass;
+
+	/** 当前生成的蝴蝶Pawn实例 */
+	UPROPERTY()
+	APawn* ButterflyPawnInstance;
+
+	/** 变身前悟空的位置（用于将悟空移到地下隐藏） */
+	FVector PreTransformLocation;
+
+	/** 执行变身术 */
+	void PerformTransform();
+
+	/** 变身为蝴蝶 */
+	void TransformToButterfly();
+
+	/** 变身结束计时器回调 */
+	void OnTransformDurationEnd();
+
+	/** 变身结束计时器Handle */
+	FTimerHandle TransformTimerHandle;
+
+	/** 清除所有敌人的仇恨 */
+	void ClearAllEnemyAggro();
+
+public:
+	/** 变回悟空（public以便ButterflyPawn调用） */
+	void TransformBackToWukong();
+
+	/** 是否处于变身状态 */
+	UFUNCTION(BlueprintPure, Category = "Transform")
+	bool IsTransformed() const { return bIsTransformed; }
+
+	/** 获取变身冷却剩余时间 */
+	UFUNCTION(BlueprintPure, Category = "Transform")
+	float GetTransformCooldownRemaining() const;
 };
