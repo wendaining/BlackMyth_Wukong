@@ -185,8 +185,6 @@ void AWukongCharacter::BeginPlay()
 
     // 初始化变身系统
     bIsTransformed = false;
-    TransformCooldownTimer = 0.0f;
-    TransformDurationTimer = 0.0f;
     ButterflyPawnInstance = nullptr;
     // 初始化对话状态
     bIsInDialogue = false;
@@ -238,16 +236,6 @@ void AWukongCharacter::Tick(float DeltaTime)
 
     // 锁定目标时角色面向目标
     UpdateFacingTarget(DeltaTime);
-
-    // 更新变身冷却计时器
-    if (TransformCooldownTimer > 0.0f)
-    {
-        TransformCooldownTimer -= DeltaTime;
-        if (TransformCooldownTimer < 0.0f)
-        {
-            TransformCooldownTimer = 0.0f;
-        }
-    }
 }
 
 // 把蓝图里配置的各个 InputAction 资产在运行时绑定到角色的对应方法上，确保按键触发后调用正确函数
@@ -1500,6 +1488,12 @@ bool AWukongCharacter::IsCooldownActive(const FString& CooldownName) const
     return (CooldownTime != nullptr && *CooldownTime > 0.0f);
 }
 
+float AWukongCharacter::GetTransformCooldownRemaining() const
+{
+    const float* CooldownTime = CooldownMap.Find(TEXT("Transform"));
+    return (CooldownTime != nullptr) ? *CooldownTime : 0.0f;
+}
+
 void AWukongCharacter::StartCooldown(const FString& CooldownName, float Duration)
 {
     CooldownMap.Add(CooldownName, Duration);
@@ -1519,6 +1513,10 @@ void AWukongCharacter::StartCooldown(const FString& CooldownName, float Duration
         else if (CooldownName == TEXT("FreezeSpell"))
         {
             PlayerHUD->TriggerSkillCooldown(1, Duration);
+        }
+        else if (CooldownName == TEXT("Transform"))
+        {
+            PlayerHUD->TriggerSkillCooldown(2, Duration);
         }
         // 可以继续添加更多技能映射
     }
@@ -2270,10 +2268,10 @@ void AWukongCharacter::PerformTransform()
 		return;
 	}
 
-	// 检查冷却
-	if (TransformCooldownTimer > 0.0f)
+	// 检查冷却（使用统一的冷却系统）
+	if (IsCooldownActive(TEXT("Transform")))
 	{
-		UE_LOG(LogTemp, Log, TEXT("PerformTransform: On cooldown (%.1f seconds remaining)"), TransformCooldownTimer);
+		UE_LOG(LogTemp, Log, TEXT("PerformTransform: On cooldown"));
 		return;
 	}
 
@@ -2444,8 +2442,8 @@ void AWukongCharacter::TransformBackToWukong()
 	bIsTransformed = false;
 	ChangeState(EWukongState::Idle);
 
-	// 启动冷却
-	TransformCooldownTimer = TransformCooldown;
+	// 启动冷却（同时触发UI更新）
+	StartCooldown(TEXT("Transform"), TransformCooldown);
 
 	// 清除计时器
 	if (GetWorld())

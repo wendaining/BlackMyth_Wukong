@@ -756,12 +756,6 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Transform")
 	float TransformDuration = 30.0f;
 
-	/** 变身冷却计时器 */
-	float TransformCooldownTimer;
-
-	/** 变身持续计时器 */
-	float TransformDurationTimer;
-
 	/** 蝴蝶Pawn类（在蓝图中配置） */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Transform")
 	TSubclassOf<APawn> ButterflyPawnClass;
@@ -798,5 +792,5 @@ public:
 
 	/** 获取变身冷却剩余时间 */
 	UFUNCTION(BlueprintPure, Category = "Transform")
-	float GetTransformCooldownRemaining() const { return TransformCooldownTimer; }
+	float GetTransformCooldownRemaining() const;
 };

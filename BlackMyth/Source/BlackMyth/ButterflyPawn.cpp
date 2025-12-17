@@ -104,8 +104,8 @@ void AButterflyPawn::BeginPlay()
 		UE_LOG(LogTemp, Log, TEXT("[Butterfly] Set CameraBoom->TargetArmLength = %.1f"), CameraDistance);
 	}
 
-	UE_LOG(LogTemp, Log, TEXT("[Butterfly] BeginPlay - FlySpeed=%.1f, CameraDistance=%.1f, TransformDuration=%.1f"), 
-		FlySpeed, CameraDistance, TransformDuration);
+	UE_LOG(LogTemp, Log, TEXT("[Butterfly] BeginPlay - FlySpeed=%.1f, CameraDistance=%.1f"), 
+		FlySpeed, CameraDistance);
 }
 
 void AButterflyPawn::Tick(float DeltaTime)
@@ -225,10 +225,8 @@ void AButterflyPawn::OnLook(const FInputActionValue& Value)
 void AButterflyPawn::InitializeTransform(AWukongCharacter* InOwner, float InDuration)
 {
 	OwnerWukong = InOwner;
-	TransformDuration = InDuration;
 	TransformTimeRemaining = InDuration;
 	
 	UE_LOG(LogTemp, Log, TEXT("[Butterfly] InitializeTransform - Owner=%s (Ptr=%p), Duration=%.1f seconds"), 
 		InOwner ? *InOwner->GetName() : TEXT("NULL"), InOwner, InDuration);
-	UE_LOG(LogTemp, Log, TEXT("[Butterfly] InitializeTransform - OwnerWukong after assignment: %p"), OwnerWukong.Get());
 }

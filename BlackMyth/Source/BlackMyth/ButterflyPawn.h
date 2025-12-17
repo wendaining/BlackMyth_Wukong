@@ -92,10 +92,6 @@ protected:
 
 	// ========== 变身计时 ==========
 protected:
-	/** 变身持续时间 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Transform")
-	float TransformDuration = 30.0f;
-
 	/** 变身剩余时间 */
 	float TransformTimeRemaining;
 
