@@ -187,6 +187,9 @@ void AWukongCharacter::BeginPlay()
     TransformCooldownTimer = 0.0f;
     TransformDurationTimer = 0.0f;
     ButterflyPawnInstance = nullptr;
+    // 初始化对话状态
+    bIsInDialogue = false;
+    CurrentDialogueNPC = nullptr;
 }
 
 // 每帧都调用
@@ -208,6 +211,12 @@ void AWukongCharacter::Tick(float DeltaTime)
     {
         InteractionCheckTimer = 0.0f;
         CheckForNearbyNPC();
+    }
+
+    // 对话中检测距离，超出则自动结束对话
+    if (bIsInDialogue)
+    {
+        CheckDialogueDistance();
     }
 
     // 更新攻击冷却计时器
@@ -422,11 +431,12 @@ void AWukongCharacter::Attack()
 void AWukongCharacter::OnDodgePressed()
 {
     UE_LOG(LogTemp, Warning, TEXT("OnDodgePressed() called! CurrentState=%d"), (int32)CurrentState);
-    
+
     if (CurrentState == EWukongState::Attacking || 
         CurrentState == EWukongState::Dodging || 
         CurrentState == EWukongState::HitStun ||
-        CurrentState == EWukongState::Dead)
+        CurrentState == EWukongState::Dead ||
+        bIsInDialogue)
     {
         UE_LOG(LogTemp, Warning, TEXT("OnDodgePressed() blocked by state"));
         return;
@@ -458,7 +468,8 @@ void AWukongCharacter::OnAttackPressed()
     // 限制这几个情况下的攻击
     if (CurrentState == EWukongState::Dodging || 
         CurrentState == EWukongState::HitStun ||
-        CurrentState == EWukongState::Dead)
+        CurrentState == EWukongState::Dead || 
+        bIsInDialogue)
     {
         return;
     }
@@ -479,7 +490,8 @@ void AWukongCharacter::OnSprintStarted()
     if (CurrentState == EWukongState::Attacking || 
         CurrentState == EWukongState::Dodging ||
         CurrentState == EWukongState::HitStun ||
-        CurrentState == EWukongState::Dead)
+        CurrentState == EWukongState::Dead || 
+        bIsInDialogue)
     {
         return;
     }
@@ -509,7 +521,7 @@ void AWukongCharacter::OnSprintStopped()
 
 float AWukongCharacter::TakeDamage(float DamageAmount, FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser)
 {
-    // 调用父类逻辑 (虽然父类可能没做什么，但保持好习惯)
+    // 调用父类逻辑
     float ActualDamage = Super::TakeDamage(DamageAmount, DamageEvent, EventInstigator, DamageCauser);
 
     // 将通用伤害转发给我们的自定义伤害处理函数
@@ -1085,10 +1097,11 @@ void AWukongCharacter::PerformDodge()
 
 void AWukongCharacter::PerformHeavyAttack()
 {
-    // 死亡、翻滚、硬直状态下不能重击
+    // 死亡、翻滚、硬直状态、对话下不能重击
     if (CurrentState == EWukongState::Dead ||
         CurrentState == EWukongState::Dodging ||
-        CurrentState == EWukongState::HitStun)
+        CurrentState == EWukongState::HitStun ||
+        bIsInDialogue)
     {
         return;
     }
@@ -1141,10 +1154,11 @@ void AWukongCharacter::PerformHeavyAttack()
 
 void AWukongCharacter::PerformStaffSpin()
 {
-    // 死亡、翻滚、硬直状态下不能使用棍花
+    // 死亡、翻滚、硬直、对话状态下不能使用棍花
     if (CurrentState == EWukongState::Dead ||
         CurrentState == EWukongState::Dodging ||
-        CurrentState == EWukongState::HitStun)
+        CurrentState == EWukongState::HitStun || 
+        bIsInDialogue)
     {
         return;
     }
@@ -1193,10 +1207,11 @@ void AWukongCharacter::PerformStaffSpin()
 
 void AWukongCharacter::PerformPoleStance()
 {
-    // 死亡、翻滚、硬直状态下不能使用立棍法
+    // 死亡、翻滚、硬直、对话状态下不能使用立棍法
     if (CurrentState == EWukongState::Dead ||
         CurrentState == EWukongState::Dodging ||
-        CurrentState == EWukongState::HitStun)
+        CurrentState == EWukongState::HitStun || 
+        bIsInDialogue)
     {
         return;
     }
@@ -1245,6 +1260,12 @@ void AWukongCharacter::PerformPoleStance()
 
 void AWukongCharacter::UseItem()
 {
+    // 对话中禁止使用道具
+    if (bIsInDialogue)
+    {
+        return;
+    }
+
     if (DrinkGourdMontage)
     {
         PlayMontage(DrinkGourdMontage);
@@ -1255,10 +1276,11 @@ void AWukongCharacter::PerformShadowClone()
 {
     UE_LOG(LogTemp, Warning, TEXT(">>> PerformShadowClone() CALLED! CurrentState=%d"), (int32)CurrentState);
 
-    // 死亡、翻滚、硬直状态下不能使用影分身
+    // 死亡、翻滚、硬直、对话状态下不能使用影分身
     if (CurrentState == EWukongState::Dead ||
         CurrentState == EWukongState::Dodging ||
-        CurrentState == EWukongState::HitStun)
+        CurrentState == EWukongState::HitStun || 
+        bIsInDialogue)
     {
         UE_LOG(LogTemp, Log, TEXT("PerformShadowClone: Blocked by state"));
         return;
@@ -1358,10 +1380,11 @@ void AWukongCharacter::PerformFreezeSpell()
 {
     UE_LOG(LogTemp, Warning, TEXT(">>> PerformFreezeSpell() CALLED! CurrentState=%d"), (int32)CurrentState);
 
-    // 死亡、翻滚、硬直状态下不能使用定身术
+    // 死亡、翻滚、硬直、对话状态下不能使用定身术
     if (CurrentState == EWukongState::Dead ||
         CurrentState == EWukongState::Dodging ||
-        CurrentState == EWukongState::HitStun)
+        CurrentState == EWukongState::HitStun || 
+        bIsInDialogue)
     {
         UE_LOG(LogTemp, Log, TEXT("PerformFreezeSpell: Blocked by state"));
         return;
@@ -1637,6 +1660,12 @@ float AWukongCharacter::GetBaseAttackPower() const
 
 bool AWukongCharacter::CanJumpInternal_Implementation() const
 {
+    // 对话中禁止跳跃
+    if (bIsInDialogue)
+    {
+        return false;
+    }
+
     // 先检查父类的跳跃条件
     if (!Super::CanJumpInternal_Implementation())
     {
@@ -2421,4 +2450,53 @@ void AWukongCharacter::OnTransformDurationEnd()
 {
 	UE_LOG(LogTemp, Warning, TEXT(">>> OnTransformDurationEnd() - Transform duration expired!"));
 	TransformBackToWukong();
+}
+// ========== 对话系统 ==========
+
+void AWukongCharacter::SetInDialogue(bool bInDialogue)
+{
+	bIsInDialogue = bInDialogue;
+	
+	if (bInDialogue)
+	{
+		// 记录当前对话的NPC
+		CurrentDialogueNPC = NearbyNPC;
+		UE_LOG(LogTemp, Log, TEXT("[Dialogue] Entered dialogue mode with %s"), 
+			CurrentDialogueNPC ? *CurrentDialogueNPC->GetName() : TEXT("NULL"));
+	}
+	else
+	{
+		// 对话结束，清空记录
+		CurrentDialogueNPC = nullptr;
+		UE_LOG(LogTemp, Log, TEXT("[Dialogue] Exited dialogue mode"));
+	}
+}
+
+void AWukongCharacter::CheckDialogueDistance()
+{
+	// 如果没有在对话中或没有对话NPC，直接返回
+	if (!bIsInDialogue || !CurrentDialogueNPC)
+	{
+		return;
+	}
+
+	// 计算与NPC的距离
+	float Distance = FVector::Dist(GetActorLocation(), CurrentDialogueNPC->GetActorLocation());
+	
+	// 超过阈值，自动结束对话
+	if (Distance > DialogueBreakDistance)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[Dialogue] Distance %.1f > %.1f, auto-ending dialogue"), 
+			Distance, DialogueBreakDistance);
+		
+		// 调用NPC的DialogueComponent结束对话
+		if (CurrentDialogueNPC->DialogueComponent)
+		{
+			CurrentDialogueNPC->DialogueComponent->EndDialogue();
+		}
+		
+		// 重置状态（EndDialogue会调用SetInDialogue(false)，但这里double check）
+		bIsInDialogue = false;
+		CurrentDialogueNPC = nullptr;
+	}
 }

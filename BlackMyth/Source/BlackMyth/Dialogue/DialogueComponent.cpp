@@ -3,6 +3,7 @@
 #include "DialogueComponent.h"
 #include "DialogueData.h"
 #include "../UI/DialogueWidget.h"
+#include "../WukongCharacter.h"
 #include "Kismet/GameplayStatics.h"
 #include "GameFramework/PlayerController.h"
 #include "Blueprint/UserWidget.h"
@@ -77,9 +78,18 @@ void UDialogueComponent::StartDialogue()
 	CurrentDialogueIndex = 0;
 	bIsPlaying = true;
 
-	// 禁用玩家输入
+	// 禁用玩家移动和视角输入
 	PlayerController->SetIgnoreMoveInput(true);
 	PlayerController->SetIgnoreLookInput(true);
+
+	// 通知玩家进入对话状态（禁用所有操作除了E键）
+	if (APawn* PlayerPawn = PlayerController->GetPawn())
+	{
+		if (AWukongCharacter* Wukong = Cast<AWukongCharacter>(PlayerPawn))
+		{
+			Wukong->SetInDialogue(true);
+		}
+	}
 
 	// 广播事件
 	OnDialogueStateChanged.Broadcast(true);
@@ -141,6 +151,15 @@ void UDialogueComponent::EndDialogue()
 	{
 		PlayerController->SetIgnoreMoveInput(false);
 		PlayerController->SetIgnoreLookInput(false);
+
+		// 通知玩家退出对话状态
+		if (APawn* PlayerPawn = PlayerController->GetPawn())
+		{
+			if (AWukongCharacter* Wukong = Cast<AWukongCharacter>(PlayerPawn))
+			{
+				Wukong->SetInDialogue(false);
+			}
+		}
 	}
 
 	// 广播事件
