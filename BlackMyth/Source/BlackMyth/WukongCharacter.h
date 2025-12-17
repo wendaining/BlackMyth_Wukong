@@ -114,6 +114,14 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Movement")
 	bool IsSprinting() const { return bIsSprinting; }
 
+	/** 是否正在对话中（禁用除E外的所有输入） */
+	UFUNCTION(BlueprintPure, Category = "Dialogue")
+	bool IsInDialogue() const { return bIsInDialogue; }
+
+	/** 设置对话状态（由DialogueComponent调用） */
+	UFUNCTION(BlueprintCallable, Category = "Dialogue")
+	void SetInDialogue(bool bInDialogue);
+
 	/** 获取移动速度 */
 	UFUNCTION(BlueprintPure, Category = "Movement")
 	float GetMovementSpeed() const;
@@ -703,8 +711,23 @@ protected:
 	/** 检测计时器 */
 	float InteractionCheckTimer;
 
+	/** 对话状态标志 - 对话中禁用除E键外的所有操作 */
+	UPROPERTY(BlueprintReadOnly, Category = "Dialogue")
+	bool bIsInDialogue;
+
+	/** 当前对话的NPC（用于距离检测） */
+	UPROPERTY()
+	ANPCCharacter* CurrentDialogueNPC;
+
+	/** 对话自动结束的最大距离 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Dialogue")
+	float DialogueBreakDistance = 500.0f;
+
 	/** 检测附近的NPC */
 	void CheckForNearbyNPC();
+
+	/** 检测对话距离，超出则自动结束 */
+	void CheckDialogueDistance();
 
 	/** 显示交互提示 */
 	void ShowInteractionPrompt();
