@@ -30,20 +30,20 @@
 #include "Engine/OverlapResult.h"
 #include "CollisionQueryParams.h"
 
-// Sets default values
+// 设置默认值
 AWukongCharacter::AWukongCharacter()
 {
-    // Set this character to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
+    // 每帧都调用 Tick()， 如果不需要可以关闭以提高性能
     PrimaryActorTick.bCanEverTick = true;
 
-    // ========== 角色旋转设置（关键！影响方向动画） ==========
+    // ========== 角色旋转设置==========
     // 不让角色自动面向移动方向，这样按 S 时角色不会转身
     bUseControllerRotationYaw = false;  // 不使用控制器旋转
     
-    // 获取角色移动组件并设置旋转行为
+    // 获取角色移动组件，并设置旋转行为
     if (UCharacterMovementComponent* MovementComp = GetCharacterMovement())
     {
-        // 关闭"面向移动方向"，这是实现后退动画的关键
+        // 关闭"面向移动方向"，以实现按S不是面向后面，而是播放后退动画
         MovementComp->bOrientRotationToMovement = false;
         
         // 改用"面向控制器方向"，让角色朝向摄像机方向
@@ -69,11 +69,11 @@ AWukongCharacter::AWukongCharacter()
     // 创建阵营组件（默认为玩家阵营）
     TeamComponent = CreateDefaultSubobject<UTeamComponent>(TEXT("TeamComponent"));
 
-    // 注意：所有动画资产和输入动作现在都应在蓝图子类 (BP_Wukong_New) 中设置
-    // 不再在 C++ 构造函数中硬编码加载路径，以便于在编辑器中灵活配置
+    // 所有动画资产和输入动作都应在蓝图子类 (BP_Wukong) 中设置
+    // 不在 C++ 构造函数中硬编码加载路径，以便于在编辑器中灵活配置
 }
 
-// Called when the game starts or when spawned
+// 当游戏启动或者角色重生时调用
 void AWukongCharacter::BeginPlay()
 {
     Super::BeginPlay();
