@@ -50,10 +50,10 @@ void ABossCombatTrigger::NotifyActorBeginOverlap(AActor* OtherActor)
 		}
 	}
 
-	// 显示Boss血条
-	if (bShowBossHealthOnEnter && LinkedBoss)
+	// 激活 Boss
+	if (LinkedBoss)
 	{
-		LinkedBoss->SetBossHealthVisibility(true);
+		LinkedBoss->ActivateBoss(Player);
 	}
 }
 

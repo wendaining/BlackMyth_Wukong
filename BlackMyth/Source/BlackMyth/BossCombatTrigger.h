@@ -9,7 +9,7 @@
 class ABossEnemy;
 
 /** Boss战斗触发器，当玩家进入时切换到Boss战斗状态*/
-UCLASS()
+UCLASS(BlueprintType, Blueprintable)
 class BLACKMYTH_API ABossCombatTrigger : public ATriggerVolume
 {
 	GENERATED_BODY()
