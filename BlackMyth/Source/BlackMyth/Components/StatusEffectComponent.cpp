@@ -209,6 +209,18 @@ UStatusEffectBase* UStatusEffectComponent::GetEffect(EStatusEffectType EffectTyp
 	return nullptr;
 }
 
+bool UStatusEffectComponent::IsAttackDisabled() const
+{
+	for (UStatusEffectBase* Effect : ActiveEffects)
+	{
+		if (Effect && Effect->IsAttackDisabled())
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
 void UStatusEffectComponent::SetupDynamicMaterials()
 {
 	if (bMaterialsInitialized)

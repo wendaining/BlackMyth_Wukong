@@ -93,6 +93,10 @@ public:
 	UFUNCTION(BlueprintPure, Category = "StatusEffect|Visual")
 	bool HasVisualEffect() const { return EmissiveIntensity > 0.0f; }
 
+	/** 是否禁用攻击 */
+	UFUNCTION(BlueprintPure, Category = "StatusEffect|Behavior")
+	bool IsAttackDisabled() const { return bDisableAttack; }
+
 protected:
 	// ========== 效果属性 ==========
 
@@ -115,6 +119,10 @@ protected:
 	/** 最大叠加层数（预留接口，当前默认 1） */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "StatusEffect|Config", meta = (EditCondition = "bStackable", ClampMin = "1"))
 	int32 MaxStacks = 1;
+
+	/** 是否禁用攻击 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "StatusEffect|Behavior")
+	bool bDisableAttack = false;
 
 	// ========== 引用 ==========
 

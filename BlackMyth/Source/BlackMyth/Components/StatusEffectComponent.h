@@ -68,6 +68,10 @@ public:
 	UFUNCTION(BlueprintPure, Category = "StatusEffect")
 	int32 GetActiveEffectCount() const { return ActiveEffects.Num(); }
 
+	// 检查是否有任何效果禁用了攻击
+	UFUNCTION(BlueprintPure, Category = "StatusEffect")
+	bool IsAttackDisabled() const;
+
 	// ========== 委托 ==========
 
 	/** 效果施加时广播 */

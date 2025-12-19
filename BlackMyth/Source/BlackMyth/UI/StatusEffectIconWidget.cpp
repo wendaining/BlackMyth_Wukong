@@ -92,6 +92,21 @@ UTexture2D* UStatusEffectIconWidget::GetIconTextureForEffectType(EStatusEffectTy
 	}
 }
 
+FText UStatusEffectIconWidget::GetEffectNameForType(EStatusEffectType Type) const
+{
+	switch (Type)
+	{
+	case EStatusEffectType::Poison:
+		return FText::FromString(TEXT("中毒"));
+	case EStatusEffectType::Slow:
+		return FText::FromString(TEXT("减速"));
+	case EStatusEffectType::Burn:
+		return FText::FromString(TEXT("灼烧"));
+	default:
+		return FText::FromString(TEXT(""));
+	}
+}
+
 void UStatusEffectIconWidget::UpdateIconDisplay()
 {
 	if (!EffectIcon)
@@ -120,6 +135,12 @@ void UStatusEffectIconWidget::UpdateIconDisplay()
 	if (DurationProgressBar)
 	{
 		DurationProgressBar->SetFillColorAndOpacity(IconColor);
+	}
+
+	// 设置效果名称文本
+	if (EffectNameText)
+	{
+		EffectNameText->SetText(GetEffectNameForType(EffectType));
 	}
 
 	UE_LOG(LogTemp, Log, TEXT("StatusEffectIconWidget: Set effect type to %d"), static_cast<int32>(EffectType));

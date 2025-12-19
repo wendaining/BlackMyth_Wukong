@@ -871,6 +871,13 @@ void AWukongCharacter::PerformAttack()
         return;
     }
 
+    // 检查是否被状态效果禁止攻击（如中毒）
+    if (StatusEffectComponent && StatusEffectComponent->IsAttackDisabled())
+    {
+        UE_LOG(LogTemp, Log, TEXT("PerformAttack: Blocked by status effect (attack disabled)"));
+        return;
+    }
+
     // 检查是否有足够体力攻击
     if (!StaminaComponent || !StaminaComponent->HasEnoughStamina(StaminaComponent->AttackStaminaCost))
     {
@@ -1104,6 +1111,13 @@ void AWukongCharacter::PerformHeavyAttack()
         CurrentState == EWukongState::HitStun ||
         bIsInDialogue)
     {
+        return;
+    }
+
+    // 检查是否被状态效果禁止攻击（如中毒）
+    if (StatusEffectComponent && StatusEffectComponent->IsAttackDisabled())
+    {
+        UE_LOG(LogTemp, Log, TEXT("PerformHeavyAttack: Blocked by status effect (attack disabled)"));
         return;
     }
 

@@ -54,6 +54,10 @@ protected:
 	UPROPERTY(meta = (BindWidgetOptional))
 	UTextBlock* DurationText;
 
+	/** 效果名称文本 - 蓝图中可选的 TextBlock */
+	UPROPERTY(meta = (BindWidgetOptional))
+	UTextBlock* EffectNameText;
+
 	// ========== 可配置属性 ==========
 
 	/** 中毒效果图标颜色 */
@@ -96,6 +100,9 @@ private:
 
 	/** 根据效果类型获取对应图标纹理 */
 	UTexture2D* GetIconTextureForEffectType(EStatusEffectType Type) const;
+
+	/** 根据效果类型获取对应名称文本 */
+	FText GetEffectNameForType(EStatusEffectType Type) const;
 
 	/** 更新图标显示 */
 	void UpdateIconDisplay();

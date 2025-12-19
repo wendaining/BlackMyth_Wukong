@@ -14,6 +14,9 @@ UPoisonEffect::UPoisonEffect()
 	EmissiveColor = FLinearColor(0.0f, 1.0f, 0.0f);
 	EmissiveIntensity =0.01f;
 
+	// 中毒时禁止攻击
+	bDisableAttack = true;
+
 	// 默认伤害配置
 	DamagePerSecond = 10.0f;
 	DamageInterval = 0.5f;
