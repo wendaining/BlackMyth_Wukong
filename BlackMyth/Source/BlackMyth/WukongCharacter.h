@@ -13,6 +13,7 @@ class UHealthComponent;
 class UTraceHitboxComponent;
 class UTargetingComponent;
 class UTeamComponent;
+class UStatusEffectComponent;
 class UWukongAnimInstance;
 class UPlayerHUDWidget;
 class ANPCCharacter;
@@ -216,6 +217,14 @@ protected:
 	/** 阵营组件（用于敌我识别） */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	TObjectPtr<UTeamComponent> TeamComponent;
+
+	/** 状态效果组件（管理中毒、减速等状态） */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
+	TObjectPtr<UStatusEffectComponent> StatusEffectComponent;
+
+	/** 获取状态效果组件 */
+	UFUNCTION(BlueprintPure, Category = "StatusEffect")
+	UStatusEffectComponent* GetStatusEffectComponent() const { return StatusEffectComponent; }
 
 	// ========== 移动属性 ==========
 	

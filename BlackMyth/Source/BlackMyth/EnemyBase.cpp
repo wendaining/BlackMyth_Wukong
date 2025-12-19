@@ -15,6 +15,8 @@
 #include "Components/SceneStateComponent.h"
 #include "Components/EnemyDodgeComponent.h"
 #include "Components/EnemyAlertComponent.h"
+#include "Components/StatusEffectComponent.h"
+#include "StatusEffect/StatusEffectBase.h"
 #include "Combat/TraceHitboxComponent.h"
 #include "Components/WidgetComponent.h"
 #include "UI/EnemyHealthBarWidget.h"
@@ -46,6 +48,9 @@ AEnemyBase::AEnemyBase()
 
 	// 创建警戒组件
 	AlertComponent = CreateDefaultSubobject<UEnemyAlertComponent>(TEXT("AlertComponent"));
+
+	// 创建状态效果组件（管理中毒、减速等状态）
+	StatusEffectComponent = CreateDefaultSubobject<UStatusEffectComponent>(TEXT("StatusEffectComponent"));
 
 	// 设置默认 AI 控制器
 	AIControllerClass = AEnemyAIController::StaticClass();
@@ -1281,6 +1286,7 @@ void AEnemyBase::OnFreezeTimerExpired()
 	RemoveFreeze();
 }
 
+<<<<<<< HEAD
 // ========== 保存敌人存档数据 ==========
 void AEnemyBase::WriteEnemySaveData(FEnemySaveData& OutData) const
 {
@@ -1321,10 +1327,18 @@ void AEnemyBase::WriteEnemySaveData(FEnemySaveData& OutData) const
 void AEnemyBase::LoadEnemySaveData(const FEnemySaveData& InData)
 {
 	if (!InData.EnemyClass)
+=======
+// ========== 状态效果攻击系统实现 ==========
+
+void AEnemyBase::ApplyAttackStatusEffects(AActor* Target)
+{
+	if (!Target)
+>>>>>>> buff
 	{
 		return;
 	}
 
+<<<<<<< HEAD
 	// 恢复唯一ID
 	EnemyID = InData.EnemyID;
 
@@ -1384,3 +1398,47 @@ void AEnemyBase::InitEnemy(int32 InLevel, bool bIsFromSave)
 		// 正常生成怪物的初始化，比如血量、状态
 	}
 }
+=======
+	// 获取目标的 StatusEffectComponent
+	UStatusEffectComponent* TargetStatusComp = Target->FindComponentByClass<UStatusEffectComponent>();
+	if (!TargetStatusComp)
+	{
+		UE_LOG(LogTemp, Verbose, TEXT("[%s] ApplyAttackStatusEffects - Target %s has no StatusEffectComponent"),
+			*GetName(), *Target->GetName());
+		return;
+	}
+
+	// 遍历所有配置的攻击效果
+	for (const FStatusEffectConfig& Config : AttackStatusEffects)
+	{
+		// 检查效果类是否有效
+		if (!Config.EffectClass)
+		{
+			continue;
+		}
+
+		// 根据触发概率决定是否施加效果
+		const float RandomValue = FMath::FRand();  // 0.0 ~ 1.0
+		if (RandomValue <= Config.TriggerChance)
+		{
+			// 施加效果
+			TargetStatusComp->ApplyEffect(Config.EffectClass, this, Config.Duration);
+
+			UE_LOG(LogTemp, Log, TEXT("[%s] ApplyAttackStatusEffects - Applied %s to %s (Duration: %.1f, Chance: %.0f%%)"),
+				*GetName(),
+				*Config.EffectClass->GetName(),
+				*Target->GetName(),
+				Config.Duration,
+				Config.TriggerChance * 100.0f);
+		}
+		else
+		{
+			UE_LOG(LogTemp, Verbose, TEXT("[%s] ApplyAttackStatusEffects - %s effect did not trigger (Roll: %.2f, Chance: %.2f)"),
+				*GetName(),
+				*Config.EffectClass->GetName(),
+				RandomValue,
+				Config.TriggerChance);
+		}
+	}
+}
+>>>>>>> buff

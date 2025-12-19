@@ -15,6 +15,7 @@
 #include "Components/TeamComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/SceneStateComponent.h"
+#include "Components/StatusEffectComponent.h"
 #include "Combat/TraceHitboxComponent.h"
 #include "Dialogue/DialogueComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
@@ -69,6 +70,9 @@ AWukongCharacter::AWukongCharacter()
 
     // 创建阵营组件（默认为玩家阵营）
     TeamComponent = CreateDefaultSubobject<UTeamComponent>(TEXT("TeamComponent"));
+
+    // 创建状态效果组件（管理中毒、减速等状态）
+    StatusEffectComponent = CreateDefaultSubobject<UStatusEffectComponent>(TEXT("StatusEffectComponent"));
 
     // 所有动画资产和输入动作都应在蓝图类 (BP_Wukong) 中设置
     // 不在 C++ 构造函数中硬编码加载路径，以便于在编辑器中灵活配置
@@ -169,6 +173,14 @@ void AWukongCharacter::BeginPlay()
             {
                 PlayerHUD->AddToViewport();
                 PlayerHUD->InitializeHUD(this);
+
+                // 绑定状态效果组件到 HUD（用于显示状态效果图标）
+                if (StatusEffectComponent)
+                {
+                    PlayerHUD->BindStatusEffectComponent(StatusEffectComponent);
+                    UE_LOG(LogTemp, Log, TEXT("[Wukong] PlayerHUD bound to StatusEffectComponent"));
+                }
+
                 UE_LOG(LogTemp, Log, TEXT("[Wukong] PlayerHUD created and initialized"));
             }
         }
@@ -859,6 +871,13 @@ void AWukongCharacter::PerformAttack()
         return;
     }
 
+    // 检查是否被状态效果禁止攻击（如中毒）
+    if (StatusEffectComponent && StatusEffectComponent->IsAttackDisabled())
+    {
+        UE_LOG(LogTemp, Log, TEXT("PerformAttack: Blocked by status effect (attack disabled)"));
+        return;
+    }
+
     // 检查是否有足够体力攻击
     if (!StaminaComponent || !StaminaComponent->HasEnoughStamina(StaminaComponent->AttackStaminaCost))
     {
@@ -1092,6 +1111,13 @@ void AWukongCharacter::PerformHeavyAttack()
         CurrentState == EWukongState::HitStun ||
         bIsInDialogue)
     {
+        return;
+    }
+
+    // 检查是否被状态效果禁止攻击（如中毒）
+    if (StatusEffectComponent && StatusEffectComponent->IsAttackDisabled())
+    {
+        UE_LOG(LogTemp, Log, TEXT("PerformHeavyAttack: Blocked by status effect (attack disabled)"));
         return;
     }
 
