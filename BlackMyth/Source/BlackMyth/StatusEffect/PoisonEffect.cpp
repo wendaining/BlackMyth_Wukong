@@ -12,7 +12,7 @@ UPoisonEffect::UPoisonEffect()
 	// 设置视觉效果 - 绿色
 	TintColor = FLinearColor(0.2f, 0.8f, 0.2f, 1.0f);
 	EmissiveColor = FLinearColor(0.0f, 1.0f, 0.0f);
-	EmissiveIntensity = 1.5f;
+	EmissiveIntensity =0.01f;
 
 	// 默认伤害配置
 	DamagePerSecond = 10.0f;

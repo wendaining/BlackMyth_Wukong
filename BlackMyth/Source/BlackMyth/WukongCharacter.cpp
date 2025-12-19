@@ -173,6 +173,14 @@ void AWukongCharacter::BeginPlay()
             {
                 PlayerHUD->AddToViewport();
                 PlayerHUD->InitializeHUD(this);
+
+                // 绑定状态效果组件到 HUD（用于显示状态效果图标）
+                if (StatusEffectComponent)
+                {
+                    PlayerHUD->BindStatusEffectComponent(StatusEffectComponent);
+                    UE_LOG(LogTemp, Log, TEXT("[Wukong] PlayerHUD bound to StatusEffectComponent"));
+                }
+
                 UE_LOG(LogTemp, Log, TEXT("[Wukong] PlayerHUD created and initialized"));
             }
         }

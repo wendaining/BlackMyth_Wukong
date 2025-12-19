@@ -12,7 +12,7 @@ USlowEffect::USlowEffect()
 	// 设置视觉效果 - 蓝色
 	TintColor = FLinearColor(0.3f, 0.5f, 1.0f, 1.0f);
 	EmissiveColor = FLinearColor(0.0f, 0.5f, 1.0f);
-	EmissiveIntensity = 1.2f;
+	EmissiveIntensity = 0.01f;
 
 	// 默认减速配置
 	SpeedMultiplier = 0.5f;
