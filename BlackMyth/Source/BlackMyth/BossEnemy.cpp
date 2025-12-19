@@ -35,12 +35,21 @@ void ABossEnemy::BeginPlay()
 		BossHealthBarWidget = CreateWidget<UBossHealthBar>(GetWorld(), BossHealthBarClass);
 		if (BossHealthBarWidget)
 		{
+			UE_LOG(LogTemp, Warning, TEXT("[%s] Health Bar Widget Created Successfully!"), *GetName());
 			// 初始化 Widget，传入 HealthComponent
 			BossHealthBarWidget->InitializeWidget(HealthComponent);
 			
 			BossHealthBarWidget->AddToViewport();
 			BossHealthBarWidget->SetVisibility(ESlateVisibility::Hidden);
 		}
+		else
+		{
+			UE_LOG(LogTemp, Error, TEXT("[%s] Failed to create Health Bar Widget!"), *GetName());
+		}
+	}
+	else
+	{
+		UE_LOG(LogTemp, Error, TEXT("[%s] BossHealthBarClass is NONE! Please set it in Blueprint Class Defaults."), *GetName());
 	}
 }
 
@@ -216,6 +225,12 @@ void ABossEnemy::PerformDodge()
 	if (DodgeMontage)
 	{
 		UE_LOG(LogTemp, Log, TEXT("[%s] Boss Dodging!"), *GetName());
+
+		// 停止当前移动，防止滑步，并允许蒙太奇RootMotion完全控制（如果有）
+		if (AAIController* AI = Cast<AAIController>(GetController()))
+		{
+			AI->StopMovement();
+		}
 		
 		PlayAnimMontage(DodgeMontage);
 		
