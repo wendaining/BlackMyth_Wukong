@@ -2555,3 +2555,17 @@ void AWukongCharacter::OnTempleInteract()
     }
 }
 
+void AWukongCharacter::FullRestore()
+{
+    if (HealthComponent)
+    {
+        HealthComponent->FullHeal();
+    }
+
+    if (StaminaComponent)
+    {
+        StaminaComponent->RestoreStamina(999999.f);
+    }
+
+    UE_LOG(LogTemp, Log, TEXT("[Temple] Player restored to full"));
+}

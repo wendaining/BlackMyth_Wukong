@@ -48,7 +48,6 @@ public:
 	/** 设置是否允许恢复 */
 	UFUNCTION(BlueprintCallable, Category = "Stamina")
 	void SetCanRegenerate(bool bCanRegen);
-
 	// ========== 查询接口 ==========
 
 	/** 获取当前体力值 */

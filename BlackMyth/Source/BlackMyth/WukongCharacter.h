@@ -805,4 +805,7 @@ public:
 
 	UPROPERTY(EditDefaultsOnly, Category="Input")
 	UInputAction* TempleAction;
+
+	UFUNCTION(BlueprintCallable, Category = "Temple")
+	void FullRestore();
 };

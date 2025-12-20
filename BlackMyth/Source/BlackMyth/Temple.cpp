@@ -6,6 +6,8 @@
 #include "Blueprint/UserWidget.h"
 #include "WukongCharacter.h"
 #include "Kismet/GameplayStatics.h"
+#include "Components/HealthComponent.h"
+#include "Components/StaminaComponent.h"
 
 AInteractableActor::AInteractableActor()
 {
@@ -85,6 +87,14 @@ void AInteractableActor::DoInteract()
 
 void AInteractableActor::OnInteract_Implementation(AActor* Interactor)
 {
+    AWukongCharacter* Player = Cast<AWukongCharacter>(Interactor);
+    if (!Player)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[Temple] Interactor is not WukongCharacter"));
+        return;
+    }
+
+    // ===== 1. 打开土地庙 WBP =====
     if (!InteractMenuWidgetClass)
     {
         UE_LOG(LogTemp, Warning, TEXT("InteractMenuWidgetClass is NULL"));
@@ -111,4 +121,7 @@ void AInteractableActor::OnInteract_Implementation(AActor* Interactor)
 
         UE_LOG(LogTemp, Log, TEXT("Temple Interact Menu Opened"));
     }
+
+    // ===== 2. 打开土地庙 WBP =====
+    Player->FullRestore();
 }
