@@ -6,6 +6,7 @@
 #include "AIController.h"
 #include "Navigation/PathFollowingComponent.h"
 #include "BehaviorTree/BlackboardComponent.h"
+#include "Components/EnemyDodgeComponent.h"
 
 ABossEnemy::ABossEnemy()
 {
@@ -29,6 +30,15 @@ void ABossEnemy::BeginPlay()
 {
 	Super::BeginPlay();
 
+	// 彻底禁用/销毁父类的通用闪避组件，防止它“抢戏”
+	// 我们现在使用 Boss 专用的 Perfect Dodge 逻辑
+	if (DodgeComponent)
+	{
+		DodgeComponent->DestroyComponent();
+		DodgeComponent = nullptr;
+		UE_LOG(LogTemp, Warning, TEXT("[%s] Inherited DodgeComponent Destroyed to prevent conflict."), *GetName());
+	}
+	
 	// 创建 Boss 血条 UI
 	if (BossHealthBarClass)
 	{
@@ -146,22 +156,49 @@ void ABossEnemy::ReceiveDamage(float Damage, AActor* DamageInstigator)
 	// 如果处于无敌状态，忽略伤害
 	if (bIsInvulnerable) return;
 
+	// debug日志：证明代码跑到了这里
+	UE_LOG(LogTemp, Warning, TEXT("[BossEnemy] ReceiveDamage Called! Checking Custom Dodge..."));
+
+	// 1. 优先尝试闪避
+	// 闪避逻辑：恢复为“硬派”风格，攻击中不能闪避 (Committed Attacks)
+	if (!IsAttacking() && !IsStunned() && !bIsInvulnerable)
+	{
+		float Roll = FMath::RandRange(0.0f, 1.0f);
+		// 恢复 30% 概率
+		if (Roll < 0.3f) 
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[%s] Boss Perfect Dodge! (Roll: %.2f < 0.3) Ignoring Damage from: %s"), *GetName(), Roll, DamageInstigator ? *DamageInstigator->GetName() : TEXT("Unknown"));
+			
+			// 确保血条显示
+			SetBossHealthVisibility(true);
+
+			// 更新仇恨
+			if (DamageInstigator)
+			{
+				CombatTarget = DamageInstigator;
+				if (AAIController* AI = Cast<AAIController>(GetController()))
+				{
+					if (UBlackboardComponent* BB = AI->GetBlackboardComponent())
+					{
+						BB->SetValueAsObject(TEXT("TargetActor"), CombatTarget);
+					}
+				}
+			}
+
+			// 执行闪避
+			PerformDodge();
+			
+			// 闪避成功不扣血
+			return;
+		}
+	}
+
+	// 2. 如果没闪避掉，再承受伤害
 	// 调用父类处理伤害 (扣血、受击动画等)
-	// 注意：Boss 通常有霸体 (Super Armor)，可能不需要每次都播放受击动画
-	// 这里我们可以重写父类的 PlayHitReactMontage 来控制霸体逻辑
 	Super::ReceiveDamage(Damage, DamageInstigator);
 
 	// 检查阶段转换
 	CheckPhaseTransition();
-
-	// 闪避逻辑：有一定概率在受击后闪避 (仅在非攻击状态下)
-	if (!IsAttacking() && !IsStunned() && !bIsInvulnerable)
-	{
-		if (FMath::RandRange(0.0f, 1.0f) < 0.3f) // 30% 概率闪避
-		{
-			PerformDodge();
-		}
-	}
 }
 
 void ABossEnemy::CheckPhaseTransition()
@@ -224,7 +261,7 @@ void ABossEnemy::PerformDodge()
 
 	if (DodgeMontage)
 	{
-		UE_LOG(LogTemp, Log, TEXT("[%s] Boss Dodging!"), *GetName());
+		UE_LOG(LogTemp, Log, TEXT("[%s] Boss Dodging! Montage: %s"), *GetName(), *DodgeMontage->GetName());
 
 		// 停止当前移动，防止滑步，并允许蒙太奇RootMotion完全控制（如果有）
 		if (AAIController* AI = Cast<AAIController>(GetController()))
@@ -232,15 +269,27 @@ void ABossEnemy::PerformDodge()
 			AI->StopMovement();
 		}
 		
-		PlayAnimMontage(DodgeMontage);
+		float Duration = PlayAnimMontage(DodgeMontage);
 		
+		if (Duration > 0.0f)
+		{
+			UE_LOG(LogTemp, Warning, TEXT(">>> Dodge Montage Started! Duration: %.2f sec. If you don't see it, CHECK ANIM GRAPH SLOT NODE! <<<"), Duration);
+		}
+		else
+		{
+			UE_LOG(LogTemp, Error, TEXT(">>> Dodge Montage Failed to Play! Duration = 0. Check if Montage is valid. <<<"));
+		}
+
 		// 闪避期间无敌
 		bIsInvulnerable = true;
 		
-		float Duration = DodgeMontage->GetPlayLength();
+		// 如果返回0，为了防止卡死无敌状态，给一个最小持续时间
+		if (Duration <= 0.0f) Duration = 0.5f;
+
 		GetWorldTimerManager().SetTimer(DodgeTimer, [this]()
 		{
 			bIsInvulnerable = false;
+			UE_LOG(LogTemp, Log, TEXT("[%s] Dodge Finished. Invulnerability OFF."), *GetName());
 		}, Duration, false);
 	}
 }
