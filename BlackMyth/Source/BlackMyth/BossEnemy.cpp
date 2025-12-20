@@ -260,45 +260,35 @@ void ABossEnemy::ReceiveDamage(float Damage, AActor* DamageInstigator)
 	// 如果处于无敌状态，忽略伤害
 	if (bIsInvulnerable) return;
 
-	// debug日志：证明代码跑到了这里
-	UE_LOG(LogTemp, Warning, TEXT("[BossEnemy] ReceiveDamage Called! Checking Custom Dodge..."));
+	// [Debug Log] 
+	UE_LOG(LogTemp, Warning, TEXT("[BossEnemy] ReceiveDamage Called! Checking Dodge Conditions: IsAttacking: %s, IsStunned: %s, IsInvulnerable: %s"), 
+		IsAttacking() ? TEXT("True") : TEXT("False"), 
+		IsStunned() ? TEXT("True") : TEXT("False"), 
+		bIsInvulnerable ? TEXT("True") : TEXT("False"));
 
 	// 1. 优先尝试闪避
-	// 闪避逻辑：恢复为“硬派”风格，攻击中不能闪避 (Committed Attacks)
+	// 为了排查问题，我们将概率临时设为 100% (1.0f)
 	if (!IsAttacking() && !IsStunned() && !bIsInvulnerable)
 	{
-		float Roll = FMath::RandRange(0.0f, 1.0f);
-		// 恢复 30% 概率
-		if (Roll < 0.3f) 
+		UE_LOG(LogTemp, Warning, TEXT("[%s] Dodge Conditions MET! Attempting to trigger PerformDodge..."), *GetName());
+		
+		// 确保仇恨目标存在，否则闪避可能找不到方向
+		if (DamageInstigator)
 		{
-			UE_LOG(LogTemp, Warning, TEXT("[%s] Boss Perfect Dodge! (Roll: %.2f < 0.3) Ignoring Damage from: %s"), *GetName(), Roll, DamageInstigator ? *DamageInstigator->GetName() : TEXT("Unknown"));
-			
-			// 确保血条显示
-			SetBossHealthVisibility(true);
-
-			// 更新仇恨
-			if (DamageInstigator)
-			{
-				CombatTarget = DamageInstigator;
-				if (AAIController* AI = Cast<AAIController>(GetController()))
-				{
-					if (UBlackboardComponent* BB = AI->GetBlackboardComponent())
-					{
-						BB->SetValueAsObject(TEXT("TargetActor"), CombatTarget);
-					}
-				}
-			}
-
-			// 执行闪避
-			PerformDodge();
-			
-			// 闪避成功不扣血
-			return;
+			CombatTarget = DamageInstigator;
 		}
+
+		PerformDodge();
+		
+		// 闪避成功不扣血，直接返回
+		return;
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[%s] Dodge Check FAILED (Conditions not met). Proceeding to Super::ReceiveDamage."), *GetName());
 	}
 
 	// 2. 如果没闪避掉，再承受伤害
-	// 调用父类处理伤害 (扣血、受击动画等)
 	Super::ReceiveDamage(Damage, DamageInstigator);
 
 	// 检查阶段转换
