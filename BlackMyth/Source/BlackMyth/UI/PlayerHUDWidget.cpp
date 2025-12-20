@@ -3,6 +3,7 @@
 #include "PlayerHUDWidget.h"
 #include "StatusEffectIconWidget.h"
 #include "SkillBarWidget.h"
+#include "InventoryBarWidget.h"
 #include "Components/ProgressBar.h"
 #include "Components/TextBlock.h"
 #include "Components/HorizontalBox.h"
@@ -29,6 +30,12 @@ void UPlayerHUDWidget::NativeConstruct()
 	if (ComboText)
 	{
 		ComboText->SetVisibility(ESlateVisibility::Collapsed);
+	}
+
+	// 默认隐藏背包栏
+	if (InventoryBar)
+	{
+		InventoryBar->SetVisibility(ESlateVisibility::Collapsed);
 	}
 }
 
@@ -319,5 +326,20 @@ void UPlayerHUDWidget::UpdateStatusEffectDuration(EStatusEffectType EffectType, 
 
 	// 更新图标显示
 	(*FoundIcon)->UpdateDuration(RemainingTime, TotalDuration);
+}
+
+// ========== 背包栏相关实现 ==========
+
+void UPlayerHUDWidget::SetInventoryVisible(bool bVisible)
+{
+	if (InventoryBar)
+	{
+		InventoryBar->SetVisibility(bVisible ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
+		UE_LOG(LogTemp, Log, TEXT("PlayerHUDWidget: Inventory visibility set to %s"), bVisible ? TEXT("Visible") : TEXT("Hidden"));
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("PlayerHUDWidget::SetInventoryVisible - InventoryBar is null!"));
+	}
 }
 

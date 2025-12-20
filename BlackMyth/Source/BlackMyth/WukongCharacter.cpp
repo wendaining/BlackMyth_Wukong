@@ -397,6 +397,17 @@ void AWukongCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCom
             UE_LOG(LogTemp, Warning, TEXT("  TransformAction is NULL! Transform (Key 3) will not work! Assign IA_Transform in BP_Wukong."));
         }
 
+        // 绑定技能4 Action（按4）- 背包打开时使用金刚丹
+        if (Skill4Action)
+        {
+            EnhancedInputComponent->BindAction(Skill4Action, ETriggerEvent::Started, this, &AWukongCharacter::PerformSkill4);
+            UE_LOG(LogTemp, Warning, TEXT("  Bound Skill4Action to PerformSkill4"));
+        }
+        else
+        {
+            UE_LOG(LogTemp, Warning, TEXT("  Skill4Action is NULL! Skill4 (Key 4) will not work! Assign IA_Skill4 in BP_Wukong."));
+        }
+
         // 绑定背包开关Action（Tab键）
         if (ToggleInventoryAction)
         {
@@ -1314,6 +1325,12 @@ void AWukongCharacter::ToggleInventory()
     APlayerController* PC = Cast<APlayerController>(GetController());
     if (!PC) return;
 
+    // 通知 HUD 切换背包栏可见性
+    if (PlayerHUD)
+    {
+        PlayerHUD->SetInventoryVisible(bIsInventoryOpen);
+    }
+
     if (bIsInventoryOpen)
     {
         // 打开背包：游戏继续，显示鼠标（可以在UI中操作）
@@ -1322,7 +1339,6 @@ void AWukongCharacter::ToggleInventory()
         PC->SetInputMode(InputMode);
         PC->bShowMouseCursor = true;
 
-        // TODO: 显示背包UI Widget（蓝图中实现）
         UE_LOG(LogTemp, Log, TEXT("Inventory Opened"));
     }
     else
@@ -1331,19 +1347,46 @@ void AWukongCharacter::ToggleInventory()
         PC->SetInputMode(FInputModeGameOnly());
         PC->bShowMouseCursor = false;
 
-        // TODO: 隐藏背包UI Widget（蓝图中实现）
         UE_LOG(LogTemp, Log, TEXT("Inventory Closed"));
     }
+}
+
+void AWukongCharacter::PerformSkill4()
+{
+    UE_LOG(LogTemp, Warning, TEXT(">>> PerformSkill4() CALLED! bIsInventoryOpen=%d"), bIsInventoryOpen);
+
+    // 背包打开时，使用槽位 3（金刚丹）
+    if (bIsInventoryOpen)
+    {
+        if (InventoryComponent)
+        {
+            InventoryComponent->UseItem(3);
+        }
+        return;
+    }
+
+    // 背包关闭时，此键位预留（可以分配其他技能）
+    UE_LOG(LogTemp, Log, TEXT("PerformSkill4: No skill assigned when inventory is closed"));
 }
 
 void AWukongCharacter::PerformShadowClone()
 {
     UE_LOG(LogTemp, Warning, TEXT(">>> PerformShadowClone() CALLED! CurrentState=%d"), (int32)CurrentState);
 
+    // 背包打开时，使用槽位 0（血药）
+    if (bIsInventoryOpen)
+    {
+        if (InventoryComponent)
+        {
+            InventoryComponent->UseItem(0);
+        }
+        return;
+    }
+
     // 死亡、翻滚、硬直、对话状态下不能使用影分身
     if (CurrentState == EWukongState::Dead ||
         CurrentState == EWukongState::Dodging ||
-        CurrentState == EWukongState::HitStun || 
+        CurrentState == EWukongState::HitStun ||
         bIsInDialogue)
     {
         UE_LOG(LogTemp, Log, TEXT("PerformShadowClone: Blocked by state"));
@@ -1444,10 +1487,20 @@ void AWukongCharacter::PerformFreezeSpell()
 {
     UE_LOG(LogTemp, Warning, TEXT(">>> PerformFreezeSpell() CALLED! CurrentState=%d"), (int32)CurrentState);
 
+    // 背包打开时，使用槽位 1（体力药）
+    if (bIsInventoryOpen)
+    {
+        if (InventoryComponent)
+        {
+            InventoryComponent->UseItem(1);
+        }
+        return;
+    }
+
     // 死亡、翻滚、硬直、对话状态下不能使用定身术
     if (CurrentState == EWukongState::Dead ||
         CurrentState == EWukongState::Dodging ||
-        CurrentState == EWukongState::HitStun || 
+        CurrentState == EWukongState::HitStun ||
         bIsInDialogue)
     {
         UE_LOG(LogTemp, Log, TEXT("PerformFreezeSpell: Blocked by state"));
@@ -2335,6 +2388,16 @@ void AWukongCharacter::PlayJumpSound()
 void AWukongCharacter::PerformTransform()
 {
 	UE_LOG(LogTemp, Warning, TEXT(">>> PerformTransform() CALLED! bIsTransformed=%d"), bIsTransformed);
+
+	// 背包打开时，使用槽位 2（怒火丹）
+	if (bIsInventoryOpen)
+	{
+		if (InventoryComponent)
+		{
+			InventoryComponent->UseItem(2);
+		}
+		return;
+	}
 
 	// 如果已经变身了，不能再次变身
 	if (bIsTransformed)

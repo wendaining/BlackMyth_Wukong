@@ -197,6 +197,10 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UInputAction> TransformAction;
 
+	/** 技能4输入动作 (按键4) - 背包打开时使用金刚丹 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input", meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<UInputAction> Skill4Action;
+
 	/** 交互输入动作 (E键) */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UInputAction> InteractAction;
@@ -607,6 +611,7 @@ private:
 	void OnLockOnPressed();   // 锁定目标按下
 	void OnSwitchTarget(const FInputActionValue& Value);  // 切换目标
 	void ToggleInventory();   // 切换背包显示
+	void PerformSkill4();     // 技能4（背包打开时使用金刚丹）
 
 	// ========== 状态更新函数 ==========
 	void ChangeState(EWukongState NewState);     // 切换状态
