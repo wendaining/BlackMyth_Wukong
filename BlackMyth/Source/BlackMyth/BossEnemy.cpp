@@ -399,7 +399,13 @@ void ABossEnemy::PerformDodge()
 		GetWorldTimerManager().SetTimer(DodgeTimer, [this]()
 		{
 			bIsInvulnerable = false;
-			UE_LOG(LogTemp, Log, TEXT("[%s] Dodge Finished. Invulnerability OFF."), *GetName());
+			
+			// [Fix] 闪避结束后，重新进入追击状态，确保 AI 能继续行动
+			if (!IsDead() && !IsStunned())
+			{
+				EnemyState = EEnemyState::EES_Chasing;
+				UE_LOG(LogTemp, Log, TEXT("[%s] Dodge Finished. Resuming Chase."), *GetName());
+			}
 		}, Duration, false);
 	}
 }
