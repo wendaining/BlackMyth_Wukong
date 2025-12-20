@@ -57,6 +57,9 @@ protected:
 	/** 检查是否需要进入第二阶段 */
 	void CheckPhaseTransition();
 
+	/** 攻击逻辑 (重写以支持随机出招) */
+	virtual void Attack() override;
+
 	/** 进入第二阶段 */
 	void EnterPhase2();
 
@@ -86,9 +89,26 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Boss|Animation")
 	TArray<UAnimMontage*> DodgeMontages;
 
+	/** 轻攻击连招列表 (Combo A: atk00a, atk00b) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Boss|Animation")
+	TArray<UAnimMontage*> LightAttackMontages;
+
+	/** 重攻击列表 (Thrust, Overhead: atk01, atk04) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Boss|Animation")
+	TArray<UAnimMontage*> HeavyAttackMontages;
+
 	/** 召唤哮天犬蒙太奇 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Boss|Animation")
 	TObjectPtr<UAnimMontage> SummonDogMontage;
+
+public:
+	/** 执行轻攻击 (随机选择) */
+	UFUNCTION(BlueprintCallable, Category = "Combat")
+	void PerformLightAttack();
+
+	/** 执行重攻击 (随机选择) */
+	UFUNCTION(BlueprintCallable, Category = "Combat")
+	void PerformHeavyAttack();
 
 	/** 哮天犬蓝图类 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Boss|Skill")

@@ -324,3 +324,114 @@ void ABossEnemy::SetBossHealthVisibility(bool bVisible)
 		BossHealthBarWidget->SetVisibility(bVisible ? ESlateVisibility::Visible : ESlateVisibility::Hidden);
 	}
 }
+
+void ABossEnemy::Attack()
+{
+	if (IsDead() || IsStunned()) return;
+
+	// 停止移动
+	if (GetController()) GetController()->StopMovement();
+
+	// 设置状态
+	EnemyState = EEnemyState::EES_Engaged;
+
+	UE_LOG(LogTemp, Warning, TEXT("[%s] Boss Attack Decision..."), *GetName());
+
+	// 简单的随机逻辑 (后续可以用行为树替代)
+	// 70% 轻攻击， 30% 重攻击
+	if (FMath::RandRange(0.0f, 1.0f) < 0.7f)
+	{
+		PerformLightAttack();
+	}
+	else
+	{
+		PerformHeavyAttack();
+	}
+}
+
+void ABossEnemy::PerformLightAttack()
+{
+	if (IsDead() || IsStunned() || LightAttackMontages.Num() == 0)
+	{
+		// 如果没有攻击可用，强制结束
+		AttackEnd();
+		return;
+	}
+
+	// 随机选择一个轻攻击
+	int32 Index = FMath::RandRange(0, LightAttackMontages.Num() - 1);
+	UAnimMontage* MontageToPlay = LightAttackMontages[Index];
+
+	if (MontageToPlay)
+	{
+		UE_LOG(LogTemp, Log, TEXT("[%s] Performing Light Attack: %s"), *GetName(), *MontageToPlay->GetName());
+		
+		// 确保朝向目标
+		if (CombatTarget)
+		{
+			FVector Direction = (CombatTarget->GetActorLocation() - GetActorLocation()).GetSafeNormal();
+			Direction.Z = 0.f;
+			SetActorRotation(Direction.Rotation());
+		}
+
+		float Duration = PlayAnimMontage(MontageToPlay);
+		
+		// 攻击时不是无敌的
+		bIsInvulnerable = false; 
+
+		// 设置结束回调保底
+		if (Duration > 0.f)
+		{
+			// 使用 Lambda 表达式来调用受保护的父类函数，规避 C2248 错误
+			GetWorldTimerManager().SetTimer(AttackEndTimer, [this]()
+			{
+				this->AttackEnd();
+			}, Duration, false);
+		}
+		else
+		{
+			AttackEnd();
+		}
+	}
+}
+
+void ABossEnemy::PerformHeavyAttack()
+{
+	if (IsDead() || IsStunned() || HeavyAttackMontages.Num() == 0)
+	{
+		AttackEnd();
+		return;
+	}
+
+	// 随机选择一个重攻击
+	int32 Index = FMath::RandRange(0, HeavyAttackMontages.Num() - 1);
+	UAnimMontage* MontageToPlay = HeavyAttackMontages[Index];
+
+	if (MontageToPlay)
+	{
+		UE_LOG(LogTemp, Log, TEXT("[%s] Performing Heavy Attack: %s"), *GetName(), *MontageToPlay->GetName());
+		
+		if (CombatTarget)
+		{
+			FVector Direction = (CombatTarget->GetActorLocation() - GetActorLocation()).GetSafeNormal();
+			Direction.Z = 0.f;
+			SetActorRotation(Direction.Rotation());
+		}
+
+		float Duration = PlayAnimMontage(MontageToPlay);
+		bIsInvulnerable = false;
+
+		if (Duration > 0.f)
+		{
+			// 使用 Lambda 表达式来调用受保护的父类函数，规避 C2248 错误
+			GetWorldTimerManager().SetTimer(AttackEndTimer, [this]()
+			{
+				this->AttackEnd();
+			}, Duration, false);
+		}
+		else
+		{
+			AttackEnd();
+		}
+	}
+}
