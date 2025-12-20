@@ -14,10 +14,12 @@ class UTraceHitboxComponent;
 class UTargetingComponent;
 class UTeamComponent;
 class UStatusEffectComponent;
+class UInventoryComponent;
 class UWukongAnimInstance;
 class UPlayerHUDWidget;
 class ANPCCharacter;
 class UInteractionPromptWidget;
+class APotionActor;
 struct FInputActionValue;
 
 // 角色状态枚举
@@ -137,6 +139,45 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Stats")
 	UStaminaComponent* GetStaminaComponent() const { return StaminaComponent; }
 
+	/** 获取状态效果组件 */
+	UFUNCTION(BlueprintPure, Category = "StatusEffect")
+	UStatusEffectComponent* GetStatusEffectComponent() const { return StatusEffectComponent; }
+
+	/** 获取背包组件 */
+	UFUNCTION(BlueprintPure, Category = "Inventory")
+	UInventoryComponent* GetInventoryComponent() const { return InventoryComponent; }
+
+	// ========== 药瓶系统 ==========
+
+	/** 当前使用的药瓶 Actor（喝药动画中生成） */
+	UPROPERTY(BlueprintReadOnly, Category = "Potion")
+	TObjectPtr<APotionActor> CurrentPotionActor;
+
+	/** 血药蓝图类（在编辑器中配置） */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Potion")
+	TSubclassOf<APotionActor> HealthPotionClass;
+
+	/** 体力药蓝图类（在编辑器中配置） */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Potion")
+	TSubclassOf<APotionActor> StaminaPotionClass;
+
+	/** 当前待生成的药瓶类型（在使用道具时设置，动画通知读取） */
+	UPROPERTY(BlueprintReadOnly, Category = "Potion")
+	TSubclassOf<APotionActor> CurrentPotionClass;
+
+	// 药瓶相关方法
+	UFUNCTION(BlueprintCallable, Category = "Potion")
+	void SetCurrentPotionClass(TSubclassOf<APotionActor> PotionClass) { CurrentPotionClass = PotionClass; }
+
+	UFUNCTION(BlueprintPure, Category = "Potion")
+	TSubclassOf<APotionActor> GetCurrentPotionClass() const { return CurrentPotionClass; }
+
+	UFUNCTION(BlueprintCallable, Category = "Potion")
+	void SetCurrentPotionActor(APotionActor* Potion) { CurrentPotionActor = Potion; }
+
+	UFUNCTION(BlueprintPure, Category = "Potion")
+	APotionActor* GetCurrentPotionActor() const { return CurrentPotionActor; }
+
 protected:
 	// ========== 输入动作 ==========
 	
@@ -188,9 +229,17 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UInputAction> TransformAction;
 
+	/** 技能4输入动作 (按键4，预留) */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input", meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<UInputAction> Skill4Action;
+
 	/** 交互输入动作 (E键) */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UInputAction> InteractAction;
+
+	/** 背包开关输入动作 (Tab键) */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input", meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<UInputAction> ToggleInventoryAction;
 
 	// ========== 组件 ==========
 
@@ -222,9 +271,9 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	TObjectPtr<UStatusEffectComponent> StatusEffectComponent;
 
-	/** 获取状态效果组件 */
-	UFUNCTION(BlueprintPure, Category = "StatusEffect")
-	UStatusEffectComponent* GetStatusEffectComponent() const { return StatusEffectComponent; }
+	/** 背包组件（管理物品和消耗品） */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
+	TObjectPtr<UInventoryComponent> InventoryComponent;
 
 	// ========== 移动属性 ==========
 	
@@ -582,6 +631,9 @@ private:
 	bool bIsUsingAbility = false;  // 是否正在使用战技
 	float AbilityTimer = 0.0f;     // 战技计时器
 
+	// ========== 背包状态 ==========
+	bool bIsInventoryOpen = false;  // 背包是否打开
+
 	// ========== 输入处理函数 ==========
 	void OnDodgePressed();    // 翻滚按下
 	void OnAttackPressed();   // 攻击按下
@@ -590,6 +642,7 @@ private:
 	void OnAbilityPressed();  // 战技按下
 	void OnLockOnPressed();   // 锁定目标按下
 	void OnSwitchTarget(const FInputActionValue& Value);  // 切换目标
+	void ToggleInventory();   // 切换背包显示
 
 	// ========== 状态更新函数 ==========
 	void ChangeState(EWukongState NewState);     // 切换状态
@@ -778,6 +831,9 @@ protected:
 
 	/** 执行变身术 */
 	void PerformTransform();
+
+	// 技能4 (按键4，预留)
+	void PerformSkill4();
 
 	/** 变身为蝴蝶 */
 	void TransformToButterfly();

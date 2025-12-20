@@ -72,6 +72,22 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "StatusEffect|Style")
 	FLinearColor BurnColor = FLinearColor(1.0f, 0.4f, 0.0f, 1.0f);  // 橙色
 
+	/** 攻击Buff图标颜色 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "StatusEffect|Style")
+	FLinearColor AttackBuffColor = FLinearColor(1.0f, 0.3f, 0.2f, 1.0f);  // 红色
+
+	/** 防御Buff图标颜色 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "StatusEffect|Style")
+	FLinearColor DefenseBuffColor = FLinearColor(1.0f, 0.8f, 0.2f, 1.0f);  // 金色
+
+	/** 血量恢复图标颜色 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "StatusEffect|Style")
+	FLinearColor HealingIndicatorColor = FLinearColor(0.8f, 0.2f, 0.5f, 1.0f);  // 粉色
+
+	/** 体力恢复图标颜色 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "StatusEffect|Style")
+	FLinearColor StaminaIndicatorColor = FLinearColor(0.2f, 0.8f, 0.8f, 1.0f);  // 青色
+
 	/** 默认图标颜色 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "StatusEffect|Style")
 	FLinearColor DefaultColor = FLinearColor(0.5f, 0.5f, 0.5f, 1.0f);  // 灰色
@@ -88,6 +104,21 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "StatusEffect|Icons")
 	UTexture2D* BurnIconTexture;
 
+	/** 攻击Buff图标纹理 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "StatusEffect|Icons")
+	UTexture2D* AttackBuffIconTexture;
+
+	/** 防御Buff图标纹理 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "StatusEffect|Icons")
+	UTexture2D* DefenseBuffIconTexture;
+
+	/** 血量恢复效果图标纹理 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "StatusEffect|Icons")
+	UTexture2D* HealingIndicatorIconTexture;;
+
+	/** 体力恢复效果图标纹理 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "StatusEffect|Icons")
+	UTexture2D* StaminaIndicatorIconTexture;
 private:
 	/** 当前效果类型 */
 	EStatusEffectType EffectType = EStatusEffectType::None;

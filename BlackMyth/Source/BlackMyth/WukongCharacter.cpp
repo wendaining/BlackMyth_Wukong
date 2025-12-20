@@ -16,6 +16,7 @@
 #include "Components/CapsuleComponent.h"
 #include "Components/SceneStateComponent.h"
 #include "Components/StatusEffectComponent.h"
+#include "Components/InventoryComponent.h"
 #include "Combat/TraceHitboxComponent.h"
 #include "Dialogue/DialogueComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
@@ -73,6 +74,9 @@ AWukongCharacter::AWukongCharacter()
 
     // 创建状态效果组件（管理中毒、减速等状态）
     StatusEffectComponent = CreateDefaultSubobject<UStatusEffectComponent>(TEXT("StatusEffectComponent"));
+
+    // 创建背包组件（管理物品和消耗品）
+    InventoryComponent = CreateDefaultSubobject<UInventoryComponent>(TEXT("InventoryComponent"));
 
     // 所有动画资产和输入动作都应在蓝图类 (BP_Wukong) 中设置
     // 不在 C++ 构造函数中硬编码加载路径，以便于在编辑器中灵活配置
@@ -391,6 +395,28 @@ void AWukongCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCom
         else
         {
             UE_LOG(LogTemp, Warning, TEXT("  TransformAction is NULL! Transform (Key 3) will not work! Assign IA_Transform in BP_Wukong."));
+        }
+
+        // 绑定技能4Action（按4）
+        if (Skill4Action)
+        {
+            EnhancedInputComponent->BindAction(Skill4Action, ETriggerEvent::Started, this, &AWukongCharacter::PerformSkill4);
+            UE_LOG(LogTemp, Warning, TEXT("  Bound Skill4Action to PerformSkill4"));
+        }
+        else
+        {
+            UE_LOG(LogTemp, Warning, TEXT("  Skill4Action is NULL! Skill 4 (Key 4) will not work! Assign IA_Skill4 in BP_Wukong if needed."));
+        }
+
+        // 绑定背包开关Action（I键）
+        if (ToggleInventoryAction)
+        {
+            EnhancedInputComponent->BindAction(ToggleInventoryAction, ETriggerEvent::Started, this, &AWukongCharacter::ToggleInventory);
+            UE_LOG(LogTemp, Warning, TEXT("  Bound ToggleInventoryAction to ToggleInventory"));
+        }
+        else
+        {
+            UE_LOG(LogTemp, Warning, TEXT("  ToggleInventoryAction is NULL! Inventory (Tab) will not work! Assign IA_ToggleInventory in BP_Wukong."));
         }
     }
     else
@@ -1281,20 +1307,65 @@ void AWukongCharacter::UseItem()
         return;
     }
 
-    if (DrinkGourdMontage)
+    // 通过背包组件使用物品（R键默认使用槽位0：血药）
+    if (InventoryComponent && InventoryComponent->UseItem(0))
     {
-        PlayMontage(DrinkGourdMontage);
+        // 设置当前药瓶类型为血药（供AnimNotify使用）
+        SetCurrentPotionClass(HealthPotionClass);
+
+        // 播放喝药动画
+        if (DrinkGourdMontage)
+        {
+            PlayMontage(DrinkGourdMontage);
+        }
     }
 }
+
+void AWukongCharacter::ToggleInventory()
+{
+    bIsInventoryOpen = !bIsInventoryOpen;
+
+    APlayerController* PC = Cast<APlayerController>(GetController());
+    if (!PC) return;
+
+    // 通知 HUD 切换背包栏可见性
+    if (PlayerHUD)
+    {
+        PlayerHUD->SetInventoryVisible(bIsInventoryOpen);
+    }
+
+    // 不显示鼠标，保持游戏模式
+    // 背包是被动信息显示，不需要鼠标交互
+
+    UE_LOG(LogTemp, Log, TEXT("Inventory %s"), bIsInventoryOpen ? TEXT("Opened") : TEXT("Closed"));
+}
+
+// ========== 影分身技能实现 ==========
 
 void AWukongCharacter::PerformShadowClone()
 {
     UE_LOG(LogTemp, Warning, TEXT(">>> PerformShadowClone() CALLED! CurrentState=%d"), (int32)CurrentState);
 
+    // 背包打开时，使用槽位 0（血药）并播放动画
+    if (bIsInventoryOpen)
+    {
+        if (InventoryComponent && InventoryComponent->UseItem(0))
+        {
+            // 设置当前药瓶类型为血药（供AnimNotify使用）
+            SetCurrentPotionClass(HealthPotionClass);
+
+            if (DrinkGourdMontage)
+            {
+                PlayMontage(DrinkGourdMontage);
+            }
+        }
+        return;
+    }
+
     // 死亡、翻滚、硬直、对话状态下不能使用影分身
     if (CurrentState == EWukongState::Dead ||
         CurrentState == EWukongState::Dodging ||
-        CurrentState == EWukongState::HitStun || 
+        CurrentState == EWukongState::HitStun ||
         bIsInDialogue)
     {
         UE_LOG(LogTemp, Log, TEXT("PerformShadowClone: Blocked by state"));
@@ -1395,10 +1466,26 @@ void AWukongCharacter::PerformFreezeSpell()
 {
     UE_LOG(LogTemp, Warning, TEXT(">>> PerformFreezeSpell() CALLED! CurrentState=%d"), (int32)CurrentState);
 
+    // 背包打开时，使用槽位 1（体力药）并播放动画
+    if (bIsInventoryOpen)
+    {
+        if (InventoryComponent && InventoryComponent->UseItem(1))
+        {
+            // 设置当前药瓶类型为体力药（供AnimNotify使用）
+            SetCurrentPotionClass(StaminaPotionClass);
+
+            if (DrinkGourdMontage)
+            {
+                PlayMontage(DrinkGourdMontage);
+            }
+        }
+        return;
+    }
+
     // 死亡、翻滚、硬直、对话状态下不能使用定身术
     if (CurrentState == EWukongState::Dead ||
         CurrentState == EWukongState::Dodging ||
-        CurrentState == EWukongState::HitStun || 
+        CurrentState == EWukongState::HitStun ||
         bIsInDialogue)
     {
         UE_LOG(LogTemp, Log, TEXT("PerformFreezeSpell: Blocked by state"));
@@ -2287,6 +2374,16 @@ void AWukongCharacter::PerformTransform()
 {
 	UE_LOG(LogTemp, Warning, TEXT(">>> PerformTransform() CALLED! bIsTransformed=%d"), bIsTransformed);
 
+	// 背包打开时，使用槽位 2（怒火丹）
+	if (bIsInventoryOpen)
+	{
+		if (InventoryComponent)
+		{
+			InventoryComponent->UseItem(2);
+		}
+		return;
+	}
+
 	// 如果已经变身了，不能再次变身
 	if (bIsTransformed)
 	{
@@ -2320,6 +2417,26 @@ void AWukongCharacter::PerformTransform()
 
 	// 执行变身
 	TransformToButterfly();
+}
+
+// ========== 技能4实现（预留） ==========
+
+void AWukongCharacter::PerformSkill4()
+{
+	UE_LOG(LogTemp, Warning, TEXT(">>> PerformSkill4() CALLED!"));
+
+	// 背包打开时，使用槽位 3（金刚丹 - 防御Buff）
+	if (bIsInventoryOpen)
+	{
+		if (InventoryComponent)
+		{
+			InventoryComponent->UseItem(3);
+		}
+		return;
+	}
+
+	// 技能4暂未实现
+	UE_LOG(LogTemp, Log, TEXT("PerformSkill4: Skill 4 not yet implemented. This is a placeholder."));
 }
 
 void AWukongCharacter::TransformToButterfly()

@@ -72,6 +72,15 @@ FLinearColor UStatusEffectIconWidget::GetColorForEffectType(EStatusEffectType Ty
 		return SlowColor;
 	case EStatusEffectType::Burn:
 		return BurnColor;
+	case EStatusEffectType::AttackBuff:
+		return AttackBuffColor;
+	case EStatusEffectType::DefenseBuff:
+		return DefenseBuffColor;
+	case EStatusEffectType::HealingIndicator:
+		return HealingIndicatorColor;
+	case EStatusEffectType::StaminaIndicator:
+		return StaminaIndicatorColor;
+
 	default:
 		return DefaultColor;
 	}
@@ -87,6 +96,14 @@ UTexture2D* UStatusEffectIconWidget::GetIconTextureForEffectType(EStatusEffectTy
 		return SlowIconTexture;
 	case EStatusEffectType::Burn:
 		return BurnIconTexture;
+	case EStatusEffectType::AttackBuff:
+		return AttackBuffIconTexture;
+	case EStatusEffectType::DefenseBuff:
+		return DefenseBuffIconTexture;
+	case EStatusEffectType::HealingIndicator:
+		return HealingIndicatorIconTexture;
+	case EStatusEffectType::StaminaIndicator:
+		return StaminaIndicatorIconTexture;
 	default:
 		return nullptr;
 	}
@@ -102,6 +119,15 @@ FText UStatusEffectIconWidget::GetEffectNameForType(EStatusEffectType Type) cons
 		return FText::FromString(TEXT("减速"));
 	case EStatusEffectType::Burn:
 		return FText::FromString(TEXT("灼烧"));
+	case EStatusEffectType::AttackBuff:
+		return FText::FromString(TEXT("攻击提升"));
+	case EStatusEffectType::DefenseBuff:
+		return FText::FromString(TEXT("防御提升"));
+	case EStatusEffectType::HealingIndicator:
+		return FText::FromString(TEXT("体力恢复"));
+	case EStatusEffectType::StaminaIndicator:
+		return FText::FromString(TEXT("血量恢复"));
+
 	default:
 		return FText::FromString(TEXT(""));
 	}

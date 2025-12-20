@@ -15,6 +15,7 @@ class USkillBarWidget;
 class UHorizontalBox;
 class UStatusEffectComponent;
 class UStatusEffectIconWidget;
+class UInventoryBarWidget;
 
 /**
  * 玩家 HUD Widget
@@ -82,6 +83,12 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "HUD|StatusEffect")
 	void UpdateStatusEffectDuration(EStatusEffectType EffectType, float RemainingTime);
 
+	// ========== 背包栏相关 ==========
+
+	/** 设置背包栏可见性 */
+	UFUNCTION(BlueprintCallable, Category = "HUD|Inventory")
+	void SetInventoryVisible(bool bVisible);
+
 protected:
 	virtual void NativeConstruct() override;
 	virtual void NativeDestruct() override;
@@ -108,6 +115,10 @@ protected:
 	/** 状态效果图标容器 - 蓝图中可选的 HorizontalBox */
 	UPROPERTY(meta = (BindWidgetOptional))
 	UHorizontalBox* StatusEffectContainer;
+
+	/** 背包栏 Widget - 蓝图中可选 */
+	UPROPERTY(meta = (BindWidgetOptional))
+	UInventoryBarWidget* InventoryBar;
 
 	// ========== 可配置属性 ==========
 
