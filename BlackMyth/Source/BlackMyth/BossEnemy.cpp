@@ -7,6 +7,110 @@
 #include "Navigation/PathFollowingComponent.h"
 #include "BehaviorTree/BlackboardComponent.h"
 #include "Components/EnemyDodgeComponent.h"
+#include "Combat/TraceHitboxComponent.h" // [Fix] Include Hitbox Component
+
+// ... (Existing Constructor and other functions unchanged) ...
+
+void ABossEnemy::PerformLightAttack()
+{
+	if (IsDead() || IsStunned() || LightAttackMontages.Num() == 0)
+	{
+		AttackEnd();
+		return;
+	}
+
+	int32 Index = FMath::RandRange(0, LightAttackMontages.Num() - 1);
+	UAnimMontage* MontageToPlay = LightAttackMontages[Index];
+
+	if (MontageToPlay)
+	{
+		UE_LOG(LogTemp, Log, TEXT("[%s] Performing Light Attack: %s"), *GetName(), *MontageToPlay->GetName());
+		
+		if (CombatTarget)
+		{
+			FVector Direction = (CombatTarget->GetActorLocation() - GetActorLocation()).GetSafeNormal();
+			Direction.Z = 0.f;
+			SetActorRotation(Direction.Rotation());
+		}
+
+		// [Fix] 强制开启攻击判定 (因为手动创建的蒙太奇可能缺少 Notify)
+		if (TraceHitboxComponent)
+		{
+			TraceHitboxComponent->ActivateTrace();
+		}
+
+		float Duration = PlayAnimMontage(MontageToPlay);
+		bIsInvulnerable = false; 
+
+		if (Duration > 0.f)
+		{
+			// 使用 Lambda 表达式来调用受保护的父类函数
+			GetWorldTimerManager().SetTimer(AttackEndTimer, [this]()
+			{
+				// [Fix] 攻击结束时关闭判定
+				if (TraceHitboxComponent) TraceHitboxComponent->DeactivateTrace();
+				this->AttackEnd();
+			}, Duration, false);
+		}
+		else
+		{
+			if (TraceHitboxComponent) TraceHitboxComponent->DeactivateTrace();
+			AttackEnd();
+		}
+	}
+}
+
+void ABossEnemy::PerformHeavyAttack()
+{
+	if (IsDead() || IsStunned() || HeavyAttackMontages.Num() == 0)
+	{
+		AttackEnd();
+		return;
+	}
+
+	int32 Index = FMath::RandRange(0, HeavyAttackMontages.Num() - 1);
+	UAnimMontage* MontageToPlay = HeavyAttackMontages[Index];
+
+	if (MontageToPlay)
+	{
+		UE_LOG(LogTemp, Log, TEXT("[%s] Performing Heavy Attack: %s"), *GetName(), *MontageToPlay->GetName());
+		
+		if (CombatTarget)
+		{
+			FVector Direction = (CombatTarget->GetActorLocation() - GetActorLocation()).GetSafeNormal();
+			Direction.Z = 0.f;
+			SetActorRotation(Direction.Rotation());
+		}
+
+		// [Fix] 强制开启攻击判定
+		if (TraceHitboxComponent)
+		{
+			TraceHitboxComponent->SetHeavyAttack(true); // 标记重攻击
+			TraceHitboxComponent->ActivateTrace();
+		}
+
+		float Duration = PlayAnimMontage(MontageToPlay);
+		bIsInvulnerable = false;
+
+		if (Duration > 0.f)
+		{
+			GetWorldTimerManager().SetTimer(AttackEndTimer, [this]()
+			{
+				if (TraceHitboxComponent)
+				{
+					TraceHitboxComponent->DeactivateTrace();
+					TraceHitboxComponent->SetHeavyAttack(false); // 重置标记
+				}
+				this->AttackEnd();
+			}, Duration, false);
+		}
+		else
+		{
+			if (TraceHitboxComponent) TraceHitboxComponent->DeactivateTrace();
+			AttackEnd();
+		}
+	}
+}
 
 ABossEnemy::ABossEnemy()
 {
@@ -349,89 +453,4 @@ void ABossEnemy::Attack()
 	}
 }
 
-void ABossEnemy::PerformLightAttack()
-{
-	if (IsDead() || IsStunned() || LightAttackMontages.Num() == 0)
-	{
-		// 如果没有攻击可用，强制结束
-		AttackEnd();
-		return;
-	}
 
-	// 随机选择一个轻攻击
-	int32 Index = FMath::RandRange(0, LightAttackMontages.Num() - 1);
-	UAnimMontage* MontageToPlay = LightAttackMontages[Index];
-
-	if (MontageToPlay)
-	{
-		UE_LOG(LogTemp, Log, TEXT("[%s] Performing Light Attack: %s"), *GetName(), *MontageToPlay->GetName());
-		
-		// 确保朝向目标
-		if (CombatTarget)
-		{
-			FVector Direction = (CombatTarget->GetActorLocation() - GetActorLocation()).GetSafeNormal();
-			Direction.Z = 0.f;
-			SetActorRotation(Direction.Rotation());
-		}
-
-		float Duration = PlayAnimMontage(MontageToPlay);
-		
-		// 攻击时不是无敌的
-		bIsInvulnerable = false; 
-
-		// 设置结束回调保底
-		if (Duration > 0.f)
-		{
-			// 使用 Lambda 表达式来调用受保护的父类函数，规避 C2248 错误
-			GetWorldTimerManager().SetTimer(AttackEndTimer, [this]()
-			{
-				this->AttackEnd();
-			}, Duration, false);
-		}
-		else
-		{
-			AttackEnd();
-		}
-	}
-}
-
-void ABossEnemy::PerformHeavyAttack()
-{
-	if (IsDead() || IsStunned() || HeavyAttackMontages.Num() == 0)
-	{
-		AttackEnd();
-		return;
-	}
-
-	// 随机选择一个重攻击
-	int32 Index = FMath::RandRange(0, HeavyAttackMontages.Num() - 1);
-	UAnimMontage* MontageToPlay = HeavyAttackMontages[Index];
-
-	if (MontageToPlay)
-	{
-		UE_LOG(LogTemp, Log, TEXT("[%s] Performing Heavy Attack: %s"), *GetName(), *MontageToPlay->GetName());
-		
-		if (CombatTarget)
-		{
-			FVector Direction = (CombatTarget->GetActorLocation() - GetActorLocation()).GetSafeNormal();
-			Direction.Z = 0.f;
-			SetActorRotation(Direction.Rotation());
-		}
-
-		float Duration = PlayAnimMontage(MontageToPlay);
-		bIsInvulnerable = false;
-
-		if (Duration > 0.f)
-		{
-			// 使用 Lambda 表达式来调用受保护的父类函数，规避 C2248 错误
-			GetWorldTimerManager().SetTimer(AttackEndTimer, [this]()
-			{
-				this->AttackEnd();
-			}, Duration, false);
-		}
-		else
-		{
-			AttackEnd();
-		}
-	}
-}
