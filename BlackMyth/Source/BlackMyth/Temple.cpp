@@ -6,6 +6,8 @@
 #include "Blueprint/UserWidget.h"
 #include "WukongCharacter.h"
 #include "Kismet/GameplayStatics.h"
+#include "UI/BlackMythPlayerController.h"
+#include "GameFramework/PlayerController.h"
 #include "Components/HealthComponent.h"
 #include "Components/StaminaComponent.h"
 
@@ -115,13 +117,16 @@ void AInteractableActor::OnInteract_Implementation(AActor* Interactor)
     {
         InteractMenuInstance->AddToViewport(100);
 
-        // 切换到 UI 输入
+        // ===== 2. 暂停游戏 =====
+        UGameplayStatics::SetGamePaused(GetWorld(), true);
+
+        // ===== 3. 切换到 UI 输入 =====
         PC->SetInputMode(FInputModeUIOnly());
         PC->bShowMouseCursor = true;
 
         UE_LOG(LogTemp, Log, TEXT("Temple Interact Menu Opened"));
     }
 
-    // ===== 2. 打开土地庙 WBP =====
+    // ===== 4. 恢复血量和体力值 =====
     Player->FullRestore();
 }
