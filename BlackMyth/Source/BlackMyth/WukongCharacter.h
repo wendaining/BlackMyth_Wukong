@@ -14,6 +14,7 @@ class UTraceHitboxComponent;
 class UTargetingComponent;
 class UTeamComponent;
 class UStatusEffectComponent;
+class UInventoryComponent;
 class UWukongAnimInstance;
 class UPlayerHUDWidget;
 class ANPCCharacter;
@@ -192,6 +193,10 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UInputAction> InteractAction;
 
+	/** 背包开关输入动作 (Tab键) */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input", meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<UInputAction> ToggleInventoryAction;
+
 	// ========== 组件 ==========
 
 	/** 生命值组件 */
@@ -222,9 +227,17 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	TObjectPtr<UStatusEffectComponent> StatusEffectComponent;
 
+	/** 背包组件（管理物品和消耗品） */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
+	TObjectPtr<UInventoryComponent> InventoryComponent;
+
 	/** 获取状态效果组件 */
 	UFUNCTION(BlueprintPure, Category = "StatusEffect")
 	UStatusEffectComponent* GetStatusEffectComponent() const { return StatusEffectComponent; }
+
+	/** 获取背包组件 */
+	UFUNCTION(BlueprintPure, Category = "Inventory")
+	UInventoryComponent* GetInventoryComponent() const { return InventoryComponent; }
 
 	// ========== 移动属性 ==========
 	
@@ -582,6 +595,9 @@ private:
 	bool bIsUsingAbility = false;  // 是否正在使用战技
 	float AbilityTimer = 0.0f;     // 战技计时器
 
+	// ========== 背包状态 ==========
+	bool bIsInventoryOpen = false;  // 背包是否打开
+
 	// ========== 输入处理函数 ==========
 	void OnDodgePressed();    // 翻滚按下
 	void OnAttackPressed();   // 攻击按下
@@ -590,6 +606,7 @@ private:
 	void OnAbilityPressed();  // 战技按下
 	void OnLockOnPressed();   // 锁定目标按下
 	void OnSwitchTarget(const FInputActionValue& Value);  // 切换目标
+	void ToggleInventory();   // 切换背包显示
 
 	// ========== 状态更新函数 ==========
 	void ChangeState(EWukongState NewState);     // 切换状态

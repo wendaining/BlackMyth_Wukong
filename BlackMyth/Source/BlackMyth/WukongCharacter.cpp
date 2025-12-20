@@ -16,6 +16,7 @@
 #include "Components/CapsuleComponent.h"
 #include "Components/SceneStateComponent.h"
 #include "Components/StatusEffectComponent.h"
+#include "Components/InventoryComponent.h"
 #include "Combat/TraceHitboxComponent.h"
 #include "Dialogue/DialogueComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
@@ -73,6 +74,9 @@ AWukongCharacter::AWukongCharacter()
 
     // 创建状态效果组件（管理中毒、减速等状态）
     StatusEffectComponent = CreateDefaultSubobject<UStatusEffectComponent>(TEXT("StatusEffectComponent"));
+
+    // 创建背包组件（管理物品和消耗品）
+    InventoryComponent = CreateDefaultSubobject<UInventoryComponent>(TEXT("InventoryComponent"));
 
     // 所有动画资产和输入动作都应在蓝图类 (BP_Wukong) 中设置
     // 不在 C++ 构造函数中硬编码加载路径，以便于在编辑器中灵活配置
@@ -391,6 +395,17 @@ void AWukongCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCom
         else
         {
             UE_LOG(LogTemp, Warning, TEXT("  TransformAction is NULL! Transform (Key 3) will not work! Assign IA_Transform in BP_Wukong."));
+        }
+
+        // 绑定背包开关Action（Tab键）
+        if (ToggleInventoryAction)
+        {
+            EnhancedInputComponent->BindAction(ToggleInventoryAction, ETriggerEvent::Started, this, &AWukongCharacter::ToggleInventory);
+            UE_LOG(LogTemp, Warning, TEXT("  Bound ToggleInventoryAction to ToggleInventory"));
+        }
+        else
+        {
+            UE_LOG(LogTemp, Warning, TEXT("  ToggleInventoryAction is NULL! Inventory (Tab) will not work! Assign IA_ToggleInventory in BP_Wukong."));
         }
     }
     else
@@ -1281,9 +1296,43 @@ void AWukongCharacter::UseItem()
         return;
     }
 
-    if (DrinkGourdMontage)
+    // 通过背包组件使用物品（R键默认使用槽位0：血药）
+    if (InventoryComponent && InventoryComponent->UseItem(0))
     {
-        PlayMontage(DrinkGourdMontage);
+        // 播放喝药动画
+        if (DrinkGourdMontage)
+        {
+            PlayMontage(DrinkGourdMontage);
+        }
+    }
+}
+
+void AWukongCharacter::ToggleInventory()
+{
+    bIsInventoryOpen = !bIsInventoryOpen;
+
+    APlayerController* PC = Cast<APlayerController>(GetController());
+    if (!PC) return;
+
+    if (bIsInventoryOpen)
+    {
+        // 打开背包：游戏继续，显示鼠标（可以在UI中操作）
+        FInputModeGameAndUI InputMode;
+        InputMode.SetHideCursorDuringCapture(false);
+        PC->SetInputMode(InputMode);
+        PC->bShowMouseCursor = true;
+
+        // TODO: 显示背包UI Widget（蓝图中实现）
+        UE_LOG(LogTemp, Log, TEXT("Inventory Opened"));
+    }
+    else
+    {
+        // 关闭背包：恢复纯游戏输入
+        PC->SetInputMode(FInputModeGameOnly());
+        PC->bShowMouseCursor = false;
+
+        // TODO: 隐藏背包UI Widget（蓝图中实现）
+        UE_LOG(LogTemp, Log, TEXT("Inventory Closed"));
     }
 }
 

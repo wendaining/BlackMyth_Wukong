@@ -24,8 +24,11 @@ void UHealthComponent::TakeDamage(float Damage, AActor* Instigator)
 		return;
 	}
 
+	// 应用伤害减免
+	float FinalDamage = Damage * DamageReductionMultiplier;
+
 	float OldHealth = CurrentHealth;
-	CurrentHealth = FMath::Clamp(CurrentHealth - Damage, 0.0f, MaxHealth);
+	CurrentHealth = FMath::Clamp(CurrentHealth - FinalDamage, 0.0f, MaxHealth);
 
 	// 广播受伤事件
 	BroadcastHealthChange();
