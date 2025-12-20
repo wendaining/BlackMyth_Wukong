@@ -76,6 +76,13 @@ void UItemSlotWidget::SetItemName(const FText& Name)
 	}
 }
 
+void UItemSlotWidget::SetItemNum(const FText& Num)
+{
+	if (ItemNum)
+	{
+		ItemNum->SetText(Num);
+	}
+}
 void UItemSlotWidget::SetSelected(bool bSelected)
 {
 	bIsSelected = bSelected;

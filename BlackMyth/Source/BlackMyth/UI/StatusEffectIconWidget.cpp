@@ -76,6 +76,11 @@ FLinearColor UStatusEffectIconWidget::GetColorForEffectType(EStatusEffectType Ty
 		return AttackBuffColor;
 	case EStatusEffectType::DefenseBuff:
 		return DefenseBuffColor;
+	case EStatusEffectType::HealingIndicator:
+		return HealingIndicatorColor;
+	case EStatusEffectType::StaminaIndicator:
+		return StaminaIndicatorColor;
+
 	default:
 		return DefaultColor;
 	}
@@ -95,6 +100,10 @@ UTexture2D* UStatusEffectIconWidget::GetIconTextureForEffectType(EStatusEffectTy
 		return AttackBuffIconTexture;
 	case EStatusEffectType::DefenseBuff:
 		return DefenseBuffIconTexture;
+	case EStatusEffectType::HealingIndicator:
+		return HealingIndicatorIconTexture;
+	case EStatusEffectType::StaminaIndicator:
+		return StaminaIndicatorIconTexture;
 	default:
 		return nullptr;
 	}
@@ -114,6 +123,11 @@ FText UStatusEffectIconWidget::GetEffectNameForType(EStatusEffectType Type) cons
 		return FText::FromString(TEXT("攻击提升"));
 	case EStatusEffectType::DefenseBuff:
 		return FText::FromString(TEXT("防御提升"));
+	case EStatusEffectType::HealingIndicator:
+		return FText::FromString(TEXT("体力恢复"));
+	case EStatusEffectType::StaminaIndicator:
+		return FText::FromString(TEXT("血量恢复"));
+
 	default:
 		return FText::FromString(TEXT(""));
 	}

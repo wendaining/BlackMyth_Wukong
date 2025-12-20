@@ -40,6 +40,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "ItemSlot")
 	void SetItemName(const FText& Name);
 
+	/** 设置物品序号 */
+	UFUNCTION(BlueprintCallable, Category = "ItemSlot")
+	void SetItemNum(const FText& Num);
+
 	/** 设置选中状态（控制高亮边框显示） */
 	UFUNCTION(BlueprintCallable, Category = "ItemSlot")
 	void SetSelected(bool bSelected);
@@ -69,6 +73,10 @@ protected:
 	/** 物品名称文本 (在蓝图 Designer 中命名为 "ItemName") */
 	UPROPERTY(meta = (BindWidgetOptional))
 	UTextBlock* ItemName;
+
+	/** 物品序号文本 (在蓝图 Designer 中命名为 "ItemNum") */
+	UPROPERTY(meta = (BindWidgetOptional))
+	UTextBlock* ItemNum;
 
 	/** 选中高亮边框 (在蓝图 Designer 中命名为 "SelectionBorder") */
 	UPROPERTY(meta = (BindWidgetOptional))
