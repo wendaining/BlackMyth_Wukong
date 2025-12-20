@@ -197,6 +197,10 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UInputAction> TransformAction;
 
+	/** 技能4输入动作 (按键4，预留) */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input", meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<UInputAction> Skill4Action;
+
 	/** 交互输入动作 (E键) */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UInputAction> InteractAction;
@@ -795,6 +799,9 @@ protected:
 
 	/** 执行变身术 */
 	void PerformTransform();
+
+	// 技能4 (按键4，预留)
+	void PerformSkill4();
 
 	/** 变身为蝴蝶 */
 	void TransformToButterfly();

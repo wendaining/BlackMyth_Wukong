@@ -12,12 +12,14 @@ class UStatusEffectBase;
 UENUM(BlueprintType)
 enum class EStatusEffectType : uint8
 {
-	None        UMETA(DisplayName = "None"),
-	Poison      UMETA(DisplayName = "Poison"),      // 中毒：持续伤害
-	Slow        UMETA(DisplayName = "Slow"),        // 减速：降低移动速度
-	Burn        UMETA(DisplayName = "Burn"),        // 灼烧：持续火焰伤害（预留）
-	AttackBuff  UMETA(DisplayName = "Attack Buff"),  // 攻击力增益
-	DefenseBuff UMETA(DisplayName = "Defense Buff"), // 防御力增益
+	None            UMETA(DisplayName = "None"),
+	Poison          UMETA(DisplayName = "Poison"),          // 中毒：持续伤害
+	Slow            UMETA(DisplayName = "Slow"),            // 减速：降低移动速度
+	Burn            UMETA(DisplayName = "Burn"),            // 灼烧：持续火焰伤害（预留）
+	AttackBuff      UMETA(DisplayName = "Attack Buff"),     // 攻击力增益
+	DefenseBuff     UMETA(DisplayName = "Defense Buff"),    // 防御力增益
+	HealingIndicator UMETA(DisplayName = "Healing Indicator"), // 治疗指示（血药使用后的UI显示）
+	StaminaIndicator UMETA(DisplayName = "Stamina Indicator"), // 体力恢复指示（体力药使用后的UI显示）
 };
 
 // 状态效果配置结构体，用于在敌人蓝图中配置攻击附带的状态效果

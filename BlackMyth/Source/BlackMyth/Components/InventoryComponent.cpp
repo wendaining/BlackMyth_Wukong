@@ -7,6 +7,8 @@
 #include "StatusEffectComponent.h"
 #include "../StatusEffect/AttackBuffEffect.h"
 #include "../StatusEffect/DefenseBuffEffect.h"
+#include "../StatusEffect/HealingIndicatorEffect.h"
+#include "../StatusEffect/StaminaIndicatorEffect.h"
 
 FItemSlot UInventoryComponent::EmptySlot;
 
@@ -147,24 +149,46 @@ void UInventoryComponent::ApplyItemEffect(const FItemSlot& Item)
 	AWukongCharacter* Owner = Cast<AWukongCharacter>(GetOwner());
 	if (!Owner) return;
 
+	UStatusEffectComponent* StatusEffect = Owner->FindComponentByClass<UStatusEffectComponent>();
+
 	switch (Item.ItemType)
 	{
 	case EItemType::HealthPotion:
+		// 先应用治疗效果
 		if (UHealthComponent* Health = Owner->FindComponentByClass<UHealthComponent>())
 		{
 			Health->Heal(Item.EffectValue);
 		}
+		// 再显示状态效果图标（2秒）
+		if (StatusEffect)
+		{
+			StatusEffect->ApplyEffect(
+				UHealingIndicatorEffect::StaticClass(),
+				Owner,
+				2.0f  // 显示2秒
+			);
+		}
 		break;
 
 	case EItemType::StaminaPotion:
+		// 先应用体力恢复效果
 		if (UStaminaComponent* Stamina = Owner->FindComponentByClass<UStaminaComponent>())
 		{
 			Stamina->RestoreStamina(Item.EffectValue);
 		}
+		// 再显示状态效果图标（2秒）
+		if (StatusEffect)
+		{
+			StatusEffect->ApplyEffect(
+				UStaminaIndicatorEffect::StaticClass(),
+				Owner,
+				2.0f  // 显示2秒
+			);
+		}
 		break;
 
 	case EItemType::AttackBuff:
-		if (UStatusEffectComponent* StatusEffect = Owner->FindComponentByClass<UStatusEffectComponent>())
+		if (StatusEffect)
 		{
 			// 通过状态效果系统应用攻击Buff
 			StatusEffect->ApplyEffect(
@@ -176,7 +200,7 @@ void UInventoryComponent::ApplyItemEffect(const FItemSlot& Item)
 		break;
 
 	case EItemType::DefenseBuff:
-		if (UStatusEffectComponent* StatusEffect = Owner->FindComponentByClass<UStatusEffectComponent>())
+		if (StatusEffect)
 		{
 			// 通过状态效果系统应用防御Buff
 			StatusEffect->ApplyEffect(

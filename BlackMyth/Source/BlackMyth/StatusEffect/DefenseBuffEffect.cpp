@@ -9,10 +9,8 @@ UDefenseBuffEffect::UDefenseBuffEffect()
 	Duration = 10.0f;
 	bStackable = false;  // 不可叠加，刷新持续时间
 
-	// 视觉效果配置 - 金色
-	TintColor = FLinearColor(1.0f, 0.8f, 0.2f, 1.0f);
-	EmissiveColor = FLinearColor(1.0f, 0.7f, 0.0f);
-	EmissiveIntensity = 0.01f;
+	// 禁用视觉效果 - Buff不应该有发光
+	EmissiveIntensity = 0.0f;
 }
 
 void UDefenseBuffEffect::OnApplied_Implementation()

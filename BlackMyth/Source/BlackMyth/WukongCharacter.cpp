@@ -397,6 +397,17 @@ void AWukongCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCom
             UE_LOG(LogTemp, Warning, TEXT("  TransformAction is NULL! Transform (Key 3) will not work! Assign IA_Transform in BP_Wukong."));
         }
 
+        // 绑定技能4Action（按4）
+        if (Skill4Action)
+        {
+            EnhancedInputComponent->BindAction(Skill4Action, ETriggerEvent::Started, this, &AWukongCharacter::PerformSkill4);
+            UE_LOG(LogTemp, Warning, TEXT("  Bound Skill4Action to PerformSkill4"));
+        }
+        else
+        {
+            UE_LOG(LogTemp, Warning, TEXT("  Skill4Action is NULL! Skill 4 (Key 4) will not work! Assign IA_Skill4 in BP_Wukong if needed."));
+        }
+
         // 绑定背包开关Action（I键）
         if (ToggleInventoryAction)
         {
@@ -2397,6 +2408,26 @@ void AWukongCharacter::PerformTransform()
 
 	// 执行变身
 	TransformToButterfly();
+}
+
+// ========== 技能4实现（预留） ==========
+
+void AWukongCharacter::PerformSkill4()
+{
+	UE_LOG(LogTemp, Warning, TEXT(">>> PerformSkill4() CALLED!"));
+
+	// 背包打开时，使用槽位 3（金刚丹 - 防御Buff）
+	if (bIsInventoryOpen)
+	{
+		if (InventoryComponent)
+		{
+			InventoryComponent->UseItem(3);
+		}
+		return;
+	}
+
+	// 技能4暂未实现
+	UE_LOG(LogTemp, Log, TEXT("PerformSkill4: Skill 4 not yet implemented. This is a placeholder."));
 }
 
 void AWukongCharacter::TransformToButterfly()
