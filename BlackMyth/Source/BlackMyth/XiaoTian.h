@@ -66,6 +66,10 @@ protected:
 	UPROPERTY(EditAnywhere, Category = "XiaoTian|Animation")
 	TObjectPtr<UAnimMontage> BiteEndMontage;
 
+	/** 消失时的特效 (VFX) */
+	UPROPERTY(EditAnywhere, Category = "XiaoTian|Visuals")
+	TObjectPtr<class UNiagaraSystem> VanishFX;
+
 	// ========== 内部逻辑 ==========
 
 	UFUNCTION()

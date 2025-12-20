@@ -6,6 +6,8 @@
 #include "TimerManager.h"
 #include "WukongCharacter.h"
 #include "DrawDebugHelpers.h"
+#include "NiagaraFunctionLibrary.h"
+#include "NiagaraComponent.h"
 
 AXiaoTian::AXiaoTian()
 {
@@ -13,7 +15,7 @@ AXiaoTian::AXiaoTian()
 
 	CollisionBox = CreateDefaultSubobject<UBoxComponent>(TEXT("CollisionBox"));
 	RootComponent = CollisionBox;
-	CollisionBox->SetCollisionProfileName(TEXT("OverlapAllDynamic"));
+	CollisionBox->SetCollisionProfileName(TEXT("BlockAll")); // 改为阻止所有，确保扫到墙壁
 	CollisionBox->SetBoxExtent(FVector(50, 30, 30));
 
 	Mesh = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("DogMesh"));
@@ -26,6 +28,12 @@ void AXiaoTian::BeginPlay()
 	Super::BeginPlay();
 
 	CollisionBox->OnComponentBeginOverlap.AddDynamic(this, &AXiaoTian::OnOverlapBegin);
+
+	// 确保忽略召唤者（防止飞出门前撞到二郎神自己）
+	if (GetOwner())
+	{
+		CollisionBox->IgnoreActorWhenMoving(GetOwner(), true);
+	}
 
 	// 1. 寻找玩家作为目标
 	if (AActor* Player = UGameplayStatics::GetPlayerPawn(this, 0))
@@ -82,18 +90,17 @@ void AXiaoTian::Tick(float DeltaTime)
 		FHitResult SweepHit;
 		SetActorLocation(NewLocation, true, &SweepHit); 
 
-		// 如果扫到了墙壁（StaticMesh），则消失
-		if (SweepHit.IsValidBlockingHit())
+		// [Fix] 统一碰撞逻辑：无论是撞到墙还是撞到人，统统触发“咬/撞”判定
+		if (SweepHit.bBlockingHit)
 		{
-			if (AActor* HitActor = SweepHit.GetActor())
+			AActor* HitActor = SweepHit.GetActor();
+			
+			// 只有当撞到的不是二郎神时，才触发咬判定（防止刷新时由于碰撞二郎神而直接消失）
+			if (HitActor != GetOwner())
 			{
-				// 撞到场景或障碍物
-				if (!HitActor->IsA(ACharacter::StaticClass()))
-				{
-					UE_LOG(LogTemp, Warning, TEXT("[XiaoTian] Hit Obstacle: %s. Destroying."), *HitActor->GetName());
-					FinishAndDestroy();
-					return;
-				}
+				UE_LOG(LogTemp, Warning, TEXT("[XiaoTian] Blocking Hit: %s. Triggering Bite."), HitActor ? *HitActor->GetName() : TEXT("None"));
+				TriggerBite(HitActor);
+				return;
 			}
 		}
 
@@ -146,29 +153,42 @@ void AXiaoTian::OnOverlapBegin(UPrimitiveComponent* OverlappedComp, AActor* Othe
 
 void AXiaoTian::TriggerBite(AActor* Target)
 {
+	// 防止重复触发
+	if (CurrentState == EXiaoTianState::Biting || CurrentState == EXiaoTianState::Finished) return;
+
 	CurrentState = EXiaoTianState::Biting;
 
-	// 1. 造成伤害
-	UGameplayStatics::ApplyDamage(Target, Damage, GetInstigatorController(), this, nullptr);
+	// 1. 造成伤害 (只有撞到悟空才扣血)
+	if (Target && Target->IsA(AWukongCharacter::StaticClass()))
+	{
+		UGameplayStatics::ApplyDamage(Target, Damage, GetInstigatorController(), this, UDamageType::StaticClass());
+		UE_LOG(LogTemp, Warning, TEXT("[XiaoTian] Hit Wukong! Applying Damage: %.1f"), Damage);
+	}
 
-	// 2. 播放咬(End)蒙太奇
+	// 2. 播放咬(End)蒙太奇 (无论是撞墙还是撞人，都要播放动作展示存在感)
 	if (BiteEndMontage && Mesh && Mesh->GetAnimInstance())
 	{
 		float Duration = Mesh->GetAnimInstance()->Montage_Play(BiteEndMontage);
 		
 		// 动画播完后再消失
-		GetWorldTimerManager().SetTimer(LifeTimer, this, &AXiaoTian::FinishAndDestroy, Duration, false);
+		GetWorldTimerManager().SetTimer(LifeTimer, this, &AXiaoTian::FinishAndDestroy, FMath::Max(0.5f, Duration), false);
 	}
 	else
 	{
 		FinishAndDestroy();
 	}
-
-	UE_LOG(LogTemp, Warning, TEXT("[XiaoTian] Bit the target!"));
 }
 
 void AXiaoTian::FinishAndDestroy()
 {
+	if (CurrentState == EXiaoTianState::Finished) return;
+
+	// 播放消失特效 (VFX)
+	if (VanishFX)
+	{
+		UNiagaraFunctionLibrary::SpawnSystemAtLocation(GetWorld(), VanishFX, GetActorLocation(), GetActorRotation());
+	}
+
 	CurrentState = EXiaoTianState::Finished;
 	Destroy();
 }

@@ -209,19 +209,22 @@ void ABossEnemy::Tick(float DeltaTime)
 
 			// [Fix] 二阶段远程突袭逻辑
 			// 如果处于二阶段且距离较远，即便没进入攻击范围，也定期尝试“远程出招”（召唤狗）
-			if (CurrentPhase == EBossPhase::Phase2 && DistanceToTarget > AttackRadius + 100.0f)
+			if (CurrentPhase == EBossPhase::Phase2 && DistanceToTarget > AttackRadius + 150.0f)
 			{
-				// 每隔一段时间尝试一次远程判定，而不是每帧都判
-				static float RangedAttackCheckTimer = 0.0f;
 				RangedAttackCheckTimer += DeltaTime;
 
-				if (RangedAttackCheckTimer >= 3.0f) // 每3秒判断一次是否放狗
+				if (RangedAttackCheckTimer >= 3.5f) // 每3.5秒判断一次是否放狗
 				{
 					RangedAttackCheckTimer = 0.0f;
-					UE_LOG(LogTemp, Warning, TEXT("[%s] Tactical Ranged Attack Decision!"), *GetName());
+					UE_LOG(LogTemp, Warning, TEXT("[%s] Tactical Ranged Attack Decision (Dist: %.1f)"), *GetName(), DistanceToTarget);
 					Attack();
 					return;
 				}
+			}
+			else
+			{
+				// 如果进入近战范围或不是二阶段，重置计时器
+				RangedAttackCheckTimer = 0.0f;
 			}
 
 			// 如果进入攻击范围，开始攻击
@@ -274,8 +277,10 @@ void ABossEnemy::ActivateBoss(AActor* Target)
 
 void ABossEnemy::ReceiveDamage(float Damage, AActor* DamageInstigator)
 {
-	// 1. 如果处于无敌状态，忽略伤害
+	// 1. 如果处于真正的系统级无敌状态（如转阶段过程中），忽略伤害
 	if (bIsInvulnerable) return;
+	
+	// [New] 为防止闪避过程中产生硬直冲突，我们允许受击逻辑在这里继续判定
 
 	// [锁血保护] 优先检查阶段转换：如果血量到了临界点，立即锁血/转阶段，保证二阶段能顺利开启
 	if (!bHasEnteredPhase2 && HealthComponent)
@@ -351,7 +356,6 @@ void ABossEnemy::EnterPhase2()
 	bIsInvulnerable = true;
 
 	// 2. 停止当前动作
-	StopAnimMontage();
 	if (GetController())
 	{
 		GetController()->StopMovement();
@@ -407,17 +411,17 @@ void ABossEnemy::PerformDodge()
 			UE_LOG(LogTemp, Error, TEXT(">>> Dodge Montage Failed to Play! Duration = 0. Check if Montage is valid. <<<"));
 		}
 
-		// 闪避期间无敌
-		bIsInvulnerable = true;
+		// 闪避期间不再硬性设置无敌，交给 ReceiveDamage 进行动作判断
+		// bIsInvulnerable = true;
 		
 		// 如果返回0，为了防止卡死无敌状态，给一个最小持续时间
 		if (Duration <= 0.0f) Duration = 0.5f;
 
 		GetWorldTimerManager().SetTimer(DodgeTimer, [this]()
 		{
+			// [Fix] 闪避结束后，重新进入追击状态，并清除由于闪避导致的系统无敌（如果有）
 			bIsInvulnerable = false;
 			
-			// [Fix] 闪避结束后，重新进入追击状态，确保 AI 能继续行动
 			if (!IsDead() && !IsStunned())
 			{
 				EnemyState = EEnemyState::EES_Chasing;
@@ -448,8 +452,8 @@ void ABossEnemy::SummonDog()
 		Duration = PlayAnimMontage(SummonDogMontage);
 	}
 
-	// 3. 在前方生成哮天犬
-	FVector SpawnLocation = GetActorLocation() + GetActorForwardVector() * 300.0f;
+	// 3. 在前方生成哮天犬 (使用蓝图可调的偏移量)
+	FVector SpawnLocation = GetActorLocation() + GetActorRotation().RotateVector(DogSpawnOffset);
 	FRotator SpawnRotation = GetActorRotation();
 	
 	FActorSpawnParameters SpawnParams;

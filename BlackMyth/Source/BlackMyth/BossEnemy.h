@@ -114,7 +114,14 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Boss|Skill")
 	TSubclassOf<AActor> DogClass;
 
+	/** 哮天犬生成偏移 (相对于二郎神前方) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Boss|Skill")
+	FVector DogSpawnOffset = FVector(320.0f, 0.0f, 50.0f);
+
 	// ========== 内部状态 ==========
 	bool bHasEnteredPhase2 = false;
 	FTimerHandle DodgeTimer;
+
+	/** 远程攻击频率计时器 (二阶段专用) */
+	float RangedAttackCheckTimer = 0.0f;
 };
