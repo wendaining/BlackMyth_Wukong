@@ -257,42 +257,47 @@ void ABossEnemy::ActivateBoss(AActor* Target)
 
 void ABossEnemy::ReceiveDamage(float Damage, AActor* DamageInstigator)
 {
-	// 如果处于无敌状态，忽略伤害
+	// 1. 如果处于无敌状态，忽略伤害
 	if (bIsInvulnerable) return;
 
-	// [Debug Log] 
-	UE_LOG(LogTemp, Warning, TEXT("[BossEnemy] ReceiveDamage Called! Checking Dodge Conditions: IsAttacking: %s, IsStunned: %s, IsInvulnerable: %s"), 
-		IsAttacking() ? TEXT("True") : TEXT("False"), 
-		IsStunned() ? TEXT("True") : TEXT("False"), 
-		bIsInvulnerable ? TEXT("True") : TEXT("False"));
-
-	// 1. 优先尝试闪避
-	// 为了排查问题，我们将概率临时设为 100% (1.0f)
-	if (!IsAttacking() && !IsStunned() && !bIsInvulnerable)
+	// [Fix] 优先检查阶段转换：如果血量到了临界点，立即锁血/转阶段，防止被这一击打死
+	if (!bHasEnteredPhase2 && HealthComponent)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[%s] Dodge Conditions MET! Attempting to trigger PerformDodge..."), *GetName());
+		float HealthAfterDamage = HealthComponent->GetCurrentHealth() - Damage;
+		float HealthPercentAfter = HealthAfterDamage / HealthComponent->GetMaxHealth();
 		
-		// 确保仇恨目标存在，否则闪避可能找不到方向
-		if (DamageInstigator)
+		if (HealthPercentAfter <= Phase2Threshold)
 		{
-			CombatTarget = DamageInstigator;
+			UE_LOG(LogTemp, Warning, TEXT("[%s] Critical Hit! HP would drop to %.2f. Triggering Phase Transition instead of dying."), *GetName(), HealthPercentAfter);
+			EnterPhase2();
+			return; // 立即返回，不执行后续伤害逻辑
 		}
-
-		PerformDodge();
-		
-		// 闪避成功不扣血，直接返回
-		return;
 	}
-	else
+
+	// [Debug Log] 
+	// 注意：IsAttacking() 在基类里指“等待计时器”；IsEngaged() 才指“正在出招动画”
+	UE_LOG(LogTemp, Warning, TEXT("[BossEnemy] ReceiveDamage Called! Checking Dodge: IsEngaged(Swinging): %s, IsStunned: %s"), 
+		IsEngaged() ? TEXT("True") : TEXT("False"), 
+		IsStunned() ? TEXT("True") : TEXT("False"));
+
+	// 2. 尝试闪避 (现在允许在“等待攻击”时闪避，但不允许在“出招中”闪避)
+	if (!IsEngaged() && !IsStunned() && !bIsInvulnerable)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[%s] Dodge Check FAILED (Conditions not met). Proceeding to Super::ReceiveDamage."), *GetName());
+		float Roll = FMath::RandRange(0.0f, 1.0f);
+		// 恢复 40% 闪避率
+		if (Roll < 0.4f) 
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[%s] Boss Perfect Dodge! (Roll: %.2f < 0.4)"), *GetName(), Roll);
+			
+			if (DamageInstigator) CombatTarget = DamageInstigator;
+
+			PerformDodge();
+			return;
+		}
 	}
 
-	// 2. 如果没闪避掉，再承受伤害
+	// 3. 正常承受伤害
 	Super::ReceiveDamage(Damage, DamageInstigator);
-
-	// 检查阶段转换
-	CheckPhaseTransition();
 }
 
 void ABossEnemy::CheckPhaseTransition()
