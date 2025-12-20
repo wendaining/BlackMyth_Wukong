@@ -346,8 +346,8 @@ void AEnemyBase::ReceiveDamage(float Damage, AActor* DamageInstigator)
 {
 	if (IsDead()) return;
 
-	// 闪避判定：在受到伤害前，尝试触发闪避
-	if (DodgeComponent && DamageInstigator)
+	// 闪避判定：在受到伤害前，尝试触发闪避（眩晕或定身时不能闪避）
+	if (DodgeComponent && DamageInstigator && !IsStunned() && !IsFrozen())
 	{
 		FVector ThreatDir = (GetActorLocation() - DamageInstigator->GetActorLocation()).GetSafeNormal();
 		if (DodgeComponent->IsInDodge()) // 检查是否在无敌状态
@@ -1188,6 +1188,15 @@ void AEnemyBase::ApplyFreeze(float Duration)
 			FreezeTextWidgetComponent->SetVisibility(true);
 		}
 
+		// ========== [New] 施加金色“覆盖材质”金身效果 ==========
+		if (GetMesh() && FreezeOverlayMaterial)
+		{
+			// 1. 保存当前的覆盖材质（比如二郎神二阶段的红光）
+			OriginalOverlayMaterial = GetMesh()->GetOverlayMaterial();
+			// 2. 覆盖为定身金光
+			GetMesh()->SetOverlayMaterial(FreezeOverlayMaterial);
+		}
+
 		UE_LOG(LogTemp, Warning, TEXT("[%s] 被定身！持续 %.1f 秒"), *GetName(), Duration);
 	}
 
@@ -1226,6 +1235,14 @@ void AEnemyBase::RemoveFreeze()
 			GetActorLocation() + FVector(0.0f, 0.0f, 50.0f),
 			FRotator::ZeroRotator
 		);
+	}
+
+	// ========== [New] 恢复之前的覆盖材质 ==========
+	if (GetMesh())
+	{
+		// 恢复为定身前的材质（比如把金光改回二郎神的红光，或者恢复为 null）
+		GetMesh()->SetOverlayMaterial(OriginalOverlayMaterial);
+		OriginalOverlayMaterial = nullptr;
 	}
 
 	// ========== 播放解除定身音效 ==========
@@ -1286,7 +1303,6 @@ void AEnemyBase::OnFreezeTimerExpired()
 	RemoveFreeze();
 }
 
-<<<<<<< HEAD
 // ========== 保存敌人存档数据 ==========
 void AEnemyBase::WriteEnemySaveData(FEnemySaveData& OutData) const
 {
@@ -1326,19 +1342,11 @@ void AEnemyBase::WriteEnemySaveData(FEnemySaveData& OutData) const
 // ========== 导入敌人存档数据 ==========
 void AEnemyBase::LoadEnemySaveData(const FEnemySaveData& InData)
 {
-	if (!InData.EnemyClass)
-=======
-// ========== 状态效果攻击系统实现 ==========
-
-void AEnemyBase::ApplyAttackStatusEffects(AActor* Target)
-{
-	if (!Target)
->>>>>>> buff
+	if (!InData.EnemyClass)	
 	{
 		return;
 	}
 
-<<<<<<< HEAD
 	// 恢复唯一ID
 	EnemyID = InData.EnemyID;
 
@@ -1398,7 +1406,16 @@ void AEnemyBase::InitEnemy(int32 InLevel, bool bIsFromSave)
 		// 正常生成怪物的初始化，比如血量、状态
 	}
 }
-=======
+
+// ========== 状态效果攻击系统实现 ==========
+
+void AEnemyBase::ApplyAttackStatusEffects(AActor* Target)
+{
+	if (!Target)
+	{
+		return;
+	}
+
 	// 获取目标的 StatusEffectComponent
 	UStatusEffectComponent* TargetStatusComp = Target->FindComponentByClass<UStatusEffectComponent>();
 	if (!TargetStatusComp)
@@ -1441,4 +1458,3 @@ void AEnemyBase::InitEnemy(int32 InLevel, bool bIsFromSave)
 		}
 	}
 }
->>>>>>> buff

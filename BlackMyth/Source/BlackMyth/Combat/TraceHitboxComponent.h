@@ -232,6 +232,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TraceHitbox|Audio")
 	TObjectPtr<USoundBase> HitImpactSound;
 
+	/** 挥舞音效 (Weapon Swing) - 当开始攻击/激活判定时播放 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TraceHitbox|Audio")
+	TObjectPtr<USoundBase> SwingSound;
+
 	/** 设置要进行扫描的网格体组件 (支持 StaticMesh 或 SkeletalMesh) */
 	UFUNCTION(BlueprintCallable, Category = "TraceHitbox|Config")
 	void SetMeshToTrace(USceneComponent* NewMesh);
