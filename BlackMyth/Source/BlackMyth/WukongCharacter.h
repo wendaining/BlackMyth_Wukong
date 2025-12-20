@@ -197,9 +197,18 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UInputAction> TransformAction;
 
-	/** 技能4输入动作 (按键4) - 背包打开时使用金刚丹 */
+	/** 物品快捷键 InputActions (F1-F4) */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input", meta = (AllowPrivateAccess = "true"))
-	TObjectPtr<UInputAction> Skill4Action;
+	TObjectPtr<UInputAction> ItemSlot1Action;  // F1 - 血药
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input", meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<UInputAction> ItemSlot2Action;  // F2 - 体力药
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input", meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<UInputAction> ItemSlot3Action;  // F3 - 怒火丹
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input", meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<UInputAction> ItemSlot4Action;  // F4 - 金刚丹
 
 	/** 交互输入动作 (E键) */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input", meta = (AllowPrivateAccess = "true"))
@@ -611,7 +620,12 @@ private:
 	void OnLockOnPressed();   // 锁定目标按下
 	void OnSwitchTarget(const FInputActionValue& Value);  // 切换目标
 	void ToggleInventory();   // 切换背包显示
-	void PerformSkill4();     // 技能4（背包打开时使用金刚丹）
+
+	// ========== 物品快捷键处理函数 ==========
+	void UseItemSlot1();      // F1 - 使用血药（槽位0）
+	void UseItemSlot2();      // F2 - 使用体力药（槽位1）
+	void UseItemSlot3();      // F3 - 使用怒火丹（槽位2）
+	void UseItemSlot4();      // F4 - 使用金刚丹（槽位3）
 
 	// ========== 状态更新函数 ==========
 	void ChangeState(EWukongState NewState);     // 切换状态
