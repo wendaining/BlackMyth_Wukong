@@ -260,43 +260,54 @@ void ABossEnemy::ReceiveDamage(float Damage, AActor* DamageInstigator)
 	// 1. 如果处于无敌状态，忽略伤害
 	if (bIsInvulnerable) return;
 
-	// [Fix] 优先检查阶段转换：如果血量到了临界点，立即锁血/转阶段，防止被这一击打死
+	// [锁血保护] 优先检查阶段转换：如果血量到了临界点，立即锁血/转阶段，保证二阶段能顺利开启
 	if (!bHasEnteredPhase2 && HealthComponent)
 	{
 		float HealthAfterDamage = HealthComponent->GetCurrentHealth() - Damage;
-		float HealthPercentAfter = HealthAfterDamage / HealthComponent->GetMaxHealth();
-		
-		if (HealthPercentAfter <= Phase2Threshold)
+		if (HealthAfterDamage / HealthComponent->GetMaxHealth() <= Phase2Threshold)
 		{
-			UE_LOG(LogTemp, Warning, TEXT("[%s] Critical Hit! HP would drop to %.2f. Triggering Phase Transition instead of dying."), *GetName(), HealthPercentAfter);
+			UE_LOG(LogTemp, Warning, TEXT("[%s] Triggering Phase Transition Lock."), *GetName());
 			EnterPhase2();
-			return; // 立即返回，不执行后续伤害逻辑
+			return; 
 		}
 	}
 
-	// [Debug Log] 
-	// 注意：IsAttacking() 在基类里指“等待计时器”；IsEngaged() 才指“正在出招动画”
-	UE_LOG(LogTemp, Warning, TEXT("[BossEnemy] ReceiveDamage Called! Checking Dodge: IsEngaged(Swinging): %s, IsStunned: %s"), 
-		IsEngaged() ? TEXT("True") : TEXT("False"), 
-		IsStunned() ? TEXT("True") : TEXT("False"));
-
-	// 2. 尝试闪避 (现在允许在“等待攻击”时闪避，但不允许在“出招中”闪避)
-	if (!IsEngaged() && !IsStunned() && !bIsInvulnerable)
+	// 2. [战斗大师逻辑] 尝试闪避
+	// 允许在任何非眩晕状态下闪避（包括出招过程中，即“强制取消攻击并闪避”）
+	if (!IsStunned() && !bIsInvulnerable)
 	{
 		float Roll = FMath::RandRange(0.0f, 1.0f);
-		// 恢复 40% 闪避率
+		// 基础闪避率 40%
 		if (Roll < 0.4f) 
 		{
-			UE_LOG(LogTemp, Warning, TEXT("[%s] Boss Perfect Dodge! (Roll: %.2f < 0.4)"), *GetName(), Roll);
+			UE_LOG(LogTemp, Log, TEXT("[%s] Masterful Evasion (Dodge Cancel)!"), *GetName());
 			
 			if (DamageInstigator) CombatTarget = DamageInstigator;
+
+			// 如果正在出招，立即停止当前攻击蒙太奇
+			if (IsEngaged())
+			{
+				StopAnimMontage(); // 停止当前所有蒙太奇（包括攻击）
+				if (TraceHitboxComponent) TraceHitboxComponent->DeactivateTrace(); // 关闭判定框
+				GetWorldTimerManager().ClearTimer(AttackEndTimer); // 清除攻击保底计时器
+			}
 
 			PerformDodge();
 			return;
 		}
 	}
 
-	// 3. 正常承受伤害
+	// 3. [霸体/受击逻辑] 
+	// 如果正在进行重攻击（HeavyAttack），则开启“霸体”：扣血但不中断动作
+	if (IsEngaged() && GetWorldTimerManager().IsTimerActive(AttackEndTimer))
+	{
+		// 简单起见，我们假设当前正在播放的是重攻击（可以通过增加一个状态变量更严谨，但目前够用）
+		// 我们只扣血，不调用 Super::ReceiveDamage (因为父类会执行中断逻辑)
+		if (HealthComponent) HealthComponent->TakeDamage(Damage, DamageInstigator);
+		return;
+	}
+
+	// 4. 正常承受伤害（会触发中断动画）
 	Super::ReceiveDamage(Damage, DamageInstigator);
 }
 
