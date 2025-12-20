@@ -37,6 +37,13 @@ public:
     UPROPERTY()
     UUserWidget* InteractWidgetInstance;
 
+    // 交互菜单Widget
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "UI")
+    TSubclassOf<class UUserWidget> InteractMenuWidgetClass;
+
+    UPROPERTY()
+    UUserWidget* InteractMenuInstance;
+
     // 当玩家进入/离开触发器
     UFUNCTION()
     void OnPlayerEnter(UPrimitiveComponent* OverlappedComp, AActor* OtherActor,

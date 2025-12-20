@@ -56,10 +56,18 @@ void AInteractableActor::OnPlayerExit(UPrimitiveComponent* OverlappedComp, AActo
 {
     if (OtherActor && OtherActor->IsA(AWukongCharacter::StaticClass()))
     {
+        // 移除交互提示Widget
         if (InteractWidgetInstance)
         {
             InteractWidgetInstance->RemoveFromParent();
             InteractWidgetInstance = nullptr;
+        }
+
+        // 移除交互菜单Widget
+        if (InteractMenuInstance)
+        {
+            InteractMenuInstance->RemoveFromParent();
+            InteractMenuInstance = nullptr;
         }
 
         AWukongCharacter* Player = Cast<AWukongCharacter>(OtherActor);
@@ -77,5 +85,30 @@ void AInteractableActor::DoInteract()
 
 void AInteractableActor::OnInteract_Implementation(AActor* Interactor)
 {
-    UE_LOG(LogTemp, Log, TEXT("Temple Interacted"));
+    if (!InteractMenuWidgetClass)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("InteractMenuWidgetClass is NULL"));
+        return;
+    }
+
+    // 防止重复打开
+    if (InteractMenuInstance)
+    {
+        return;
+    }
+
+    APlayerController* PC = UGameplayStatics::GetPlayerController(this, 0);
+    if (!PC) return;
+
+    InteractMenuInstance = CreateWidget<UUserWidget>(PC, InteractMenuWidgetClass);
+    if (InteractMenuInstance)
+    {
+        InteractMenuInstance->AddToViewport(100);
+
+        // 切换到 UI 输入
+        PC->SetInputMode(FInputModeUIOnly());
+        PC->bShowMouseCursor = true;
+
+        UE_LOG(LogTemp, Log, TEXT("Temple Interact Menu Opened"));
+    }
 }

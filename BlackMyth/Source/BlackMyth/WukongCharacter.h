@@ -799,4 +799,10 @@ public:
 	/** 获取变身冷却剩余时间 */
 	UFUNCTION(BlueprintPure, Category = "Transform")
 	float GetTransformCooldownRemaining() const;
+
+	// ========== 土地庙交互系统 ==========
+	void OnTempleInteract();
+
+	UPROPERTY(EditDefaultsOnly, Category="Input")
+	UInputAction* TempleAction;
 };

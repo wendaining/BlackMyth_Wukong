@@ -35,9 +35,6 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
     UInputAction* PauseAction;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Input")
-    UInputAction* TempleAction;
-
     /** 继续游戏。 */
     void ContinueGame();
 protected:

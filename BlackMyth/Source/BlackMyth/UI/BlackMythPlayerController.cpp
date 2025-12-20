@@ -29,12 +29,6 @@ ABlackMythPlayerController::ABlackMythPlayerController()
     if (IA.Succeeded()) {
         PauseAction = IA.Object;
     }
-
-    static ConstructorHelpers::FObjectFinder<UInputAction> TempleIA(
-        TEXT("/Game/_BlackMythGame/Input/IA_Temple"));
-    if (TempleIA.Succeeded()) {
-        TempleAction = TempleIA.Object;
-    }
 }
 
 void ABlackMythPlayerController::BeginPlay() {
@@ -70,11 +64,6 @@ void ABlackMythPlayerController::SetupInputComponent() {
         if (PauseAction != nullptr) {
             enhanced->BindAction(PauseAction, ETriggerEvent::Triggered, this,
                                  &ABlackMythPlayerController::TogglePauseMenu);
-        }
-
-        if (TempleAction != nullptr) {
-            enhanced->BindAction(TempleAction, ETriggerEvent::Triggered, this,
-                &ABlackMythPlayerController::Interact);
         }
     }
 }

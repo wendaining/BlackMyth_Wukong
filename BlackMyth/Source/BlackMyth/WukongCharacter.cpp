@@ -21,6 +21,7 @@
 #include "GameFramework/GameStateBase.h"
 #include "EnhancedInputComponent.h"
 #include "InputAction.h"
+#include "Temple.h"
 #include "Kismet/GameplayStatics.h"
 #include "Kismet/KismetMathLibrary.h"
 #include "UObject/ConstructorHelpers.h"
@@ -380,6 +381,9 @@ void AWukongCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCom
         {
             UE_LOG(LogTemp, Warning, TEXT("  TransformAction is NULL! Transform (Key 3) will not work! Assign IA_Transform in BP_Wukong."));
         }
+
+        EnhancedInputComponent->BindAction(TempleAction, ETriggerEvent::Triggered,
+        this, &AWukongCharacter::OnTempleInteract);
     }
     else
     {
@@ -2532,3 +2536,22 @@ void AWukongCharacter::ClearAllEnemyAggro()
 
 	UE_LOG(LogTemp, Log, TEXT("[Transform] Cleared aggro from %d enemies"), FoundEnemies.Num());
 }
+
+	// ========== 土地庙交互系统 ==========
+void AWukongCharacter::OnTempleInteract()
+{
+    if (!CurrentInteractable)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[Temple] No CurrentInteractable"));
+        return;
+    }
+
+    if (CurrentInteractable->Implements<UInteractInterface>())
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[Temple] Q Interact with %s"),
+            *CurrentInteractable->GetName());
+
+        IInteractInterface::Execute_OnInteract(CurrentInteractable, this);
+    }
+}
+
