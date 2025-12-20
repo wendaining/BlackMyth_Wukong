@@ -7,7 +7,9 @@
 #include "Navigation/PathFollowingComponent.h"
 #include "BehaviorTree/BlackboardComponent.h"
 #include "Components/EnemyDodgeComponent.h"
-#include "Combat/TraceHitboxComponent.h" // [Fix] Include Hitbox Component
+#include "Combat/TraceHitboxComponent.h"
+#include "NiagaraFunctionLibrary.h"
+#include "NiagaraComponent.h"
 
 // ... (Existing Constructor and other functions unchanged) ...
 
@@ -345,6 +347,17 @@ void ABossEnemy::CheckPhaseTransition()
 	}
 }
 
+void ABossEnemy::Die()
+{
+	Super::Die();
+	
+	// [Fix] 二郎神死后尸体消失太快的问题
+	// 在基类调用完后，我们用更大的数值覆盖它
+	SetLifeSpan(DeathLifeSpan);
+	
+	UE_LOG(LogTemp, Warning, TEXT("[%s] Boss is dead. Keeping corpse for %.1f seconds."), *GetName(), DeathLifeSpan);
+}
+
 void ABossEnemy::EnterPhase2()
 {
 	bHasEnteredPhase2 = true;
@@ -372,7 +385,40 @@ void ABossEnemy::EnterPhase2()
 	ChasingSpeed *= 1.2f;
 	GetCharacterMovement()->MaxWalkSpeed = ChasingSpeed;
 
-	// 5. 恢复无敌状态 (在动画结束后)
+	// [New] 二阶段视觉强化：全身金光
+	// 5.1 播放持续的粒子特效 (挂在胸口或全身)
+	if (Phase2Effect)
+	{
+		UNiagaraFunctionLibrary::SpawnSystemAttached(
+			Phase2Effect, 
+			GetMesh(), 
+			FName("pelvis"), // 或者设为您喜欢的 Socket
+			FVector::ZeroVector, 
+			FRotator::ZeroRotator, 
+			EAttachLocation::SnapToTarget, 
+			true);
+	}
+
+	// 5.2 设置覆盖材质 (Overlay Material) - 让全身发光最简单有效的方法
+	if (Phase2OverlayMaterial)
+	{
+		GetMesh()->SetOverlayMaterial(Phase2OverlayMaterial);
+	}
+
+	// 5.3 武器附魔 (如果有单独的武器粒子)
+	if (WeaponEffect && CurrentWeapon)
+	{
+		UNiagaraFunctionLibrary::SpawnSystemAttached(
+			WeaponEffect, 
+			CurrentWeapon->GetRootComponent(), 
+			FName("WeaponSocket"), // 在武器 Actor 里定义的 Socket
+			FVector::ZeroVector, 
+			FRotator::ZeroRotator, 
+			EAttachLocation::SnapToTarget, 
+			true);
+	}
+
+	// 6. 恢复无敌状态 (在动画结束后)
 	FTimerHandle PhaseTimer;
 	GetWorldTimerManager().SetTimer(PhaseTimer, [this]()
 	{

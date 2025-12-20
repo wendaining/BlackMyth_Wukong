@@ -31,6 +31,9 @@ public:
 	/** 重写受击函数以处理阶段转换 */
 	virtual void ReceiveDamage(float Damage, AActor* DamageInstigator) override;
 
+	/** 重写死亡函数以调整尸体存留时间 */
+	virtual void Die() override;
+
 	/** 激活 Boss (由触发器调用) */
 	UFUNCTION(BlueprintCallable, Category = "Boss")
 	void ActivateBoss(AActor* Target);
@@ -101,6 +104,20 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Boss|Animation")
 	TObjectPtr<UAnimMontage> SummonDogMontage;
 
+	// ========== 二阶段特效 (Phase 2 Visuals) ==========
+
+	/** 二阶段身上持续的粒子特效 (Niagara) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Boss|Visuals")
+	TObjectPtr<class UNiagaraSystem> Phase2Effect;
+
+	/** 二阶段覆盖材质 (Overlay Material) - 实现金光效果最直接的方法 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Boss|Visuals")
+	TObjectPtr<class UMaterialInterface> Phase2OverlayMaterial;
+
+	/** 二阶段武器附魔效果 (可选) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Boss|Visuals")
+	TObjectPtr<class UNiagaraSystem> WeaponEffect;
+
 public:
 	/** 执行轻攻击 (随机选择) */
 	UFUNCTION(BlueprintCallable, Category = "Combat")
@@ -117,6 +134,10 @@ public:
 	/** 哮天犬生成偏移 (相对于二郎神前方) */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Boss|Skill")
 	FVector DogSpawnOffset = FVector(320.0f, 0.0f, 50.0f);
+
+	/** 死亡后尸体消失的时间 (默认 5秒，Boss 可以设长点，如 20秒) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Boss|Config")
+	float DeathLifeSpan = 20.0f;
 
 	// ========== 内部状态 ==========
 	bool bHasEnteredPhase2 = false;
