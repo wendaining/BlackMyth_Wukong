@@ -1310,6 +1310,9 @@ void AWukongCharacter::UseItem()
     // 通过背包组件使用物品（R键默认使用槽位0：血药）
     if (InventoryComponent && InventoryComponent->UseItem(0))
     {
+        // 设置当前药瓶类型为血药（供AnimNotify使用）
+        SetCurrentPotionClass(HealthPotionClass);
+
         // 播放喝药动画
         if (DrinkGourdMontage)
         {
@@ -1348,6 +1351,9 @@ void AWukongCharacter::PerformShadowClone()
     {
         if (InventoryComponent && InventoryComponent->UseItem(0))
         {
+            // 设置当前药瓶类型为血药（供AnimNotify使用）
+            SetCurrentPotionClass(HealthPotionClass);
+
             if (DrinkGourdMontage)
             {
                 PlayMontage(DrinkGourdMontage);
@@ -1465,6 +1471,9 @@ void AWukongCharacter::PerformFreezeSpell()
     {
         if (InventoryComponent && InventoryComponent->UseItem(1))
         {
+            // 设置当前药瓶类型为体力药（供AnimNotify使用）
+            SetCurrentPotionClass(StaminaPotionClass);
+
             if (DrinkGourdMontage)
             {
                 PlayMontage(DrinkGourdMontage);

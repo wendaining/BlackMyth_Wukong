@@ -19,6 +19,7 @@ class UWukongAnimInstance;
 class UPlayerHUDWidget;
 class ANPCCharacter;
 class UInteractionPromptWidget;
+class APotionActor;
 struct FInputActionValue;
 
 // 角色状态枚举
@@ -145,6 +146,37 @@ public:
 	/** 获取背包组件 */
 	UFUNCTION(BlueprintPure, Category = "Inventory")
 	UInventoryComponent* GetInventoryComponent() const { return InventoryComponent; }
+
+	// ========== 药瓶系统 ==========
+
+	/** 当前使用的药瓶 Actor（喝药动画中生成） */
+	UPROPERTY(BlueprintReadOnly, Category = "Potion")
+	TObjectPtr<APotionActor> CurrentPotionActor;
+
+	/** 血药蓝图类（在编辑器中配置） */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Potion")
+	TSubclassOf<APotionActor> HealthPotionClass;
+
+	/** 体力药蓝图类（在编辑器中配置） */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Potion")
+	TSubclassOf<APotionActor> StaminaPotionClass;
+
+	/** 当前待生成的药瓶类型（在使用道具时设置，动画通知读取） */
+	UPROPERTY(BlueprintReadOnly, Category = "Potion")
+	TSubclassOf<APotionActor> CurrentPotionClass;
+
+	// 药瓶相关方法
+	UFUNCTION(BlueprintCallable, Category = "Potion")
+	void SetCurrentPotionClass(TSubclassOf<APotionActor> PotionClass) { CurrentPotionClass = PotionClass; }
+
+	UFUNCTION(BlueprintPure, Category = "Potion")
+	TSubclassOf<APotionActor> GetCurrentPotionClass() const { return CurrentPotionClass; }
+
+	UFUNCTION(BlueprintCallable, Category = "Potion")
+	void SetCurrentPotionActor(APotionActor* Potion) { CurrentPotionActor = Potion; }
+
+	UFUNCTION(BlueprintPure, Category = "Potion")
+	APotionActor* GetCurrentPotionActor() const { return CurrentPotionActor; }
 
 protected:
 	// ========== 输入动作 ==========
