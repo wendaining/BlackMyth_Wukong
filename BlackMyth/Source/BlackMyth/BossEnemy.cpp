@@ -295,8 +295,8 @@ void ABossEnemy::ReceiveDamage(float Damage, AActor* DamageInstigator)
 	}
 
 	// 2. [战斗大师逻辑] 尝试闪避
-	// 允许在任何非眩晕状态下闪避（包括出招过程中，即“强制取消攻击并闪避”）
-	if (!IsStunned() && !bIsInvulnerable)
+	// 允许在任何“非眩晕”且“非定身”状态下闪避（包括出招过程中，即“强制取消攻击并闪避”）
+	if (!IsStunned() && !IsFrozen() && !bIsInvulnerable)
 	{
 		float Roll = FMath::RandRange(0.0f, 1.0f);
 		// 基础闪避率 40%

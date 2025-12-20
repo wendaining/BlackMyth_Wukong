@@ -346,8 +346,8 @@ void AEnemyBase::ReceiveDamage(float Damage, AActor* DamageInstigator)
 {
 	if (IsDead()) return;
 
-	// 闪避判定：在受到伤害前，尝试触发闪避
-	if (DodgeComponent && DamageInstigator)
+	// 闪避判定：在受到伤害前，尝试触发闪避（眩晕或定身时不能闪避）
+	if (DodgeComponent && DamageInstigator && !IsStunned() && !IsFrozen())
 	{
 		FVector ThreatDir = (GetActorLocation() - DamageInstigator->GetActorLocation()).GetSafeNormal();
 		if (DodgeComponent->IsInDodge()) // 检查是否在无敌状态
