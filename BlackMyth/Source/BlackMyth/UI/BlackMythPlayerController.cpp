@@ -4,6 +4,8 @@
 #include "Blueprint/UserWidget.h"
 #include "PauseMenuWidget.h"
 #include "Kismet/GameplayStatics.h"
+#include "../InteractInterface.h"
+#include "../WukongCharacter.h"
 ABlackMythPlayerController::ABlackMythPlayerController()
     : PauseMenuInstance(nullptr)
 {
@@ -100,6 +102,21 @@ void ABlackMythPlayerController::TogglePauseMenu(const FInputActionValue& /*Valu
     } else {
         // 隐藏暂停界面，恢复游戏输入。
         ContinueGame();
+    }
+}
+
+void ABlackMythPlayerController::Interact()
+{
+    APawn* PlayerPawn = GetPawn();
+    if (!PlayerPawn) return;
+
+    AWukongCharacter* Wukong = Cast<AWukongCharacter>(PlayerPawn);
+    if (Wukong && Wukong->CurrentInteractable)
+    {
+        if (Wukong->CurrentInteractable->Implements<UInteractInterface>())
+        {
+            IInteractInterface::Execute_OnInteract(Wukong->CurrentInteractable, PlayerPawn);
+        }
     }
 }
 

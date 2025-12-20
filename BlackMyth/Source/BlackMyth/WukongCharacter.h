@@ -717,6 +717,12 @@ protected:
 	UPROPERTY()
 	ANPCCharacter* NearbyNPC;
 
+public:
+	/** 当前可交互的Actor */
+	UPROPERTY()
+	AActor* CurrentInteractable;
+
+protected:
 	/** 交互提示UI实例 */
 	UPROPERTY()
 	UInteractionPromptWidget* InteractionPromptWidget;
@@ -802,4 +808,13 @@ public:
 	/** 获取变身冷却剩余时间 */
 	UFUNCTION(BlueprintPure, Category = "Transform")
 	float GetTransformCooldownRemaining() const;
+
+	// ========== 土地庙交互系统 ==========
+	void OnTempleInteract();
+
+	UPROPERTY(EditDefaultsOnly, Category="Input")
+	UInputAction* TempleAction;
+
+	UFUNCTION(BlueprintCallable, Category = "Temple")
+	void FullRestore();
 };
