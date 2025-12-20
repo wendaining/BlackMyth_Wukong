@@ -423,6 +423,10 @@ protected:
 	/** 定身前的移动速度 */
 	float MovementSpeedBeforeFreeze = 0.0f;
 
+	/** 定身前所使用的覆盖材质 (用于解除后恢复，比如二郎神二阶段的红光) */
+	UPROPERTY()
+	TObjectPtr<UMaterialInterface> OriginalOverlayMaterial;
+
 	/** 定身计时器句柄 */
 	FTimerHandle FreezeTimer;
 
@@ -451,6 +455,10 @@ public:
 	/** 定身解除时播放的音效 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Audio|Freeze")
 	TObjectPtr<USoundBase> UnfreezeSound;
+
+	/** 定身由于叠加覆盖产生的“金光”材质 (Overlay Material) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "FX|Freeze")
+	TObjectPtr<UMaterialInterface> FreezeOverlayMaterial;
 
 	/** 定身时播放的粒子特效（Niagara） */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "FX|Freeze")
