@@ -708,6 +708,12 @@ protected:
 	UPROPERTY()
 	ANPCCharacter* NearbyNPC;
 
+public:
+	/** 当前可交互的Actor */
+	UPROPERTY()
+	AActor* CurrentInteractable;
+
+protected:
 	/** 交互提示UI实例 */
 	UPROPERTY()
 	UInteractionPromptWidget* InteractionPromptWidget;

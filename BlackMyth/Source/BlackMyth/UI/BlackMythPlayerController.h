@@ -35,6 +35,9 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
     UInputAction* PauseAction;
 
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Input")
+    UInputAction* TempleAction;
+
     /** 继续游戏。 */
     void ContinueGame();
 protected:
@@ -58,4 +61,6 @@ protected:
     /** 当 PauseAction 触发时切换暂停菜单的显示状态。 */
     void TogglePauseMenu(const FInputActionValue& Value);
 
+    UFUNCTION()
+    void Interact();
 };

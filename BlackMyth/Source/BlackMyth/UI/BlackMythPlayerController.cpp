@@ -4,6 +4,8 @@
 #include "Blueprint/UserWidget.h"
 #include "PauseMenuWidget.h"
 #include "Kismet/GameplayStatics.h"
+#include "../InteractInterface.h"
+#include "../WukongCharacter.h"
 ABlackMythPlayerController::ABlackMythPlayerController()
     : PauseMenuInstance(nullptr)
 {
@@ -26,6 +28,12 @@ ABlackMythPlayerController::ABlackMythPlayerController()
         TEXT("/Game/_BlackMythGame/Blueprints/Menu/IA_Pause.IA_Pause"));
     if (IA.Succeeded()) {
         PauseAction = IA.Object;
+    }
+
+    static ConstructorHelpers::FObjectFinder<UInputAction> TempleIA(
+        TEXT("/Game/_BlackMythGame/Input/IA_Temple"));
+    if (TempleIA.Succeeded()) {
+        TempleAction = TempleIA.Object;
     }
 }
 
@@ -62,6 +70,11 @@ void ABlackMythPlayerController::SetupInputComponent() {
         if (PauseAction != nullptr) {
             enhanced->BindAction(PauseAction, ETriggerEvent::Triggered, this,
                                  &ABlackMythPlayerController::TogglePauseMenu);
+        }
+
+        if (TempleAction != nullptr) {
+            enhanced->BindAction(TempleAction, ETriggerEvent::Triggered, this,
+                &ABlackMythPlayerController::Interact);
         }
     }
 }
@@ -100,6 +113,21 @@ void ABlackMythPlayerController::TogglePauseMenu(const FInputActionValue& /*Valu
     } else {
         // 隐藏暂停界面，恢复游戏输入。
         ContinueGame();
+    }
+}
+
+void ABlackMythPlayerController::Interact()
+{
+    APawn* PlayerPawn = GetPawn();
+    if (!PlayerPawn) return;
+
+    AWukongCharacter* Wukong = Cast<AWukongCharacter>(PlayerPawn);
+    if (Wukong && Wukong->CurrentInteractable)
+    {
+        if (Wukong->CurrentInteractable->Implements<UInteractInterface>())
+        {
+            IInteractInterface::Execute_OnInteract(Wukong->CurrentInteractable, PlayerPawn);
+        }
     }
 }
 
