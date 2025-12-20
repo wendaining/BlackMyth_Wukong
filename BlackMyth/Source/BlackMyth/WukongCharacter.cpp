@@ -407,47 +407,6 @@ void AWukongCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCom
         {
             UE_LOG(LogTemp, Warning, TEXT("  ToggleInventoryAction is NULL! Inventory (Tab) will not work! Assign IA_ToggleInventory in BP_Wukong."));
         }
-
-        // 绑定物品快捷键 Actions（F1-F4）
-        if (ItemSlot1Action)
-        {
-            EnhancedInputComponent->BindAction(ItemSlot1Action, ETriggerEvent::Started, this, &AWukongCharacter::UseItemSlot1);
-            UE_LOG(LogTemp, Warning, TEXT("  Bound ItemSlot1Action to UseItemSlot1"));
-        }
-        else
-        {
-            UE_LOG(LogTemp, Warning, TEXT("  ItemSlot1Action is NULL! Item Slot 1 (F1) will not work! Assign IA_ItemSlot1 in BP_Wukong."));
-        }
-
-        if (ItemSlot2Action)
-        {
-            EnhancedInputComponent->BindAction(ItemSlot2Action, ETriggerEvent::Started, this, &AWukongCharacter::UseItemSlot2);
-            UE_LOG(LogTemp, Warning, TEXT("  Bound ItemSlot2Action to UseItemSlot2"));
-        }
-        else
-        {
-            UE_LOG(LogTemp, Warning, TEXT("  ItemSlot2Action is NULL! Item Slot 2 (F2) will not work! Assign IA_ItemSlot2 in BP_Wukong."));
-        }
-
-        if (ItemSlot3Action)
-        {
-            EnhancedInputComponent->BindAction(ItemSlot3Action, ETriggerEvent::Started, this, &AWukongCharacter::UseItemSlot3);
-            UE_LOG(LogTemp, Warning, TEXT("  Bound ItemSlot3Action to UseItemSlot3"));
-        }
-        else
-        {
-            UE_LOG(LogTemp, Warning, TEXT("  ItemSlot3Action is NULL! Item Slot 3 (F3) will not work! Assign IA_ItemSlot3 in BP_Wukong."));
-        }
-
-        if (ItemSlot4Action)
-        {
-            EnhancedInputComponent->BindAction(ItemSlot4Action, ETriggerEvent::Started, this, &AWukongCharacter::UseItemSlot4);
-            UE_LOG(LogTemp, Warning, TEXT("  Bound ItemSlot4Action to UseItemSlot4"));
-        }
-        else
-        {
-            UE_LOG(LogTemp, Warning, TEXT("  ItemSlot4Action is NULL! Item Slot 4 (F4) will not work! Assign IA_ItemSlot4 in BP_Wukong."));
-        }
     }
     else
     {
@@ -1361,58 +1320,10 @@ void AWukongCharacter::ToggleInventory()
         PlayerHUD->SetInventoryVisible(bIsInventoryOpen);
     }
 
-    if (bIsInventoryOpen)
-    {
-        // 打开背包：游戏继续，显示鼠标（可以在UI中操作）
-        FInputModeGameAndUI InputMode;
-        InputMode.SetHideCursorDuringCapture(false);
-        PC->SetInputMode(InputMode);
-        PC->bShowMouseCursor = true;
+    // 不显示鼠标，保持游戏模式
+    // 背包是被动信息显示，不需要鼠标交互
 
-        UE_LOG(LogTemp, Log, TEXT("Inventory Opened"));
-    }
-    else
-    {
-        // 关闭背包：恢复纯游戏输入
-        PC->SetInputMode(FInputModeGameOnly());
-        PC->bShowMouseCursor = false;
-
-        UE_LOG(LogTemp, Log, TEXT("Inventory Closed"));
-    }
-}
-
-// ========== 物品快捷键实现 ==========
-
-void AWukongCharacter::UseItemSlot1()
-{
-    if (bIsInventoryOpen && InventoryComponent)
-    {
-        InventoryComponent->UseItem(0);  // 血药
-    }
-}
-
-void AWukongCharacter::UseItemSlot2()
-{
-    if (bIsInventoryOpen && InventoryComponent)
-    {
-        InventoryComponent->UseItem(1);  // 体力药
-    }
-}
-
-void AWukongCharacter::UseItemSlot3()
-{
-    if (bIsInventoryOpen && InventoryComponent)
-    {
-        InventoryComponent->UseItem(2);  // 怒火丹
-    }
-}
-
-void AWukongCharacter::UseItemSlot4()
-{
-    if (bIsInventoryOpen && InventoryComponent)
-    {
-        InventoryComponent->UseItem(3);  // 金刚丹
-    }
+    UE_LOG(LogTemp, Log, TEXT("Inventory %s"), bIsInventoryOpen ? TEXT("Opened") : TEXT("Closed"));
 }
 
 // ========== 影分身技能实现 ==========
@@ -1420,6 +1331,19 @@ void AWukongCharacter::UseItemSlot4()
 void AWukongCharacter::PerformShadowClone()
 {
     UE_LOG(LogTemp, Warning, TEXT(">>> PerformShadowClone() CALLED! CurrentState=%d"), (int32)CurrentState);
+
+    // 背包打开时，使用槽位 0（血药）并播放动画
+    if (bIsInventoryOpen)
+    {
+        if (InventoryComponent && InventoryComponent->UseItem(0))
+        {
+            if (DrinkGourdMontage)
+            {
+                PlayMontage(DrinkGourdMontage);
+            }
+        }
+        return;
+    }
 
     // 死亡、翻滚、硬直、对话状态下不能使用影分身
     if (CurrentState == EWukongState::Dead ||
@@ -1524,6 +1448,19 @@ void AWukongCharacter::PerformShadowClone()
 void AWukongCharacter::PerformFreezeSpell()
 {
     UE_LOG(LogTemp, Warning, TEXT(">>> PerformFreezeSpell() CALLED! CurrentState=%d"), (int32)CurrentState);
+
+    // 背包打开时，使用槽位 1（体力药）并播放动画
+    if (bIsInventoryOpen)
+    {
+        if (InventoryComponent && InventoryComponent->UseItem(1))
+        {
+            if (DrinkGourdMontage)
+            {
+                PlayMontage(DrinkGourdMontage);
+            }
+        }
+        return;
+    }
 
     // 死亡、翻滚、硬直、对话状态下不能使用定身术
     if (CurrentState == EWukongState::Dead ||
@@ -2416,6 +2353,16 @@ void AWukongCharacter::PlayJumpSound()
 void AWukongCharacter::PerformTransform()
 {
 	UE_LOG(LogTemp, Warning, TEXT(">>> PerformTransform() CALLED! bIsTransformed=%d"), bIsTransformed);
+
+	// 背包打开时，使用槽位 2（怒火丹）
+	if (bIsInventoryOpen)
+	{
+		if (InventoryComponent)
+		{
+			InventoryComponent->UseItem(2);
+		}
+		return;
+	}
 
 	// 如果已经变身了，不能再次变身
 	if (bIsTransformed)
