@@ -106,6 +106,12 @@ void UTraceHitboxComponent::ActivateTrace()
 		bIsHeavyAttack ? TEXT("YES") : TEXT("NO"),
 		bIsAirAttack ? TEXT("YES") : TEXT("NO"));
 
+	// [New] 播放挥舞音效
+	if (SwingSound)
+	{
+		UGameplayStatics::PlaySoundAtLocation(this, SwingSound, GetOwner()->GetActorLocation());
+	}
+
 	OnStateChanged.Broadcast(true);
 }
 
