@@ -138,6 +138,14 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Stats")
 	UStaminaComponent* GetStaminaComponent() const { return StaminaComponent; }
 
+	/** 获取状态效果组件 */
+	UFUNCTION(BlueprintPure, Category = "StatusEffect")
+	UStatusEffectComponent* GetStatusEffectComponent() const { return StatusEffectComponent; }
+
+	/** 获取背包组件 */
+	UFUNCTION(BlueprintPure, Category = "Inventory")
+	UInventoryComponent* GetInventoryComponent() const { return InventoryComponent; }
+
 protected:
 	// ========== 输入动作 ==========
 	
@@ -230,14 +238,6 @@ protected:
 	/** 背包组件（管理物品和消耗品） */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	TObjectPtr<UInventoryComponent> InventoryComponent;
-
-	/** 获取状态效果组件 */
-	UFUNCTION(BlueprintPure, Category = "StatusEffect")
-	UStatusEffectComponent* GetStatusEffectComponent() const { return StatusEffectComponent; }
-
-	/** 获取背包组件 */
-	UFUNCTION(BlueprintPure, Category = "Inventory")
-	UInventoryComponent* GetInventoryComponent() const { return InventoryComponent; }
 
 	// ========== 移动属性 ==========
 	
