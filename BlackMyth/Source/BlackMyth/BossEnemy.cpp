@@ -207,6 +207,23 @@ void ABossEnemy::Tick(float DeltaTime)
 				AIController->SetFocus(CombatTarget);
 			}
 
+			// [Fix] 二阶段远程突袭逻辑
+			// 如果处于二阶段且距离较远，即便没进入攻击范围，也定期尝试“远程出招”（召唤狗）
+			if (CurrentPhase == EBossPhase::Phase2 && DistanceToTarget > AttackRadius + 100.0f)
+			{
+				// 每隔一段时间尝试一次远程判定，而不是每帧都判
+				static float RangedAttackCheckTimer = 0.0f;
+				RangedAttackCheckTimer += DeltaTime;
+
+				if (RangedAttackCheckTimer >= 3.0f) // 每3秒判断一次是否放狗
+				{
+					RangedAttackCheckTimer = 0.0f;
+					UE_LOG(LogTemp, Warning, TEXT("[%s] Tactical Ranged Attack Decision!"), *GetName());
+					Attack();
+					return;
+				}
+			}
+
 			// 如果进入攻击范围，开始攻击
 			if (DistanceToTarget <= AttackRadius)
 			{
@@ -412,17 +429,26 @@ void ABossEnemy::PerformDodge()
 
 void ABossEnemy::SummonDog()
 {
-	if (!DogClass) return;
+	// [Debug] 如果忘记在蓝图中给 DogClass 赋值，这里会报警
+	if (!DogClass)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[%s] SummonDog FAILED: DogClass is NULL! Please set it in Blueprint defaults."), *GetName());
+		return;
+	}
 
 	UE_LOG(LogTemp, Warning, TEXT("[%s] Summoning Dog!"), *GetName());
 
-	// 播放召唤动画
+	// 1. 设置攻击状态（防止被其它招式中断）
+	EnemyState = EEnemyState::EES_Engaged;
+
+	// 2. 播放召唤动画
+	float Duration = 1.0f; // 保底时间
 	if (SummonDogMontage)
 	{
-		PlayAnimMontage(SummonDogMontage);
+		Duration = PlayAnimMontage(SummonDogMontage);
 	}
 
-	// 在前方生成哮天犬
+	// 3. 在前方生成哮天犬
 	FVector SpawnLocation = GetActorLocation() + GetActorForwardVector() * 300.0f;
 	FRotator SpawnRotation = GetActorRotation();
 	
@@ -431,6 +457,13 @@ void ABossEnemy::SummonDog()
 	SpawnParams.Instigator = this;
 	
 	GetWorld()->SpawnActor<AActor>(DogClass, SpawnLocation, SpawnRotation, SpawnParams);
+
+	// 4. 为收招设置计时器
+	GetWorldTimerManager().SetTimer(AttackEndTimer, [this]()
+	{
+		// 调用父类的 AttackEnd 以触发 CheckCombatTarget 并开启下一轮攻势
+		this->AttackEnd();
+	}, Duration, false);
 }
 
 void ABossEnemy::SetBossHealthVisibility(bool bVisible)
@@ -451,11 +484,47 @@ void ABossEnemy::Attack()
 	// 设置状态
 	EnemyState = EEnemyState::EES_Engaged;
 
-	UE_LOG(LogTemp, Warning, TEXT("[%s] Boss Attack Decision..."), *GetName());
+	float Roll = FMath::RandRange(0.0f, 1.0f);
 
-	// 简单的随机逻辑 (后续可以用行为树替代)
+	UE_LOG(LogTemp, Log, TEXT("[%s] Boss Attack - CurrentPhase: %d, Roll: %.2f"), *GetName(), (int32)CurrentPhase, Roll);
+
+	// ========== 二阶段专属 AI 逻辑 ==========
+	if (CurrentPhase == EBossPhase::Phase2)
+	{
+		if (CombatTarget)
+		{
+			float Distance = FVector::Dist(GetActorLocation(), CombatTarget->GetActorLocation());
+			
+			// 二阶段核心：距离远就放狗 (提高由于距离触发的概率)
+			if (Distance > 600.0f)
+			{
+				UE_LOG(LogTemp, Warning, TEXT("[%s] Phase 2 Distance Attack (Dist: %.1f)"), *GetName(), Distance);
+				SummonDog();
+				return;
+			}
+		}
+
+		// 近距离下的放狗概率 (提高到 30%，让玩家感受到“狗”的存在感)
+		if (Roll < 0.3f)
+		{
+			SummonDog();
+			return;
+		}
+		else if (Roll < 0.65f)
+		{
+			PerformLightAttack();
+			return;
+		}
+		else
+		{
+			PerformHeavyAttack();
+			return;
+		}
+	}
+
+	// ========== 一阶段逻辑 (完全禁止放狗) ==========
 	// 70% 轻攻击， 30% 重攻击
-	if (FMath::RandRange(0.0f, 1.0f) < 0.7f)
+	if (Roll < 0.7f)
 	{
 		PerformLightAttack();
 	}
