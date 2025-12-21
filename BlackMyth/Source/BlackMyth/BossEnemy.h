@@ -139,6 +139,8 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Boss|Config")
 	float DeathLifeSpan = 20.0f;
 
+	// [Legacy] 竞技场空气墙已迁移至 BossCombatTrigger
+
 	// ========== 内部状态 ==========
 	bool bHasEnteredPhase2 = false;
 	FTimerHandle DodgeTimer;

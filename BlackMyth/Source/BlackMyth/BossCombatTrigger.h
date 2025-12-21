@@ -17,6 +17,10 @@ class BLACKMYTH_API ABossCombatTrigger : public ATriggerVolume
 public:
 	ABossCombatTrigger();
 
+	/** 设置结界激活状态 (视觉显现 + 物理阻挡) */
+	UFUNCTION(BlueprintCallable, Category = "Boss|Arena")
+	void SetBarrierActive(bool bActive);
+
 protected:
 	virtual void BeginPlay() override;
 
@@ -45,6 +49,20 @@ public:
 	/** 离开触发器时是否自动隐藏Boss血条 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Boss|UI")
 	bool bHideBossHealthOnLeave = true;
+
+	/** 结界视觉组件 (四面墙) */
+	UPROPERTY(VisibleAnywhere, Category = "Components")
+	TObjectPtr<class UStaticMeshComponent> WallN;
+	UPROPERTY(VisibleAnywhere, Category = "Components")
+	TObjectPtr<class UStaticMeshComponent> WallS;
+	UPROPERTY(VisibleAnywhere, Category = "Components")
+	TObjectPtr<class UStaticMeshComponent> WallE;
+	UPROPERTY(VisibleAnywhere, Category = "Components")
+	TObjectPtr<class UStaticMeshComponent> WallW;
+
+	/** 结界的金光材质 (GLOW_Gold) */
+	UPROPERTY(EditAnywhere, Category = "Boss|Arena")
+	TObjectPtr<class UMaterialInterface> BarrierMaterial;
 
 protected:
 	/** 是否已触发过 */

@@ -555,6 +555,12 @@ void AEnemyBase::PlayHitReactMontage(const FVector& ImpactPoint)
 void AEnemyBase::Die()
 {
 	if (IsDead()) return;
+
+	// [Fix Restore] 如果被定身时被打死，强制解除定身，否则死亡动画会被冻结无法播放
+	if (bIsFrozen)
+	{
+		RemoveFreeze();
+	}
 	
 	EnemyState = EEnemyState::EES_Dead;
 
