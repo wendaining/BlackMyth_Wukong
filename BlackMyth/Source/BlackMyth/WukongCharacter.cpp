@@ -427,8 +427,13 @@ void AWukongCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCom
         {
             UE_LOG(LogTemp, Warning, TEXT("  ToggleInventoryAction is NULL! Inventory (Tab) will not work! Assign IA_ToggleInventory in BP_Wukong."));
         }
-        EnhancedInputComponent->BindAction(TempleAction, ETriggerEvent::Triggered,
+        EnhancedInputComponent->BindAction(TempleAction, ETriggerEvent::Started,
         this, &AWukongCharacter::OnTempleInteract);
+        UE_LOG(LogTemp, Error,
+            TEXT("[InputCheck] TempleAction=%s"),
+            *GetNameSafe(TempleAction)
+        );
+
     }
     else
     {
@@ -2756,7 +2761,7 @@ void AWukongCharacter::OnTempleInteract()
 
     if (CurrentInteractable->Implements<UInteractInterface>())
     {
-        UE_LOG(LogTemp, Warning, TEXT("[Temple] Q Interact with %s"),
+        UE_LOG(LogTemp, Warning, TEXT("[Temple] E Interact with %s"),
             *CurrentInteractable->GetName());
 
         IInteractInterface::Execute_OnInteract(CurrentInteractable, this);
