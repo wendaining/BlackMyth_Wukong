@@ -269,10 +269,22 @@ void AEnemyBase::Tick(float DeltaTime)
 	Super::Tick(DeltaTime);
 
 	if (IsDead()) return;
+	
+	// [Fix] 眩晕或定身时，跳过所有移动和战斗逻辑，只保持韧性恢复
+	if (IsStunned() || IsFrozen())
+	{
+		// 韧性恢复逻辑仍然运行（眩晕不影响韧性恢复）
+		const double TimeSinceLastHit = GetWorld()->GetTimeSeconds() - LastHitTime;
+		if (!IsStunned() && CurrentPoise < MaxPoise && TimeSinceLastHit > PoiseRecoveryDelay)
+		{
+			CurrentPoise = FMath::Min(CurrentPoise + PoiseRecoveryRate * DeltaTime, MaxPoise);
+		}
+		return; // 直接返回，不执行下面的移动和战斗逻辑
+	}
 
 	// 韧性恢复逻辑：只有当 (当前时间 - 上次受击时间) > 恢复延迟时，才开始恢复
 	const double TimeSinceLastHit = GetWorld()->GetTimeSeconds() - LastHitTime;
-	if (!IsStunned() && CurrentPoise < MaxPoise && TimeSinceLastHit > PoiseRecoveryDelay)
+	if (CurrentPoise < MaxPoise && TimeSinceLastHit > PoiseRecoveryDelay)
 	{
 		CurrentPoise = FMath::Min(CurrentPoise + PoiseRecoveryRate * DeltaTime, MaxPoise);
 	}
@@ -342,24 +354,27 @@ void AEnemyBase::Tick(float DeltaTime)
 }
 
 
-void AEnemyBase::ReceiveDamage(float Damage, AActor* DamageInstigator)
+void AEnemyBase::ReceiveDamage(float Damage, AActor* DamageInstigator, bool bCanBeDodged)
 {
 	if (IsDead()) return;
 
 	// 闪避判定：在受到伤害前，尝试触发闪避（眩晕或定身时不能闪避）
-	if (DodgeComponent && DamageInstigator && !IsStunned() && !IsFrozen())
+	// [Fix] 如果bCanBeDodged=false（如立棍AOE），则无视闪避直接受伤
+	if (bCanBeDodged && DodgeComponent && DamageInstigator && !IsStunned() && !IsFrozen())
 	{
 		FVector ThreatDir = (GetActorLocation() - DamageInstigator->GetActorLocation()).GetSafeNormal();
 		if (DodgeComponent->IsInDodge()) // 检查是否在无敌状态
   		{
+  			UE_LOG(LogTemp, Log, TEXT("[%s] Dodged damage! (In dodge iframe)"), *GetName());
       		return; // 无敌状态下不受伤
   		}
 
-  // 再尝试触发新闪避
-  if (DodgeComponent->TryDodge(ThreatDir))
-  {
-      return; // 触发闪避也不受伤
-  }
+		// 再尝试触发新闪避
+		if (DodgeComponent->TryDodge(ThreatDir))
+		{
+			UE_LOG(LogTemp, Log, TEXT("[%s] Dodged damage! (New dodge triggered)"), *GetName());
+			return; // 触发闪避也不受伤
+		}
 	}
 
 	if (HealthComponent)
@@ -422,8 +437,25 @@ void AEnemyBase::ReceiveDamage(float Damage, AActor* DamageInstigator)
 			// 触发大硬直 (Stun)
 			CurrentPoise = 0.0f; // 归零
 			
+			if (bWasStunned)
+			{
+				// 已经在眩晕状态，只重置计时器延长眩晕，不重新播放动画
+				GetWorldTimerManager().SetTimer(StunTimer, this, &AEnemyBase::StunEnd, StunDuration, false);
+				UE_LOG(LogTemp, Warning, TEXT("[%s] Already Stunned, extending duration to %.1fs"), *GetName(), StunDuration);
+				return; // 重要：直接返回，不执行下面的动画播放
+			}
+			
+			// 首次进入眩晕状态
 			// 停止移动和攻击
-			if (EnemyController) EnemyController->StopMovement();
+			if (EnemyController) 
+			{
+				EnemyController->StopMovement();
+				// 暂停行为树，防止AI继续执行MoveTo任务
+				if (UBrainComponent* BrainComp = EnemyController->GetBrainComponent())
+				{
+					BrainComp->PauseLogic(TEXT("眩晕中"));
+				}
+			}
 			ClearAttackTimer();
 			GetWorldTimerManager().ClearTimer(AttackEndTimer); // [Fix] 必须清除攻击结束计时器，否则它会重置状态
 			
@@ -441,19 +473,20 @@ void AEnemyBase::ReceiveDamage(float Damage, AActor* DamageInstigator)
 			// 切换状态
 			EnemyState = EEnemyState::EES_Stunned;
 
-			// 播放眩晕音效 (仅在初次进入眩晕时播放，避免连续攻击时太吵)
-			if (StunSound && !bWasStunned)
+			// 播放眩晕音效
+			if (StunSound)
 			{
 				UGameplayStatics::PlaySoundAtLocation(this, StunSound, GetActorLocation());
 			}
 			
-			// 播放眩晕动画 (每次受击都重播，实现连续控制)
+			// 播放眩晕动画
 			if (StunMontage)
 			{
 				PlayAnimMontage(StunMontage);
+				
 				// 设置恢复计时器
 				GetWorldTimerManager().SetTimer(StunTimer, this, &AEnemyBase::StunEnd, StunDuration, false);
-				UE_LOG(LogTemp, Warning, TEXT("[%s] Stunned! Poise Broken."), *GetName());
+				UE_LOG(LogTemp, Warning, TEXT("[%s] Stunned! Poise Broken. Duration: %.1fs"), *GetName(), StunDuration);
 			}
 			else
 			{
@@ -633,7 +666,11 @@ void AEnemyBase::Die()
 void AEnemyBase::Attack()
 {
 	if (CombatTarget == nullptr || IsDead()) return;
-	if (IsStunned()) return; // [Fix] 眩晕状态下禁止攻击
+	if (IsStunned()) 
+	{
+		UE_LOG(LogTemp, Error, TEXT("[%s] !!! Attack() called but STUNNED, should not happen !!!"), *GetName());
+		return; // [Fix] 眩晕状态下禁止攻击
+	}
 	
 	// [Fix] 在攻击真正开始时停止移动，防止滑步
 	// 此时就算行为树中断也没关系，因为攻击动作已经接管了表现
@@ -847,6 +884,11 @@ AActor* AEnemyBase::ChoosePatrolTarget()
 void AEnemyBase::StartAttackTimer()
 {
 	if (IsDead()) return;
+	if (IsStunned())
+	{
+		UE_LOG(LogTemp, Error, TEXT("[%s] !!! StartAttackTimer() called but STUNNED !!!"), *GetName());
+		return; // 眩晕状态下不应该设置攻击计时器
+	}
 
 	EnemyState = EEnemyState::EES_Attacking;
 	const float AttackTime = FMath::RandRange(AttackMin, AttackMax);
@@ -856,6 +898,7 @@ void AEnemyBase::StartAttackTimer()
 
 void AEnemyBase::ClearAttackTimer()
 {
+	UE_LOG(LogTemp, Warning, TEXT("[%s] ClearAttackTimer() called"), *GetName());
 	GetWorldTimerManager().ClearTimer(AttackTimer);
 }
 
@@ -957,7 +1000,7 @@ void AEnemyBase::StunEnd()
 {
 	if (IsDead()) return;
 	
-	UE_LOG(LogTemp, Warning, TEXT("[%s] Stun Recovered."), *GetName());
+	UE_LOG(LogTemp, Error, TEXT("[%s] ===== STUN END - Recovering from stun ====="), *GetName());
 	
 	// 恢复韧性
 	CurrentPoise = MaxPoise;
@@ -965,8 +1008,22 @@ void AEnemyBase::StunEnd()
 	// 恢复状态
 	EnemyState = EEnemyState::EES_Chasing;
 	
-	// 重新开始追击
-	CheckCombatTarget();
+	// [Fix] 恢复行为树，让AI重新开始评估和移动
+	if (EnemyController)
+	{
+		if (UBrainComponent* BrainComp = EnemyController->GetBrainComponent())
+		{
+			BrainComp->ResumeLogic(TEXT("眩晕结束"));
+			UE_LOG(LogTemp, Warning, TEXT("[%s] Resumed AI Brain after stun"), *GetName());
+		}
+		
+		if (CombatTarget)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[%s] Starting to chase target after stun"), *GetName());
+			// 使用和ChaseTarget()相同的逻辑，让敌人重新追击
+			EnemyController->SetFocus(CombatTarget);
+		}
+	}
 }
 
 float AEnemyBase::GetCurrentHealth() const

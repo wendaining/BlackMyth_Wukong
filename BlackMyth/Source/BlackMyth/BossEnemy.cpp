@@ -271,7 +271,7 @@ void ABossEnemy::ActivateBoss(AActor* Target)
 	}
 }
 
-void ABossEnemy::ReceiveDamage(float Damage, AActor* DamageInstigator)
+void ABossEnemy::ReceiveDamage(float Damage, AActor* DamageInstigator, bool bCanBeDodged)
 {
 	// 1. 如果处于真正的系统级无敌状态（如转阶段过程中），忽略伤害
 	if (bIsInvulnerable) return;
@@ -298,9 +298,9 @@ void ABossEnemy::ReceiveDamage(float Damage, AActor* DamageInstigator)
 		}
 	}
 
-	// 2. [战斗大师逻辑] 尝试闪避
-	// 允许在任何“非眩晕”且“非定身”状态下闪避（包括出招过程中，即“强制取消攻击并闪避”）
-	if (!IsStunned() && !IsFrozen() && !bIsInvulnerable)
+	// 2. [战斗大师逻辑] 尝试闪避（只有bCanBeDodged=true时才能闪避）
+	// 允许在任何"非眩晕"且"非定身"状态下闪避（包括出招过程中，即"强制取消攻击并闪避"）
+	if (bCanBeDodged && !IsStunned() && !IsFrozen() && !bIsInvulnerable)
 	{
 		float Roll = FMath::RandRange(0.0f, 1.0f);
 		// 基础闪避率 40%
@@ -333,8 +333,8 @@ void ABossEnemy::ReceiveDamage(float Damage, AActor* DamageInstigator)
 		return;
 	}
 
-	// 4. 正常承受伤害（会触发中断动画）
-	Super::ReceiveDamage(Damage, DamageInstigator);
+	// 4. 正常承受伤害（会触发中断动画），传递bCanBeDodged参数
+	Super::ReceiveDamage(Damage, DamageInstigator, bCanBeDodged);
 }
 
 void ABossEnemy::CheckPhaseTransition()

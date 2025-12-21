@@ -61,9 +61,10 @@ public:
 	 * 接收伤害接口
 	 * @param Damage 伤害数值
 	 * @param DamageInstigator 伤害来源
+	 * @param bCanBeDodged 是否允许闪避（默认true，立棍等AOE控制技能应设为false）
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Combat")
-	virtual void ReceiveDamage(float Damage, AActor* DamageInstigator);
+	virtual void ReceiveDamage(float Damage, AActor* DamageInstigator, bool bCanBeDodged = true);
 
 	/** 获取当前生命值 */
 	UFUNCTION(BlueprintPure, Category = "Stats")
