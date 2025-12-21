@@ -58,4 +58,6 @@ protected:
     /** 当 PauseAction 触发时切换暂停菜单的显示状态。 */
     void TogglePauseMenu(const FInputActionValue& Value);
 
+    UFUNCTION()
+    void Interact();
 };
