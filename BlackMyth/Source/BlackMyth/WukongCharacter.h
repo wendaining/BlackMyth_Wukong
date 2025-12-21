@@ -125,6 +125,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Dialogue")
 	void SetInDialogue(bool bInDialogue);
 
+	/** 设置当前正在播放的对话组件 */
+	UFUNCTION(BlueprintCallable, Category = "Dialogue")
+	void SetActiveDialogueComponent(UDialogueComponent* InDialogueComp) { ActiveDialogueComponent = InDialogueComp; }
+
 	/** 获取移动速度 */
 	UFUNCTION(BlueprintPure, Category = "Movement")
 	float GetMovementSpeed() const;
@@ -785,9 +789,13 @@ protected:
 	UPROPERTY()
 	ANPCCharacter* CurrentDialogueNPC;
 
-	/** 对话自动结束的最大距离 */
+	/** 到话自动结束的最大距离 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Dialogue")
 	float DialogueBreakDistance = 500.0f;
+
+	/** 当前正在活跃的对话组件（用于接收输入） */
+	UPROPERTY()
+	UDialogueComponent* ActiveDialogueComponent;
 
 	/** 检测附近的NPC */
 	void CheckForNearbyNPC();

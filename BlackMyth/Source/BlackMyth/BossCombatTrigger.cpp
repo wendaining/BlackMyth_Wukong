@@ -7,6 +7,9 @@
 #include "Kismet/GameplayStatics.h"
 #include "Components/BrushComponent.h"
 #include "Components/StaticMeshComponent.h"
+#include "Dialogue/DialogueComponent.h"
+#include "Dialogue/DialogueData.h"
+#include "XiaoTian.h"
 #include "UObject/ConstructorHelpers.h"
 
 ABossCombatTrigger::ABossCombatTrigger()
@@ -36,6 +39,9 @@ ABossCombatTrigger::ABossCombatTrigger()
 		WallE->SetStaticMesh(CubeMeshAsset.Object);
 		WallW->SetStaticMesh(CubeMeshAsset.Object);
 	}
+
+	// 初始化对话组件
+	DialogueComponent = CreateDefaultSubobject<UDialogueComponent>(TEXT("DialogueComponent"));
 }
 
 void ABossCombatTrigger::BeginPlay()
@@ -44,6 +50,14 @@ void ABossCombatTrigger::BeginPlay()
 
 	// 绑定Boss死亡事件
 	BindBossDeathEvent();
+
+	// 绑定对话结束事件
+	if (DialogueComponent)
+	{
+		DialogueComponent->OnDialogueStateChanged.AddDynamic(this, &ABossCombatTrigger::OnCutsceneFinished);
+		DialogueComponent->OnDialogueEvent.AddDynamic(this, &ABossCombatTrigger::HandleDialogueEvent);
+		DialogueComponent->OnCameraTargetChanged.AddDynamic(this, &ABossCombatTrigger::HandleCameraTargetChanged);
+	}
 }
 
 void ABossCombatTrigger::NotifyActorBeginOverlap(AActor* OtherActor)
@@ -65,35 +79,76 @@ void ABossCombatTrigger::NotifyActorBeginOverlap(AActor* OtherActor)
 
 	bHasTriggered = true;
 
+	// [New] 延迟开始过场动画，给玩家一点走位时间进入中心，避免卡在门口
+	UE_LOG(LogTemp, Warning, TEXT("[BossArea] Player entered. Delaying CG for %.1f seconds..."), CutsceneStartDelay);
+	
+	FTimerHandle StartTimer;
+	GetWorldTimerManager().SetTimer(StartTimer, [this, Player]() {
+		this->StartBossCutscene(Player);
+	}, CutsceneStartDelay, false);
+}
+
+void ABossCombatTrigger::StartBossCutscene(APawn* PlayerPawn)
+{
+	if (!PlayerPawn || !LinkedBoss || !DialogueComponent)
+	{
+		return;
+	}
+
+	APlayerController* PC = Cast<APlayerController>(PlayerPawn->GetController());
+	if (PC)
+	{
+		// 1. 设置说话人为 Boss (这样 Boss 才会做动作)
+		DialogueComponent->AlternativeSpeaker = LinkedBoss;
+
+		// 2. 切换镜头到 Boss
+		PC->SetViewTargetWithBlend(LinkedBoss, CameraBlendTime);
+		
+		// 3. 开始对话 (DialogueComponent 会自动处理玩家输入锁定)
+		DialogueComponent->StartDialogue();
+		
+		UE_LOG(LogTemp, Log, TEXT("[BossCombatTrigger] Starting Cutscene... Camera blending to Boss."));
+	}
+}
+
+void ABossCombatTrigger::OnCutsceneFinished(bool bIsPlaying)
+{
+	if (bIsPlaying) return; // 只处理“结束”消息
+
+	UE_LOG(LogTemp, Log, TEXT("[BossCombatTrigger] Cutscene finished. Starting combat logic."));
+
+	// 1. 切换镜头回玩家
+	APlayerController* PC = UGameplayStatics::GetPlayerController(this, 0);
+	if (PC)
+	{
+		PC->SetViewTargetWithBlend(PC->GetPawn(), CameraBlendTime);
+	}
+
+	// 2. 原有的战斗启动逻辑
+	AWukongCharacter* Player = Cast<AWukongCharacter>(PC ? PC->GetPawn() : nullptr);
+	
 	// 触发Boss战斗状态
 	if (AGameStateBase* GameState = GetWorld()->GetGameState())
 	{
 		if (USceneStateComponent* SceneComp = GameState->FindComponentByClass<USceneStateComponent>())
 		{
 			SceneComp->OnBossCombatInitiated();
-			UE_LOG(LogTemp, Log, TEXT("[BossCombatTrigger] Player entered, initiating Boss combat"));
 		}
 	}
 
 	// 激活 Boss
-	if (LinkedBoss)
+	if (LinkedBoss && Player)
 	{
 		LinkedBoss->ActivateBoss(Player);
 	}
 
-	// [New] 延迟2秒开启结界，并确保玩家已经在区域内 (防止把玩家关在外面)
+	// 延迟2秒开启结界
 	FTimerHandle BarrierTimer;
 	GetWorldTimerManager().SetTimer(BarrierTimer, [this, Player]()
 	{
-		// 只有当玩家仍然在触发器范围内时，才升起结界
 		if (IsValid(Player) && IsOverlappingActor(Player))
 		{
 			SetBarrierActive(true);
-		}
-		else
-		{
-			UE_LOG(LogTemp, Warning, TEXT("[BossArea] Player is NOT in area after 2s. Barrier canceled to prevent locking out."));
-			// 注意：Boss可能已经激活了，这里只取消结界
 		}
 	}, 2.0f, false);
 }
@@ -236,5 +291,43 @@ void ABossCombatTrigger::SetBarrierActive(bool bActive)
 		}
 
 		UE_LOG(LogTemp, Warning, TEXT("[BossArea] Arena Barrier DEACTIVATED."));
+	}
+}
+
+void ABossCombatTrigger::HandleDialogueEvent(const FString& EventTag)
+{
+	if (EventTag == TEXT("SummonDog") && LinkedBoss)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[Cutscene] SummonDog Event Received!"));
+
+		// 1. 获取生成位置 (基于 Boss 的位置和偏移)
+		FVector SpawnLocation = LinkedBoss->GetActorLocation() + LinkedBoss->GetActorRotation().RotateVector(LinkedBoss->DogSpawnOffset);
+		FRotator SpawnRotation = LinkedBoss->GetActorRotation();
+
+		// 2. 生成哮天犬
+		FActorSpawnParameters SpawnParams;
+		SpawnParams.Owner = LinkedBoss.Get();
+		SpawnParams.Instigator = LinkedBoss.Get();
+
+		if (AActor* DogActor = GetWorld()->SpawnActor<AActor>(LinkedBoss->DogClass, SpawnLocation, SpawnRotation, SpawnParams))
+		{
+			// 3. 通知哮天犬播放 End 动作并消失 (即过场动画模式)
+			if (AXiaoTian* Dog = Cast<AXiaoTian>(DogActor))
+			{
+				Dog->PlayEndAndVanish();
+			}
+		}
+	}
+}
+
+void ABossCombatTrigger::HandleCameraTargetChanged(AActor* NewTarget)
+{
+	if (!NewTarget) return;
+
+	APlayerController* PC = UGameplayStatics::GetPlayerController(this, 0);
+	if (PC)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[Cutscene] Camera Blending to: %s"), *NewTarget->GetName());
+		PC->SetViewTargetWithBlend(NewTarget, CameraBlendTime);
 	}
 }

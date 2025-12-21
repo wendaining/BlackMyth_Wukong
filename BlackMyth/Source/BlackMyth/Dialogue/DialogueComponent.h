@@ -16,6 +16,12 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnDialogueStateChanged, bool, bIsPl
 // 当前对话更新委托
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnDialogueUpdated, const FDialogueEntry&, CurrentDialogue, int32, CurrentIndex);
 
+// 对话事件委托 (用于触发过场动画中的特殊逻辑，如放狗)
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnDialogueEvent, const FString&, EventTag);
+
+// 镜头切换委托 (用于在对话中途切换镜头目标)
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnCameraTargetChanged, AActor*, NewTarget);
+
 /**
  * 对话组件（简化版）
  * - 挂载在NPC身上
@@ -44,6 +50,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Dialogue|UI")
 	TSubclassOf<UDialogueWidget> DialogueWidgetClass;
 
+	// [New] 备选说话人（如果组件挂在触发器上，可以指定Boss为说话人来播放动画）
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Dialogue")
+	TObjectPtr<AActor> AlternativeSpeaker;
+
 	// ========== 事件 ==========
 	
 	UPROPERTY(BlueprintAssignable, Category = "Dialogue|Events")
@@ -51,6 +61,12 @@ public:
 
 	UPROPERTY(BlueprintAssignable, Category = "Dialogue|Events")
 	FOnDialogueUpdated OnDialogueUpdated;
+
+	UPROPERTY(BlueprintAssignable, Category = "Dialogue|Events")
+	FOnDialogueEvent OnDialogueEvent;
+
+	UPROPERTY(BlueprintAssignable, Category = "Dialogue|Events")
+	FOnCameraTargetChanged OnCameraTargetChanged;
 
 	// ========== 公开方法 ==========
 	

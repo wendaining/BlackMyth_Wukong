@@ -7,8 +7,11 @@
 #include "Kismet/GameplayStatics.h"
 #include "GameFramework/PlayerController.h"
 #include "Blueprint/UserWidget.h"
+#include "GameFramework/Character.h"
+#include "GameFramework/CharacterMovementComponent.h"
 #include "TimerManager.h"
 #include "Engine/DataTable.h"
+#include "../XiaoTian.h"
 
 UDialogueComponent::UDialogueComponent()
 {
@@ -88,6 +91,7 @@ void UDialogueComponent::StartDialogue()
 		if (AWukongCharacter* Wukong = Cast<AWukongCharacter>(PlayerPawn))
 		{
 			Wukong->SetInDialogue(true);
+			Wukong->SetActiveDialogueComponent(this);
 		}
 	}
 
@@ -158,6 +162,7 @@ void UDialogueComponent::EndDialogue()
 			if (AWukongCharacter* Wukong = Cast<AWukongCharacter>(PlayerPawn))
 			{
 				Wukong->SetInDialogue(false);
+				Wukong->SetActiveDialogueComponent(nullptr);
 			}
 		}
 	}
@@ -190,6 +195,51 @@ void UDialogueComponent::PlayCurrentDialogue()
 	// 广播事件
 	OnDialogueUpdated.Broadcast(CurrentDialogue, CurrentDialogueIndex);
 
+	// [New] 广播自定义事件标签 (用于触发放狗等逻辑)
+	if (!CurrentDialogue.EventTag.IsEmpty())
+	{
+		OnDialogueEvent.Broadcast(CurrentDialogue.EventTag);
+		UE_LOG(LogTemp, Log, TEXT("Dialogue Event Triggered: %s"), *CurrentDialogue.EventTag);
+	}
+
+	// [New] 处理镜头切换逻辑
+	if (CurrentDialogue.CameraTarget != EDialogueCameraTarget::NoChange)
+	{
+		AActor* CameraActor = nullptr;
+		if (CurrentDialogue.CameraTarget == EDialogueCameraTarget::Player)
+		{
+			CameraActor = UGameplayStatics::GetPlayerPawn(this, 0);
+		}
+		else if (CurrentDialogue.CameraTarget == EDialogueCameraTarget::Boss)
+		{
+			CameraActor = AlternativeSpeaker.Get() ? AlternativeSpeaker.Get() : GetOwner();
+		}
+		else if (CurrentDialogue.CameraTarget == EDialogueCameraTarget::CustomTag && !CurrentDialogue.CameraTargetTag.IsEmpty())
+		{
+			TArray<AActor*> FoundActors;
+			UGameplayStatics::GetAllActorsWithTag(GetWorld(), FName(*CurrentDialogue.CameraTargetTag), FoundActors);
+			if (FoundActors.Num() > 0)
+			{
+				CameraActor = FoundActors[0];
+			}
+			else
+			{
+				// 特殊处理：如果 tag 是 XiaoTian 且地图里有哮天犬
+				UGameplayStatics::GetAllActorsOfClass(GetWorld(), AXiaoTian::StaticClass(), FoundActors);
+				if (FoundActors.Num() > 0)
+				{
+					CameraActor = FoundActors[0];
+				}
+			}
+		}
+
+		if (CameraActor)
+		{
+			OnCameraTargetChanged.Broadcast(CameraActor);
+			UE_LOG(LogTemp, Log, TEXT("Dialogue Camera Target Changed to: %s"), *CameraActor->GetName());
+		}
+	}
+
 	// 自动播放
 	if (CurrentDialogue.DisplayDuration > 0.0f && GetWorld())
 	{
@@ -200,6 +250,41 @@ void UDialogueComponent::PlayCurrentDialogue()
 			CurrentDialogue.DisplayDuration,
 			false
 		);
+	}
+
+	// [New] 播放语音/音效
+	if (CurrentDialogue.VoiceSound)
+	{
+		if (CurrentDialogue.bPlaySound2D)
+		{
+			// 作为 2D 声音播放（无视距离，声音清晰）
+			UGameplayStatics::PlaySound2D(this, CurrentDialogue.VoiceSound, CurrentDialogue.SoundVolumeMultiplier);
+		}
+		else
+		{
+			// 作为 3D 空间声音播放（受距离衰减影响）
+			AActor* SoundLocationActor = AlternativeSpeaker.Get() ? AlternativeSpeaker.Get() : GetOwner();
+			if (SoundLocationActor)
+			{
+				UGameplayStatics::PlaySoundAtLocation(this, CurrentDialogue.VoiceSound, SoundLocationActor->GetActorLocation(), CurrentDialogue.SoundVolumeMultiplier);
+			}
+		}
+	}
+
+	// [New] 播放动画蒙太奇 (如果指定了备选说话人，或者拥有者是角色)
+	if (CurrentDialogue.DialogueMontage)
+	{
+		AActor* AnimTargetActor = AlternativeSpeaker.Get() ? AlternativeSpeaker.Get() : GetOwner();
+		if (ACharacter* TargetChar = Cast<ACharacter>(AnimTargetActor))
+		{
+			// [New] 确保运动组件允许根运动
+			if (UCharacterMovementComponent* MoveComp = TargetChar->GetCharacterMovement())
+			{
+				MoveComp->SetDefaultMovementMode(); // 刷新状态
+			}
+			
+			TargetChar->PlayAnimMontage(CurrentDialogue.DialogueMontage);
+		}
 	}
 
 	UE_LOG(LogTemp, Log, TEXT("DialogueComponent: [%d/%d] %s: %s"), 
