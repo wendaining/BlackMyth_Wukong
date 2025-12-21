@@ -20,6 +20,8 @@ class UPlayerHUDWidget;
 class ANPCCharacter;
 class UInteractionPromptWidget;
 class APotionActor;
+class USpringArmComponent;
+class UCameraComponent;
 struct FInputActionValue;
 
 // 角色状态枚举
@@ -310,6 +312,24 @@ protected:
 	/** 空中减速（0=保持惯性不减速，产生抛物线；默认值会让速度快速衰减） */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movement|Jump")
 	float BrakingDecelerationFalling = 0.0f;
+
+	// ========== 摄像机控制属性 ==========
+	
+	/** 摄像机最小距离限制（战斗时防止贴太近） */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera")
+	float MinCameraDistance = 200.0f;
+
+	/** 是否启用最小距离限制 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera")
+	bool bEnableMinCameraDistance = true;
+
+	/** 碰撞探测球体大小（越大越容易触发缩短，越小越不敏感） */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera")
+	float CameraProbeSize = 6.0f;
+
+	/** 战斗时是否禁用摄像机碰撞检测 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera")
+	bool bDisableCollisionInCombat = true;
 
 	// ========== 翻滚属性 ==========
 	
@@ -686,6 +706,9 @@ private:
 	void UpdateCooldowns(float DeltaTime);                           // 更新冷却
 
 	// ========== 辅助函数 ==========
+	
+	/** 强制摄像机保持最小距离 */
+	void EnforceCameraMinDistance();
 	void Die();                                // 死亡处理
 	void UpdateMovementSpeed();                // 更新移动速度
 	FVector GetMovementInputDirection() const; // 获取移动输入方向
