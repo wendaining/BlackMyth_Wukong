@@ -20,6 +20,8 @@
 #include "Combat/TraceHitboxComponent.h"
 #include "Dialogue/DialogueComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
+#include "GameFramework/SpringArmComponent.h"
+#include "Camera/CameraComponent.h"
 #include "GameFramework/GameStateBase.h"
 #include "EnhancedInputComponent.h"
 #include "InputAction.h"
@@ -219,6 +221,12 @@ void AWukongCharacter::Tick(float DeltaTime)
     UpdateCooldowns(DeltaTime);
 
     // 体力更新由StaminaComponent自己处理
+
+    // 摄像机距离限制（防止战斗时贴太近）
+    if (bEnableMinCameraDistance)
+    {
+        EnforceCameraMinDistance();
+    }
 
     // 检测附近的NPC
     InteractionCheckTimer += DeltaTime;
@@ -530,6 +538,14 @@ void AWukongCharacter::OnSprintStarted()
     }
 
     bIsSprinting = true;
+    
+    // 冲刺时让角色朝向移动方向
+    if (UCharacterMovementComponent* Movement = GetCharacterMovement())
+    {
+        Movement->bOrientRotationToMovement = true;  // 启用朝向移动方向
+        Movement->bUseControllerDesiredRotation = false;  // 禁用跟随控制器
+    }
+    
     // 告诉体力组件开始持续消耗
     StaminaComponent->SetContinuousConsumption(true, StaminaComponent->SprintStaminaCost);
     UpdateMovementSpeed();
@@ -538,6 +554,14 @@ void AWukongCharacter::OnSprintStarted()
 void AWukongCharacter::OnSprintStopped()
 {
     bIsSprinting = false;
+    
+    // 停止冲刺后恢复为跟随控制器旋转（走路模式）
+    if (UCharacterMovementComponent* Movement = GetCharacterMovement())
+    {
+        Movement->bOrientRotationToMovement = false;  // 禁用朝向移动方向
+        Movement->bUseControllerDesiredRotation = true;  // 启用跟随控制器
+    }
+    
     // 停止体力持续消耗
     if (StaminaComponent)
     {
@@ -2682,4 +2706,39 @@ void AWukongCharacter::ClearAllEnemyAggro()
 	}
 
 	UE_LOG(LogTemp, Log, TEXT("[Transform] Cleared aggro from %d enemies"), FoundEnemies.Num());
+}
+
+void AWukongCharacter::EnforceCameraMinDistance()
+{
+	// 查找 SpringArm 组件（蓝图中添加的）
+	USpringArmComponent* SpringArm = FindComponentByClass<USpringArmComponent>();
+	if (!SpringArm)
+	{
+		return;
+	}
+
+	// 设置碰撞探测球体大小（减小可降低敏感度）
+	SpringArm->ProbeSize = CameraProbeSize;
+
+	// 战斗中的处理
+	bool bInCombat = (CurrentState == EWukongState::Attacking || 
+	                  CurrentState == EWukongState::HitStun ||
+	                  (TargetingComponent && TargetingComponent->IsTargeting()));
+
+	if (bInCombat && bDisableCollisionInCombat)
+	{
+		// 战斗时禁用碰撞检测，防止视角被压缩
+		SpringArm->bDoCollisionTest = false;
+	}
+	else
+	{
+		// 非战斗时启用碰撞检测（避免穿墙）
+		SpringArm->bDoCollisionTest = true;
+	}
+
+	// 强制最小距离
+	if (SpringArm->TargetArmLength < MinCameraDistance)
+	{
+		SpringArm->TargetArmLength = MinCameraDistance;
+	}
 }
