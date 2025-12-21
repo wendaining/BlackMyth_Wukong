@@ -2307,29 +2307,37 @@ void AWukongCharacter::HideInteractionPrompt()
 
 void AWukongCharacter::OnInteract()
 {
-	UE_LOG(LogTemp, Log, TEXT("[Interaction] OnInteract called, NearbyNPC: %s"), 
+	UE_LOG(LogTemp, Log, TEXT("[Interaction] OnInteract called, ActiveDialogue: %s, NearbyNPC: %s"), 
+		ActiveDialogueComponent ? *ActiveDialogueComponent->GetName() : TEXT("NULL"),
 		NearbyNPC ? *NearbyNPC->GetName() : TEXT("NULL"));
 	
+	// 1. 优先处理正在进行的对话 (解决 Boss 过场动画点击继续失败的问题)
+	if (ActiveDialogueComponent && ActiveDialogueComponent->IsDialoguePlaying())
+	{
+		UE_LOG(LogTemp, Log, TEXT("[Interaction] Active dialogue in progress, calling NextDialogue"));
+		ActiveDialogueComponent->NextDialogue();
+		return;
+	}
+
+	// 2. 原有的 NPC 交互逻辑
 	if (NearbyNPC && NearbyNPC->CanBeInteractedWith())
 	{
-		// 检查是否正在对话中
+		// 再次检查 NPC 的对话组件（双重保障）
 		if (NearbyNPC->DialogueComponent && NearbyNPC->DialogueComponent->IsDialoguePlaying())
 		{
-			UE_LOG(LogTemp, Log, TEXT("[Interaction] Dialogue in progress, calling NextDialogue"));
-			// 对话中，按E继续下一句
+			UE_LOG(LogTemp, Log, TEXT("[Interaction] NPC Dialogue in progress, calling NextDialogue"));
 			NearbyNPC->DialogueComponent->NextDialogue();
 		}
 		else
 		{
-			UE_LOG(LogTemp, Log, TEXT("[Interaction] Starting new dialogue"));
-			// 不在对话中，开始新对话
+			UE_LOG(LogTemp, Log, TEXT("[Interaction] Starting new NPC dialogue"));
 			HideInteractionPrompt();
 			NearbyNPC->StartDialogue();
 		}
 	}
 	else
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[Interaction] No nearby NPC or cannot interact!"));
+		UE_LOG(LogTemp, Warning, TEXT("[Interaction] No active dialogue or nearby NPC!"));
 	}
 }
 

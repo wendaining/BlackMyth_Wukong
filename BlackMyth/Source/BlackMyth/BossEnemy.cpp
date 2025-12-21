@@ -8,10 +8,129 @@
 #include "BehaviorTree/BlackboardComponent.h"
 #include "Components/EnemyDodgeComponent.h"
 #include "Combat/TraceHitboxComponent.h"
-#include "NiagaraFunctionLibrary.h"
 #include "NiagaraComponent.h"
+#include "NiagaraFunctionLibrary.h"
+#include "XiaoTian.h"
 
-// ... (Existing Constructor and other functions unchanged) ...
+ABossEnemy::ABossEnemy()
+{
+	PrimaryActorTick.bCanEverTick = true;
+
+	// 设置二郎神的默认属性
+	ChasingSpeed = 600.0f;
+	PatrollingSpeed = 300.0f;
+	
+	// 增加攻击范围 (三尖两刃刀的距离感)
+	AttackRadius = 350.0f;
+	
+	// 缩短反应时间 (人到立即出招)
+	AttackMin = 0.1f;
+	AttackMax = 0.4f;
+}
+
+void ABossEnemy::BeginPlay()
+{
+	Super::BeginPlay();
+
+	// 彻底禁用/销毁父类的通用闪避组件，防止它“抢戏”
+	// 我们现在使用 Boss 专用的 Perfect Dodge 逻辑
+	if (DodgeComponent)
+	{
+		DodgeComponent->DestroyComponent();
+		DodgeComponent = nullptr;
+		UE_LOG(LogTemp, Warning, TEXT("[%s] Inherited DodgeComponent Destroyed to prevent conflict."), *GetName());
+	}
+	
+	// 创建 Boss 血条 UI
+	if (BossHealthBarClass)
+	{
+		BossHealthBarWidget = CreateWidget<UBossHealthBar>(GetWorld(), BossHealthBarClass);
+		if (BossHealthBarWidget)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[%s] Health Bar Widget Created Successfully!"), *GetName());
+			// 初始化 Widget，传入 HealthComponent
+			BossHealthBarWidget->InitializeWidget(HealthComponent);
+			
+			BossHealthBarWidget->AddToViewport();
+			BossHealthBarWidget->SetVisibility(ESlateVisibility::Hidden);
+		}
+		else
+		{
+			UE_LOG(LogTemp, Error, TEXT("[%s] Failed to create Health Bar Widget!"), *GetName());
+		}
+	}
+	else
+	{
+		UE_LOG(LogTemp, Error, TEXT("[%s] BossHealthBarClass is NONE! Please set it in Blueprint Class Defaults."), *GetName());
+	}
+}
+
+void ABossEnemy::Tick(float DeltaTime)
+{
+	Super::Tick(DeltaTime);
+
+	// 二阶段远程攻击检查逻辑 (Tick版)
+	if (CurrentPhase == EBossPhase::Phase2 && IsChasing() && CombatTarget)
+	{
+		RangedAttackCheckTimer += DeltaTime;
+		if (RangedAttackCheckTimer >= 5.0f) // 每 5 秒强制尝试一次远程突袭
+		{
+			float Distance = FVector::Dist(GetActorLocation(), CombatTarget->GetActorLocation());
+			if (Distance > 800.0f)
+			{
+				SummonDog();
+				RangedAttackCheckTimer = 0.0f;
+			}
+		}
+	}
+
+	// 追击逻辑优化 (确保平滑转向)
+	if (IsChasing() && CombatTarget)
+	{
+		float DistanceToTarget = FVector::Dist(GetActorLocation(), CombatTarget->GetActorLocation());
+
+		// 已经不在定身/眩晕状态下才执行移动
+		if (!IsFrozen() && !IsStunned())
+		{
+			// 使用AI控制器移动到目标
+			if (AAIController* AIController = Cast<AAIController>(GetController()))
+			{
+				// [Fix] 始终面向目标，即便是在移动中也保持平滑转向
+				FVector Direction = (CombatTarget->GetActorLocation() - GetActorLocation()).GetSafeNormal();
+				Direction.Z = 0.f;
+				FRotator TargetRot = Direction.Rotation();
+				FRotator NewRot = FMath::RInterpTo(GetActorRotation(), TargetRot, DeltaTime, 10.0f); // 较快的转向速度
+				SetActorRotation(NewRot);
+
+				// 只在没有移动时才重新请求移动，避免每帧重置路径
+				if (AIController->GetMoveStatus() == EPathFollowingStatus::Idle)
+				{
+					FAIMoveRequest MoveRequest;
+					MoveRequest.SetGoalActor(CombatTarget);
+					// [Tuning] 接受半径设为攻击范围略小一点，确保进入攻击判定线
+					MoveRequest.SetAcceptanceRadius(AttackRadius - 30.0f); 
+					AIController->MoveTo(MoveRequest);
+				}
+			}
+
+			// [Optimization] 如果进入攻击范围，开始攻击流程
+			if (DistanceToTarget <= AttackRadius)
+			{
+				// 停止移动，进入发呆（AttackTimer）或直接攻击
+				if (AAIController* AIController = Cast<AAIController>(GetController()))
+				{
+					// 清除焦点并停止移动，防止攻击时发生意外位移
+					AIController->ClearFocus(EAIFocusPriority::Gameplay);
+					AIController->StopMovement();
+				}
+				
+				// 立即切换到攻击计时状态（父类逻辑）
+				StartAttackTimer();
+				return; // 本帧逻辑结束
+			}
+		}
+	}
+}
 
 void ABossEnemy::PerformLightAttack()
 {
@@ -114,140 +233,15 @@ void ABossEnemy::PerformHeavyAttack()
 	}
 }
 
-ABossEnemy::ABossEnemy()
-{
-	// Boss 通常体型较大，可以在这里调整胶囊体或移动速度
-	// 增加血量
-	if (HealthComponent)
-	{
-		// 注意：这里只是默认值，最好在蓝图中设置
-		// HealthComponent->MaxHealth = 5000.0f; 
-	}
 
-	// 提高移动速度
-	ChasingSpeed = 600.0f;
-	PatrollingSpeed = 300.0f;
-	
-	// 增加攻击范围
-	AttackRadius = 250.0f;
-}
-
-void ABossEnemy::BeginPlay()
-{
-	Super::BeginPlay();
-
-	// 彻底禁用/销毁父类的通用闪避组件，防止它“抢戏”
-	// 我们现在使用 Boss 专用的 Perfect Dodge 逻辑
-	if (DodgeComponent)
-	{
-		DodgeComponent->DestroyComponent();
-		DodgeComponent = nullptr;
-		UE_LOG(LogTemp, Warning, TEXT("[%s] Inherited DodgeComponent Destroyed to prevent conflict."), *GetName());
-	}
-	
-	// 创建 Boss 血条 UI
-	if (BossHealthBarClass)
-	{
-		BossHealthBarWidget = CreateWidget<UBossHealthBar>(GetWorld(), BossHealthBarClass);
-		if (BossHealthBarWidget)
-		{
-			UE_LOG(LogTemp, Warning, TEXT("[%s] Health Bar Widget Created Successfully!"), *GetName());
-			// 初始化 Widget，传入 HealthComponent
-			BossHealthBarWidget->InitializeWidget(HealthComponent);
-			
-			BossHealthBarWidget->AddToViewport();
-			BossHealthBarWidget->SetVisibility(ESlateVisibility::Hidden);
-		}
-		else
-		{
-			UE_LOG(LogTemp, Error, TEXT("[%s] Failed to create Health Bar Widget!"), *GetName());
-		}
-	}
-	else
-	{
-		UE_LOG(LogTemp, Error, TEXT("[%s] BossHealthBarClass is NONE! Please set it in Blueprint Class Defaults."), *GetName());
-	}
-}
-
-void ABossEnemy::Tick(float DeltaTime)
-{
-	Super::Tick(DeltaTime);
-	
-	// Boss 特有的 Tick 逻辑：一旦激活就一直追击攻击，直到战斗结束
-	if (IsDead() || bIsInvulnerable) return;
-
-	// 如果有战斗目标，Boss就一直追击
-	if (CombatTarget && IsValid(CombatTarget))
-	{
-		const float DistanceToTarget = FVector::Dist(GetActorLocation(), CombatTarget->GetActorLocation());
-
-		// Boss一旦激活就持续追击，不判断距离
-		// 如果不在攻击状态，就一直追击目标
-		if (EnemyState != EEnemyState::EES_Attacking && EnemyState != EEnemyState::EES_Engaged)
-		{
-			// 确保处于追击状态
-			if (EnemyState != EEnemyState::EES_Chasing)
-			{
-				EnemyState = EEnemyState::EES_Chasing;
-				GetCharacterMovement()->MaxWalkSpeed = ChasingSpeed;
-			}
-
-			// 使用AI控制器移动到目标
-			if (AAIController* AIController = Cast<AAIController>(GetController()))
-			{
-				// 只在没有移动时才重新请求移动，避免每帧重置路径
-				if (AIController->GetMoveStatus() == EPathFollowingStatus::Idle)
-				{
-					FAIMoveRequest MoveRequest;
-					MoveRequest.SetGoalActor(CombatTarget);
-					// 接受半径设为攻击范围，这样到达攻击范围时会自动停下
-					MoveRequest.SetAcceptanceRadius(AttackRadius - 50.0f);
-					AIController->MoveTo(MoveRequest);
-				}
-
-				// 面向目标
-				AIController->SetFocus(CombatTarget);
-			}
-
-			// [Fix] 二阶段远程突袭逻辑
-			// 如果处于二阶段且距离较远，即便没进入攻击范围，也定期尝试“远程出招”（召唤狗）
-			if (CurrentPhase == EBossPhase::Phase2 && DistanceToTarget > AttackRadius + 150.0f)
-			{
-				RangedAttackCheckTimer += DeltaTime;
-
-				if (RangedAttackCheckTimer >= 3.5f) // 每3.5秒判断一次是否放狗
-				{
-					RangedAttackCheckTimer = 0.0f;
-					UE_LOG(LogTemp, Warning, TEXT("[%s] Tactical Ranged Attack Decision (Dist: %.1f)"), *GetName(), DistanceToTarget);
-					Attack();
-					return;
-				}
-			}
-			else
-			{
-				// 如果进入近战范围或不是二阶段，重置计时器
-				RangedAttackCheckTimer = 0.0f;
-			}
-
-			// 如果进入攻击范围，开始攻击
-			if (DistanceToTarget <= AttackRadius)
-			{
-				// 停止移动，开始攻击
-				if (AAIController* AIController = Cast<AAIController>(GetController()))
-				{
-					AIController->StopMovement();
-				}
-				StartAttackTimer();
-			}
-		}
-	}
-}
 
 void ABossEnemy::ActivateBoss(AActor* Target)
 {
 	if (IsDead()) return;
 
 	UE_LOG(LogTemp, Warning, TEXT("[%s] Boss Activated! Target: %s"), *GetName(), *Target->GetName());
+
+	// [Legacy] 激活外部空气墙已迁移至 BossCombatTrigger
 
 	// 1. 显示血条
 	SetBossHealthVisibility(true);
@@ -291,6 +285,14 @@ void ABossEnemy::ReceiveDamage(float Damage, AActor* DamageInstigator)
 		if (HealthAfterDamage / HealthComponent->GetMaxHealth() <= Phase2Threshold)
 		{
 			UE_LOG(LogTemp, Warning, TEXT("[%s] Triggering Phase Transition Lock."), *GetName());
+
+			// [Fix Restore] 如果当前处于定身状态，强制解除定身以播放转阶段动画
+			if (IsFrozen())
+			{
+				UE_LOG(LogTemp, Warning, TEXT("[%s] Breaking out of Freeze for Phase 2 Transition!"), *GetName());
+				RemoveFreeze();
+			}
+
 			EnterPhase2();
 			return; 
 		}
@@ -351,9 +353,22 @@ void ABossEnemy::Die()
 {
 	Super::Die();
 	
-	// [Fix] 二郎神死后尸体消失太快的问题
+	// [Fix Restore] 二郎神死后尸体消失太快的问题
 	// 在基类调用完后，我们用更大的数值覆盖它
 	SetLifeSpan(DeathLifeSpan);
+
+	// [Legacy] 解除空气墙已迁移至 BossCombatTrigger
+
+	// [New] Boss 死亡，清理所有的哮天犬（防止死后继续咬人）
+	TArray<AActor*> FoundDogs;
+	UGameplayStatics::GetAllActorsOfClass(GetWorld(), AXiaoTian::StaticClass(), FoundDogs);
+	for (AActor* DogActor : FoundDogs)
+	{
+		if (DogActor->GetOwner() == this)
+		{
+			DogActor->Destroy();
+		}
+	}
 	
 	UE_LOG(LogTemp, Warning, TEXT("[%s] Boss is dead. Keeping corpse for %.1f seconds."), *GetName(), DeathLifeSpan);
 }
@@ -422,6 +437,8 @@ void ABossEnemy::EnterPhase2()
 	FTimerHandle PhaseTimer;
 	GetWorldTimerManager().SetTimer(PhaseTimer, [this]()
 	{
+		if (IsDead()) return; // [Fix] 如果在转阶段动画期间被打死，不再执行后续逻辑
+
 		bIsInvulnerable = false;
 		// 可以在这里触发二阶段的第一个技能，比如召唤哮天犬
 		SummonDog();
@@ -479,6 +496,9 @@ void ABossEnemy::PerformDodge()
 
 void ABossEnemy::SummonDog()
 {
+	// [Fix] 死后禁止吹哨
+	if (IsDead()) return;
+
 	// [Debug] 如果忘记在蓝图中给 DogClass 赋值，这里会报警
 	if (!DogClass)
 	{

@@ -30,8 +30,13 @@ protected:
 
 public:	
 	virtual void Tick(float DeltaTime) override;
+	UFUNCTION(BlueprintCallable, Category = "XiaoTian")
+	void PlayEndAndVanish();
 
 protected:
+	/** 彻底销毁的回调 (用于相机混合后的延迟销毁) */
+	void DestroyActor();
+
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	TObjectPtr<USkeletalMeshComponent> Mesh;
 

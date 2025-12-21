@@ -183,12 +183,58 @@ void AXiaoTian::FinishAndDestroy()
 {
 	if (CurrentState == EXiaoTianState::Finished) return;
 
-	// 播放消失特效 (VFX)
+	// 1. 播放消失特效 (VFX)
 	if (VanishFX)
 	{
 		UNiagaraFunctionLibrary::SpawnSystemAtLocation(GetWorld(), VanishFX, GetActorLocation(), GetActorRotation());
 	}
 
 	CurrentState = EXiaoTianState::Finished;
+
+	// [New] 镜头保护：如果当前镜头正对着狗，且狗要消失了，平滑切换回 Boss
+	APlayerController* PC = UGameplayStatics::GetPlayerController(this, 0);
+	if (PC && PC->GetViewTarget() == this && GetOwner())
+	{
+		// 开始向 Boss 平滑过渡
+		PC->SetViewTargetWithBlend(GetOwner(), 1.0f);
+		
+		// 隐藏自己但暂时不销毁，保证 Camera 能够完成混合
+		SetActorHiddenInGame(true);
+		SetActorEnableCollision(false);
+		
+		FTimerHandle DestroyTimer;
+		GetWorldTimerManager().SetTimer(DestroyTimer, this, &AXiaoTian::DestroyActor, 1.1f, false);
+	}
+	else
+	{
+		Destroy();
+	}
+}
+
+void AXiaoTian::DestroyActor()
+{
 	Destroy();
+}
+
+void AXiaoTian::PlayEndAndVanish()
+{
+	UE_LOG(LogTemp, Warning, TEXT("[XiaoTian] PlayEndAndVanish called (Cinematic Mode)"));
+	
+	// 1. 先播放“起跳/起始”动作
+	if (PounceStartMontage && Mesh && Mesh->GetAnimInstance())
+	{
+		float Duration = Mesh->GetAnimInstance()->Montage_Play(PounceStartMontage);
+		
+		// 动作播完后再执行咬(End)和后续流程
+		FTimerHandle TransitionTimer;
+		GetWorldTimerManager().SetTimer(TransitionTimer, [this]()
+		{
+			this->TriggerBite(nullptr);
+		}, FMath::Max(0.5f, Duration), false);
+	}
+	else
+	{
+		// 如果没配置起始动作，直接跳到结尾
+		TriggerBite(nullptr);
+	}
 }

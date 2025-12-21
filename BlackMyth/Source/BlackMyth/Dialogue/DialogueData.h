@@ -15,6 +15,17 @@
  * Row1,Line001,老者,你好啊年轻人,0,
  * Row2,Line002,老者,这是一段很长的对话...,5,event_dialogue_complete
  */
+
+/** 对话镜头目标 */
+UENUM(BlueprintType)
+enum class EDialogueCameraTarget : uint8
+{
+	NoChange,   // 保持当前
+	Player,     // 悟空
+	Boss,       // 二郎神 (AlternativeSpeaker)
+	CustomTag   // 通过 Tag 查找目标
+};
+
 USTRUCT(BlueprintType)
 struct FDialogueEntry : public FTableRowBase
 {
@@ -33,6 +44,30 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Dialogue")
 	FText DialogueText;
 
+	// [New] 语音/音效
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Dialogue")
+	TObjectPtr<USoundBase> VoiceSound;
+
+	// [New] 动画蒙太奇 (通常由说话人播放)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Dialogue")
+	TObjectPtr<UAnimMontage> DialogueMontage;
+
+	// [New] 音量倍率 (1.0 为原始音量)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Dialogue")
+	float SoundVolumeMultiplier;
+
+	// [New] 镜头切换目标
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Dialogue")
+	EDialogueCameraTarget CameraTarget;
+
+	// [New] 镜头锁定目标的 Tag (当 CameraTarget 为 CustomTag 时使用)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Dialogue")
+	FString CameraTargetTag;
+
+	// [New] 是否作为 2D 声音播放 (勾选后无视距离，声音一直很大)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Dialogue")
+	bool bPlaySound2D;
+
 	// 显示时长（秒），0表示需要玩家点击继续
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Dialogue")
 	float DisplayDuration;
@@ -42,7 +77,10 @@ public:
 	FString EventTag;
 
 	FDialogueEntry()
-		: DisplayDuration(0.0f)
+		: SoundVolumeMultiplier(1.0f)
+		, CameraTarget(EDialogueCameraTarget::NoChange)
+		, bPlaySound2D(true)
+		, DisplayDuration(0.0f)
 	{
 	}
 };
