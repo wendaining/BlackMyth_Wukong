@@ -16,11 +16,11 @@ class BLACKMYTH_API UTempleMenuWidget : public UUserWidget
 	
 public:
 
-    //UFUNCTION(BlueprintCallable)
-    //void OnTeleportClicked();
+    UFUNCTION(BlueprintCallable)
+    void OnTeleportClicked();
 
-    //UFUNCTION(BlueprintCallable)
-    //void OnTradeClicked();
+    UFUNCTION(BlueprintCallable)
+    void OnTradeClicked();
 
     UFUNCTION(BlueprintCallable)
     void OnQuitClicked();
