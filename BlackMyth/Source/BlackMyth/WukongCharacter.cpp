@@ -538,6 +538,14 @@ void AWukongCharacter::OnSprintStarted()
     }
 
     bIsSprinting = true;
+    
+    // 冲刺时让角色朝向移动方向
+    if (UCharacterMovementComponent* Movement = GetCharacterMovement())
+    {
+        Movement->bOrientRotationToMovement = true;  // 启用朝向移动方向
+        Movement->bUseControllerDesiredRotation = false;  // 禁用跟随控制器
+    }
+    
     // 告诉体力组件开始持续消耗
     StaminaComponent->SetContinuousConsumption(true, StaminaComponent->SprintStaminaCost);
     UpdateMovementSpeed();
@@ -546,6 +554,14 @@ void AWukongCharacter::OnSprintStarted()
 void AWukongCharacter::OnSprintStopped()
 {
     bIsSprinting = false;
+    
+    // 停止冲刺后恢复为跟随控制器旋转（走路模式）
+    if (UCharacterMovementComponent* Movement = GetCharacterMovement())
+    {
+        Movement->bOrientRotationToMovement = false;  // 禁用朝向移动方向
+        Movement->bUseControllerDesiredRotation = true;  // 启用跟随控制器
+    }
+    
     // 停止体力持续消耗
     if (StaminaComponent)
     {
