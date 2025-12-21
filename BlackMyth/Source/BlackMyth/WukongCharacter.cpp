@@ -2,6 +2,7 @@
 
 #include "WukongCharacter.h"
 #include "WukongClone.h"
+#include "RestingBarrier.h"
 #include "EnemyBase.h"
 #include "NPCCharacter.h"
 #include "ButterflyPawn.h"
@@ -2458,7 +2459,7 @@ void AWukongCharacter::PerformTransform()
 
 void AWukongCharacter::PerformSkill4()
 {
-	UE_LOG(LogTemp, Warning, TEXT(">>> PerformSkill4() CALLED!"));
+	UE_LOG(LogTemp, Warning, TEXT(">>> PerformSkill4() CALLED - Resting Skill!"));
 
 	// 背包打开时，使用槽位 3（金刚丹 - 防御Buff）
 	if (bIsInventoryOpen)
@@ -2470,8 +2471,50 @@ void AWukongCharacter::PerformSkill4()
 		return;
 	}
 
-	// 技能4暂未实现
-	UE_LOG(LogTemp, Log, TEXT("PerformSkill4: Skill 4 not yet implemented. This is a placeholder."));
+	// 死亡、翻滚、硬直、对话状态下不能使用
+	if (CurrentState == EWukongState::Dead ||
+		CurrentState == EWukongState::Dodging ||
+		CurrentState == EWukongState::HitStun ||
+		bIsInDialogue)
+	{
+		UE_LOG(LogTemp, Log, TEXT("PerformSkill4: Blocked by state"));
+		return;
+	}
+
+	// 检查冷却
+	if (IsCooldownActive(TEXT("RestingSkill")))
+	{
+		UE_LOG(LogTemp, Log, TEXT("PerformSkill4: On cooldown"));
+		return;
+	}
+
+	// 检查是否设置了屏障类
+	if (!RestingBarrierClass)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("PerformSkill4: RestingBarrierClass not set! Set it in BP_Wukong blueprint."));
+		return;
+	}
+
+	// 检查是否设置了动画
+	if (!RestingSkillMontage)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("PerformSkill4: RestingSkillMontage not set! Please assign animation in blueprint."));
+		return;
+	}
+
+	UE_LOG(LogTemp, Log, TEXT("PerformSkill4: Casting Resting Skill - Playing animation"));
+
+	// 开始冷却（接入UI系统 - 槽位3）
+	StartCooldown(TEXT("RestingSkill"), RestingSkillCooldown);
+	
+	// 触发UI冷却显示
+	if (PlayerHUD)
+	{
+		PlayerHUD->TriggerSkillCooldown(3, RestingSkillCooldown); // 槽位3 = 第4个技能
+	}
+
+	// 播放画圈动画（屏障将在AnimNotify中生成）
+	PlayMontage(RestingSkillMontage);
 }
 
 void AWukongCharacter::TransformToButterfly()

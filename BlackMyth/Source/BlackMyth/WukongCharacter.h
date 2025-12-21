@@ -184,6 +184,13 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Potion")
 	APotionActor* GetCurrentPotionActor() const { return CurrentPotionActor; }
 
+	// 安息术访问器（供AnimNotify使用）
+	UFUNCTION(BlueprintPure, Category = "RestingSkill")
+	TSubclassOf<class ARestingBarrier> GetRestingBarrierClass() const { return RestingBarrierClass; }
+
+	UFUNCTION(BlueprintPure, Category = "RestingSkill")
+	float GetRestingBarrierDuration() const { return RestingBarrierDuration; }
+
 protected:
 	// ========== 输入动作 ==========
 	
@@ -591,6 +598,24 @@ protected:
 	/** 定身术施放动画蒙太奇（可选） */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "FreezeSpell")
 	TObjectPtr<UAnimMontage> FreezeSpellMontage;
+
+	// ========== 安息术配置 ==========
+
+	/** 安息术屏障Actor类（在蓝图中设置） */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "RestingSkill")
+	TSubclassOf<class ARestingBarrier> RestingBarrierClass;
+
+	/** 安息术施放动画蒙太奇 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "RestingSkill")
+	TObjectPtr<UAnimMontage> RestingSkillMontage;
+
+	/** 安息术屏障持续时间（秒） */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "RestingSkill")
+	float RestingBarrierDuration = 8.0f;
+
+	/** 安息术冷却时间（秒） */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "RestingSkill")
+	float RestingSkillCooldown = 30.0f;
 
 	/** 执行攻击 */
 	void Attack();
