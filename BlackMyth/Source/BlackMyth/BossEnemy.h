@@ -29,7 +29,7 @@ public:
 	virtual void Tick(float DeltaTime) override;
 
 	/** 重写受击函数以处理阶段转换 */
-	virtual void ReceiveDamage(float Damage, AActor* DamageInstigator) override;
+	virtual void ReceiveDamage(float Damage, AActor* DamageInstigator, bool bCanBeDodged = true) override;
 
 	/** 重写死亡函数以调整尸体存留时间 */
 	virtual void Die() override;
