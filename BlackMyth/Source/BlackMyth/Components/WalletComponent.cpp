@@ -5,14 +5,12 @@
 UWalletComponent::UWalletComponent()
 {
 	PrimaryComponentTick.bCanEverTick = false;
+	CurrentGold = 100;
 }
 
 void UWalletComponent::BeginPlay()
 {
 	Super::BeginPlay();
-
-	// 初始金币可以在蓝图中配置，这里不做额外处理
-	// 测试时可以在编辑器中设置 CurrentGold 的默认值
 }
 
 void UWalletComponent::AddGold(int32 Amount)
