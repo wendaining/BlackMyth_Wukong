@@ -215,3 +215,28 @@ void UInventoryComponent::ApplyItemEffect(const FItemSlot& Item)
 		break;
 	}
 }
+
+bool UInventoryComponent::AddItemByType(EItemType Type, int32 Amount)
+{
+	// 查找对应类型的槽位
+	for (int32 i = 0; i < ItemSlots.Num(); i++)
+	{
+		if (ItemSlots[i].ItemType == Type)
+		{
+			// 计算可添加的数量
+			int32 SpaceLeft = ItemSlots[i].MaxCount - ItemSlots[i].CurrentCount;
+			if (SpaceLeft <= 0)
+			{
+				return false;  // 已满
+			}
+
+			int32 ActualAdd = FMath::Min(Amount, SpaceLeft);
+			ItemSlots[i].CurrentCount += ActualAdd;
+
+			// 广播数量变化
+			OnItemCountChanged.Broadcast(i, ItemSlots[i].CurrentCount);
+			return true;
+		}
+	}
+	return false;  // 未找到对应槽位
+}

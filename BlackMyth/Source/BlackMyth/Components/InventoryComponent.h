@@ -56,6 +56,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Inventory")
 	void RefillAllItems();
 
+	/** 按物品类型添加物品（商店购买时调用） */
+	UFUNCTION(BlueprintCallable, Category = "Inventory")
+	bool AddItemByType(EItemType Type, int32 Amount = 1);
+
 	// === 查询接口 ===
 
 	/** 获取指定类型物品的数量 */
