@@ -86,9 +86,6 @@ void UWukongAnimInstance::UpdateMovementVariables()
         WalkRightAnimation = Wukong->WalkRightAnimation;
         
         SprintForwardAnimation = Wukong->SprintForwardAnimation;
-        SprintBackwardAnimation = Wukong->SprintBackwardAnimation;
-        SprintLeftAnimation = Wukong->SprintLeftAnimation;
-        SprintRightAnimation = Wukong->SprintRightAnimation;
         
         // 默认使用前进动画
         WalkAnimation = WalkForwardAnimation;
@@ -234,15 +231,15 @@ void UWukongAnimInstance::UpdateMovementVariables()
             break;
         case EMovementDirection::Backward:
             WalkAnimation = WalkBackwardAnimation ? WalkBackwardAnimation : WalkForwardAnimation;
-            SprintAnimation = SprintBackwardAnimation ? SprintBackwardAnimation : SprintForwardAnimation;
+            SprintAnimation = SprintForwardAnimation; // 后退冲刺使用前进动画
             break;
         case EMovementDirection::Left:
             WalkAnimation = WalkLeftAnimation ? WalkLeftAnimation : WalkForwardAnimation;
-            SprintAnimation = SprintLeftAnimation ? SprintLeftAnimation : SprintForwardAnimation;
+            SprintAnimation = SprintForwardAnimation; // 左移冲刺使用前进动画
             break;
         case EMovementDirection::Right:
             WalkAnimation = WalkRightAnimation ? WalkRightAnimation : WalkForwardAnimation;
-            SprintAnimation = SprintRightAnimation ? SprintRightAnimation : SprintForwardAnimation;
+            SprintAnimation = SprintForwardAnimation; // 右移冲刺使用前进动画
             break;
         }
 

@@ -224,15 +224,6 @@ protected:
     UPROPERTY(BlueprintReadOnly, Category = "Animation|Directional")
     TObjectPtr<UAnimSequence> SprintForwardAnimation;
 
-    UPROPERTY(BlueprintReadOnly, Category = "Animation|Directional")
-    TObjectPtr<UAnimSequence> SprintBackwardAnimation;
-
-    UPROPERTY(BlueprintReadOnly, Category = "Animation|Directional")
-    TObjectPtr<UAnimSequence> SprintLeftAnimation;
-
-    UPROPERTY(BlueprintReadOnly, Category = "Animation|Directional")
-    TObjectPtr<UAnimSequence> SprintRightAnimation;
-
 	// ========== 原动画蓝图中的瞄准/旋转变量 ==========    /** Yaw 旋转角度（用于 Aim Offset） */
     UPROPERTY(BlueprintReadOnly, Category = "AimOffset")
     float AimYaw = 0.0f;
