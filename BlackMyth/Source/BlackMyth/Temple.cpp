@@ -15,8 +15,14 @@ AInteractableActor::AInteractableActor()
 {
     PrimaryActorTick.bCanEverTick = false;
 
+    RootComponent = CreateDefaultSubobject<USceneComponent>(TEXT("Root"));
+
     Mesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("Mesh"));
-    RootComponent = Mesh;
+    Mesh->SetupAttachment(RootComponent);
+
+    TeleportPoint = CreateDefaultSubobject<USceneComponent>(TEXT("TeleportPoint"));
+    TeleportPoint->SetupAttachment(RootComponent);
+
 
     InteractionSphere = CreateDefaultSubobject<USphereComponent>(TEXT("InteractionSphere"));
     InteractionSphere->SetupAttachment(RootComponent);
