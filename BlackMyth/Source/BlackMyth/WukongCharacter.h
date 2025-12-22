@@ -15,6 +15,7 @@ class UTargetingComponent;
 class UTeamComponent;
 class UStatusEffectComponent;
 class UInventoryComponent;
+class UWalletComponent;
 class UWukongAnimInstance;
 class UPlayerHUDWidget;
 class ANPCCharacter;
@@ -153,6 +154,10 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Inventory")
 	UInventoryComponent* GetInventoryComponent() const { return InventoryComponent; }
 
+	/** 获取金币组件 */
+	UFUNCTION(BlueprintPure, Category = "Wallet")
+	UWalletComponent* GetWalletComponent() const { return WalletComponent; }
+
 	// ========== 药瓶系统 ==========
 
 	/** 当前使用的药瓶 Actor（喝药动画中生成） */
@@ -287,6 +292,10 @@ protected:
 	/** 背包组件（管理物品和消耗品） */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	TObjectPtr<UInventoryComponent> InventoryComponent;
+
+	/** 金币组件（管理玩家金币） */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
+	TObjectPtr<UWalletComponent> WalletComponent;
 
 	// ========== 移动属性 ==========
 	
