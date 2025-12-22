@@ -994,25 +994,8 @@ void AWukongCharacter::PerformAttack()
     {
         if (bIsInAir)
         {
-            // ========== 空中攻击：Primary_Melee_Air ==========
-            UE_LOG(LogTemp, Log, TEXT("PerformAttack: In Air - using AirAttackMontage"));
-            
-            if (AirAttackMontage)
-            {
-                float Duration = AnimInstance->Montage_Play(AirAttackMontage, 1.0f);
-                UE_LOG(LogTemp, Log, TEXT("PerformAttack: Playing AirAttackMontage, Duration=%f"), Duration);
-            }
-            else if (AirAttackAnimation)
-            {
-                // 回退：使用动画序列动态创建蒙太奇
-                float Duration = PlayAnimationAsMontageDynamic(AirAttackAnimation, FName("DefaultSlot"), 1.0f);
-                UE_LOG(LogTemp, Log, TEXT("PerformAttack: Playing AirAttackAnimation as dynamic montage, Duration=%f"), Duration);
-            }
-            else
-            {
-                UE_LOG(LogTemp, Warning, TEXT("PerformAttack: No air attack animation! Create Primary_Melee_Air_Montage in editor."));
-            }
-            
+            // ========== 空中攻击未实现 ==========
+            UE_LOG(LogTemp, Warning, TEXT("PerformAttack: Air attack not implemented"));
             // 空中攻击不增加连击计数
         }
         else
@@ -1152,13 +1135,6 @@ void AWukongCharacter::PerformDodge()
     if (MontageToPlay)
     {
         PlayMontage(MontageToPlay);
-    }
-    else
-    {
-        if (DodgeAnimation)
-        {
-             PlayAnimationAsMontageDynamic(DodgeAnimation, FName("DefaultSlot"), 1.0f);
-        }
     }
 }
 
@@ -1840,32 +1816,11 @@ void AWukongCharacter::OnJumped_Implementation()
 
     // 播放跳跃音效
     PlayJumpSound();
-
-    // 播放跳跃蒙太奇
-    if (JumpMontage)
-    {
-        PlayAnimMontage(JumpMontage, 1.0f, FName("Start"));
-    }
 }
 
 void AWukongCharacter::Landed(const FHitResult& Hit)
 {
     Super::Landed(Hit);
-
-    // 落地时跳转到 Land Section
-    if (JumpMontage)
-    {
-        UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
-        if (AnimInstance && AnimInstance->Montage_IsPlaying(JumpMontage))
-        {
-            AnimInstance->Montage_JumpToSection(FName("Land"), JumpMontage);
-        }
-        else
-        {
-             // 如果没在播（比如从高处直接掉下来），直接播 Land
-             PlayAnimMontage(JumpMontage, 1.0f, FName("Land"));
-        }
-    }
 }
 
 // Helper Methods
@@ -2064,27 +2019,9 @@ void AWukongCharacter::PerformAbility()
     {
         if (bIsInAir)
         {
-            // ========== 空中战技：Q_Fall_Loop ==========
-            UE_LOG(LogTemp, Log, TEXT("PerformAbility: In Air - using AirAbilityMontage"));
-            
-            if (AirAbilityMontage)
-            {
-                if (AirAbilityMontage->SlotAnimTracks.Num() > 0)
-                {
-                    FName SlotName = AirAbilityMontage->SlotAnimTracks[0].SlotName;
-                    UE_LOG(LogTemp, Warning, TEXT("PerformAbility: AirAbilityMontage=%s, uses Slot='%s'"), 
-                        *AirAbilityMontage->GetName(), *SlotName.ToString());
-                }
-                
-                float Duration = AnimInstance->Montage_Play(AirAbilityMontage, 1.0f);
-                UE_LOG(LogTemp, Warning, TEXT("PerformAbility: Montage_Play returned Duration=%f"), Duration);
-                AbilityTimer = FMath::Max(Duration, 1.0f);
-            }
-            else
-            {
-                UE_LOG(LogTemp, Warning, TEXT("PerformAbility: No AirAbilityMontage! Create Q_Fall_Loop_Montage in editor."));
-                AbilityTimer = 0.5f;
-            }
+            // ========== 空中战技：Q键下坠 ==========
+            UE_LOG(LogTemp, Warning, TEXT("PerformAbility: Air ability not implemented. Configure AirAbilityMontage in BP_Wukong if needed."));
+            AbilityTimer = 0.5f;
             
             // 空中战技：快速下坠
             if (UCharacterMovementComponent* Movement = GetCharacterMovement())
@@ -2095,27 +2032,9 @@ void AWukongCharacter::PerformAbility()
         }
         else
         {
-            // ========== 地面战技：Q_Flip_Bwd（后空翻）==========
-            UE_LOG(LogTemp, Log, TEXT("PerformAbility: On Ground - using AbilityMontage"));
-            
-            if (AbilityMontage)
-            {
-                if (AbilityMontage->SlotAnimTracks.Num() > 0)
-                {
-                    FName SlotName = AbilityMontage->SlotAnimTracks[0].SlotName;
-                    UE_LOG(LogTemp, Warning, TEXT("PerformAbility: AbilityMontage=%s, uses Slot='%s'"), 
-                        *AbilityMontage->GetName(), *SlotName.ToString());
-                }
-                
-                float Duration = AnimInstance->Montage_Play(AbilityMontage, 1.0f);
-                UE_LOG(LogTemp, Warning, TEXT("PerformAbility: Montage_Play returned Duration=%f"), Duration);
-                AbilityTimer = FMath::Max(Duration, 1.0f);
-            }
-            else
-            {
-                UE_LOG(LogTemp, Warning, TEXT("PerformAbility: No AbilityMontage! Create Q_Flip_Bwd_Montage in editor."));
-                AbilityTimer = 0.5f;
-            }
+            // ========== 地面战技：Q键后空翻 ==========
+            UE_LOG(LogTemp, Warning, TEXT("PerformAbility: Ground ability not implemented. Configure AbilityMontage in BP_Wukong if needed."));
+            AbilityTimer = 0.5f;
             
             // 地面战技：向后小跳
             if (UCharacterMovementComponent* Movement = GetCharacterMovement())

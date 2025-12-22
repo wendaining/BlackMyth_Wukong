@@ -395,10 +395,6 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "Animation|Combat")
 	TObjectPtr<UAnimMontage> HeavyAttackMontage;
 
-	/** 空中轻击蒙太奇 */
-	UPROPERTY(EditDefaultsOnly, Category = "Animation|Combat")
-	TObjectPtr<UAnimMontage> AirLightAttackMontage;
-
 	/** 棍花蒙太奇 */
 	UPROPERTY(EditDefaultsOnly, Category = "Animation|Skill")
 	TObjectPtr<UAnimMontage> StaffSpinMontage;
@@ -410,10 +406,6 @@ protected:
 	/** 喝药蒙太奇 */
 	UPROPERTY(EditDefaultsOnly, Category = "Animation|Item")
 	TObjectPtr<UAnimMontage> DrinkGourdMontage;
-
-	/** 跳跃蒙太奇 (Start -> Loop -> Land) */
-	UPROPERTY(EditDefaultsOnly, Category = "Animation|Locomotion")
-	TObjectPtr<UAnimMontage> JumpMontage;
 
 	/** 翻滚蒙太奇 (前) */
 	UPROPERTY(EditDefaultsOnly, Category = "Animation|Movement")
@@ -457,22 +449,6 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "Animation|Locomotion")
 	TObjectPtr<UAnimSequence> SprintForwardAnimation;
 
-	/** 冲刺动画 - 后退 */
-	UPROPERTY(EditDefaultsOnly, Category = "Animation|Locomotion")
-	TObjectPtr<UAnimSequence> SprintBackwardAnimation;
-
-	/** 冲刺动画 - 左移 */
-	UPROPERTY(EditDefaultsOnly, Category = "Animation|Locomotion")
-	TObjectPtr<UAnimSequence> SprintLeftAnimation;
-
-	/** 冲刺动画 - 右移 */
-	UPROPERTY(EditDefaultsOnly, Category = "Animation|Locomotion")
-	TObjectPtr<UAnimSequence> SprintRightAnimation;
-
-	/** 翻滚动画序列 */
-	UPROPERTY(EditDefaultsOnly, Category = "Animation|Combat")
-	TObjectPtr<UAnimSequence> DodgeAnimation;
-
 	// ========== 受击动画 ==========
 	
 	/** 正面受击 */
@@ -494,56 +470,6 @@ protected:
 	/** 死亡动画 */
 	UPROPERTY(EditDefaultsOnly, Category = "Animation|Combat")
 	TObjectPtr<UAnimSequence> DeathAnimation;
-
-	/** 击退/击飞动画 */
-	UPROPERTY(EditDefaultsOnly, Category = "Animation|Combat")
-	TObjectPtr<UAnimSequence> KnockbackAnimation;
-
-	// ========== 眩晕动画 ==========
-	
-	/** 眩晕开始 */
-	UPROPERTY(EditDefaultsOnly, Category = "Animation|Combat")
-	TObjectPtr<UAnimSequence> StunStartAnimation;
-
-	/** 眩晕循环 */
-	UPROPERTY(EditDefaultsOnly, Category = "Animation|Combat")
-	TObjectPtr<UAnimSequence> StunLoopAnimation;
-
-	// ========== 表情动画 ==========
-	
-	/** 嘲讽动作 */
-	UPROPERTY(EditDefaultsOnly, Category = "Animation|Emote")
-	TObjectPtr<UAnimSequence> EmoteTauntAnimation;
-
-	/** 耍棍动作 */
-	UPROPERTY(EditDefaultsOnly, Category = "Animation|Emote")
-	TObjectPtr<UAnimSequence> EmoteStaffSpinAnimation;
-
-	// ========== 战技动画 ==========
-	
-	/** Q技能动画序列（前空翻） */
-	UPROPERTY(EditDefaultsOnly, Category = "Animation|Ability")
-	TObjectPtr<UAnimSequence> AbilityFlipForwardAnimation;
-
-	/** Q技能动画序列（砸地） */
-	UPROPERTY(EditDefaultsOnly, Category = "Animation|Ability")
-	TObjectPtr<UAnimSequence> AbilitySlamAnimation;
-
-	/** 空中攻击动画序列 */
-	UPROPERTY(EditDefaultsOnly, Category = "Animation|Combat")
-	TObjectPtr<UAnimSequence> AirAttackAnimation;
-
-	/** 地面战技蒙太奇（后空翻） */
-	UPROPERTY(EditDefaultsOnly, Category = "Animation|Ability")
-	TObjectPtr<UAnimMontage> AbilityMontage;
-
-	/** 空中战技蒙太奇（下坠攻击） */
-	UPROPERTY(EditDefaultsOnly, Category = "Animation|Ability")
-	TObjectPtr<UAnimMontage> AirAbilityMontage;
-
-	/** 空中普攻蒙太奇 */
-	UPROPERTY(EditDefaultsOnly, Category = "Animation|Ability")
-	TObjectPtr<UAnimMontage> AirAttackMontage;
 
 	// ========== 战技属性 ==========
 	
