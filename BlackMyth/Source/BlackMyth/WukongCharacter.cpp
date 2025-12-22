@@ -18,6 +18,7 @@
 #include "Components/SceneStateComponent.h"
 #include "Components/StatusEffectComponent.h"
 #include "Components/InventoryComponent.h"
+#include "Components/WalletComponent.h"
 #include "Combat/TraceHitboxComponent.h"
 #include "Dialogue/DialogueComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
@@ -82,6 +83,9 @@ AWukongCharacter::AWukongCharacter()
 
     // 创建背包组件（管理物品和消耗品）
     InventoryComponent = CreateDefaultSubobject<UInventoryComponent>(TEXT("InventoryComponent"));
+
+    // 创建金币组件（管理玩家金币）
+    WalletComponent = CreateDefaultSubobject<UWalletComponent>(TEXT("WalletComponent"));
 
     // 所有动画资产和输入动作都应在蓝图类 (BP_Wukong) 中设置
     // 不在 C++ 构造函数中硬编码加载路径，以便于在编辑器中灵活配置
@@ -188,6 +192,15 @@ void AWukongCharacter::BeginPlay()
                 {
                     PlayerHUD->BindStatusEffectComponent(StatusEffectComponent);
                     UE_LOG(LogTemp, Log, TEXT("[Wukong] PlayerHUD bound to StatusEffectComponent"));
+                }
+
+                // 绑定金币变化事件到 HUD（用于显示金币数量）
+                if (WalletComponent)
+                {
+                    WalletComponent->OnGoldChanged.AddDynamic(PlayerHUD, &UPlayerHUDWidget::UpdateGoldDisplay);
+                    // 初始化金币显示
+                    PlayerHUD->UpdateGoldDisplay(WalletComponent->GetGold());
+                    UE_LOG(LogTemp, Log, TEXT("[Wukong] PlayerHUD bound to WalletComponent, initial gold: %d"), WalletComponent->GetGold());
                 }
 
                 UE_LOG(LogTemp, Log, TEXT("[Wukong] PlayerHUD created and initialized"));
