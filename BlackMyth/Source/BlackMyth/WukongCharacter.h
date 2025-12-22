@@ -855,4 +855,9 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Temple")
 	void FullRestore();
+
+	// ========== 土地庙交互系统 ==========
+	UFUNCTION(BlueprintCallable)
+	void TeleportToTemple(FName TempleID);
+
 };

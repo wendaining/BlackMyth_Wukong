@@ -61,4 +61,11 @@ public:
     // 接口实现
     UFUNCTION()
     void OnInteract_Implementation(AActor* Interactor);
+
+    // 土地庙专用的名字
+    UPROPERTY(EditAnywhere, BlueprintReadOnly)
+    FName TempleID;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Teleport")
+    USceneComponent* TeleportPoint;
 };

@@ -27,6 +27,7 @@
 #include "EnhancedInputComponent.h"
 #include "InputAction.h"
 #include "Temple.h"
+#include "EngineUtils.h"
 #include "Kismet/GameplayStatics.h"
 #include "Kismet/KismetMathLibrary.h"
 #include "UObject/ConstructorHelpers.h"
@@ -2743,4 +2744,18 @@ void AWukongCharacter::FullRestore()
     }
 
     UE_LOG(LogTemp, Log, TEXT("[Temple] Player restored to full"));
+}
+
+// ========== 土地庙传送系统 ==========
+void AWukongCharacter::TeleportToTemple(FName TempleID)
+{
+    for (TActorIterator<AInteractableActor> It(GetWorld()); It; ++It)
+    {
+        if (It->TempleID == TempleID)
+        {
+            SetActorLocation(It->TeleportPoint->GetComponentLocation());
+            SetActorRotation(It->TeleportPoint->GetComponentRotation());
+            return;
+        }
+    }
 }
