@@ -45,12 +45,20 @@ void UTeleportButtonWidget::OnTeleportClicked()
     {
         if (It->TempleID == TargetTempleID && It->TeleportPoint)
         {
-            Player->SetActorLocation(
-                It->TeleportPoint->GetComponentLocation()
-            );
-            Player->SetActorRotation(
-                It->TeleportPoint->GetComponentRotation()
-            );
+            FVector TeleportLoc = It->TeleportPoint->GetComponentLocation();
+            FRotator TeleportRot = It->TeleportPoint->GetComponentRotation();
+            
+            // 在传送点周围随机偏移，避免与土地庙模型重合
+            const float RandomRadius = FMath::RandRange(100.f, 200.f);
+            const float RandomAngle = FMath::RandRange(0.f, 2.f * PI);
+            const float OffsetX = RandomRadius * FMath::Cos(RandomAngle);
+            const float OffsetY = RandomRadius * FMath::Sin(RandomAngle);
+            const float HeightOffset = 80.f; // 抬高避免卡地形
+            
+            TeleportLoc += FVector(OffsetX, OffsetY, HeightOffset);
+            
+            Player->SetActorLocation(TeleportLoc);
+            Player->SetActorRotation(TeleportRot);
             break;
         }
     }
