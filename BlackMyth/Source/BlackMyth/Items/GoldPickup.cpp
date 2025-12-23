@@ -118,6 +118,8 @@ void AGoldPickup::Tick(float DeltaTime)
 	if (bIsBeingAttracted && AttractTarget)
 	{
 		FVector TargetLocation = AttractTarget->GetActorLocation();
+		TargetLocation.Z += AttractHeightOffset;  // 提高到腰间高度
+
 		FVector CurrentLocation = GetActorLocation();
 		FVector Direction = (TargetLocation - CurrentLocation).GetSafeNormal();
 		float Distance = FVector::Dist(CurrentLocation, TargetLocation);
@@ -130,6 +132,7 @@ void AGoldPickup::Tick(float DeltaTime)
 		if (Distance < AutoPickupRadius)
 		{
 			PickUp(AttractTarget);
+			return;
 		}
 	}
 }
