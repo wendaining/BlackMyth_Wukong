@@ -53,7 +53,7 @@ void UTeleportButtonWidget::OnTeleportClicked()
             const float RandomAngle = FMath::RandRange(0.f, 2.f * PI);
             const float OffsetX = RandomRadius * FMath::Cos(RandomAngle);
             const float OffsetY = RandomRadius * FMath::Sin(RandomAngle);
-            const float HeightOffset = 80.f; // 抬高避免卡地形
+            const float HeightOffset = 150.f; // 抬高避免卡地形
             
             TeleportLoc += FVector(OffsetX, OffsetY, HeightOffset);
             
