@@ -1,8 +1,8 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
+#include "TempleMenuWidget.h"
 #include "TeleportMenuWidget.h"
 #include "Components/PanelWidget.h"
-#include "TempleMenuWidget.h"
 #include "TradeMenuWidget.h"
 #include "Kismet/GameplayStatics.h"
 #include "GameFramework/PlayerController.h"

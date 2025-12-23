@@ -61,7 +61,7 @@ public:
 
 	/** 自动拾取半径 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Pickup")
-	float AutoPickupRadius = 100.0f;
+	float AutoPickupRadius = 10.0f;
 
 	/** 吸附半径（开始向玩家飞去） */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Pickup")
@@ -70,6 +70,10 @@ public:
 	/** 吸附速度 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Pickup")
 	float AttractSpeed = 800.0f;
+
+	/** 吸附高度偏移（金币飞向玩家腰间高度） */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Pickup")
+	float AttractHeightOffset = 80.0f;
 
 	/** 掉落物存活时间（秒，0表示永久） */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Pickup")
@@ -109,6 +113,9 @@ protected:
 		const FHitResult& SweepResult);
 
 private:
+	/** 是否已被拾取（防止重复调用） */
+	bool bIsPickedUp = false;
+
 	/** 是否正在被吸附 */
 	bool bIsBeingAttracted = false;
 

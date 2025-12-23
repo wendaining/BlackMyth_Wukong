@@ -78,7 +78,43 @@ void AGoldPickup::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
-	// 掉落弹跳动画
+	// 如果已被拾取，不再执行任何逻辑
+	if (bIsPickedUp)
+	{
+		return;
+	}
+
+	// ===== 吸附逻辑（优先级最高）=====
+	if (bIsBeingAttracted && AttractTarget)
+	{
+		// 获取玩家腰间位置作为吸附目标
+		FVector TargetLocation = AttractTarget->GetActorLocation();
+		TargetLocation.Z += AttractHeightOffset;  // 提高到腰间高度
+
+		FVector CurrentLocation = GetActorLocation();
+		float Distance = FVector::Dist(CurrentLocation, TargetLocation);
+
+		// 如果足够近，立即拾取
+		if (Distance < AutoPickupRadius)
+		{
+			PickUp(AttractTarget);
+			return;  // 拾取后立即退出
+		}
+
+		// 移动向玩家腰间
+		FVector Direction = (TargetLocation - CurrentLocation).GetSafeNormal();
+		FVector NewLocation = CurrentLocation + Direction * AttractSpeed * DeltaTime;
+		SetActorLocation(NewLocation);
+
+		// 吸附时仍然旋转（加速旋转效果）
+		FRotator CurrentRotation = GetActorRotation();
+		CurrentRotation.Yaw += RotationSpeed * 2.0f * DeltaTime;
+		SetActorRotation(CurrentRotation);
+
+		return;  // 关键：吸附状态下不执行后续的浮动效果
+	}
+
+	// ===== 掉落弹跳动画 =====
 	if (!bHasLanded)
 	{
 		DropTimer += DeltaTime;
@@ -87,7 +123,7 @@ void AGoldPickup::Tick(float DeltaTime)
 		// 使用正弦曲线模拟弹跳
 		float BounceAlpha = FMath::Sin(Alpha * PI);
 		float CurrentZ = FMath::Lerp(DropStartLocation.Z, DropTargetLocation.Z, Alpha);
-		CurrentZ += BounceAlpha * DropBounceHeight * 0.5f; // 弹跳效果
+		CurrentZ += BounceAlpha * DropBounceHeight * 0.5f;  // 弹跳效果
 
 		FVector NewLocation = GetActorLocation();
 		NewLocation.Z = CurrentZ;
@@ -101,6 +137,7 @@ void AGoldPickup::Tick(float DeltaTime)
 	}
 	else
 	{
+		// ===== 待机状态：旋转和浮动效果 =====
 		// 旋转效果
 		FRotator CurrentRotation = GetActorRotation();
 		CurrentRotation.Yaw += RotationSpeed * DeltaTime;
@@ -112,28 +149,6 @@ void AGoldPickup::Tick(float DeltaTime)
 		FVector NewLocation = GetActorLocation();
 		NewLocation.Z = InitialZ + FloatOffset;
 		SetActorLocation(NewLocation);
-	}
-
-	// 吸附到玩家
-	if (bIsBeingAttracted && AttractTarget)
-	{
-		FVector TargetLocation = AttractTarget->GetActorLocation();
-		TargetLocation.Z += AttractHeightOffset;  // 提高到腰间高度
-
-		FVector CurrentLocation = GetActorLocation();
-		FVector Direction = (TargetLocation - CurrentLocation).GetSafeNormal();
-		float Distance = FVector::Dist(CurrentLocation, TargetLocation);
-
-		// 移动向玩家
-		FVector NewLocation = CurrentLocation + Direction * AttractSpeed * DeltaTime;
-		SetActorLocation(NewLocation);
-
-		// 如果足够近，自动拾取
-		if (Distance < AutoPickupRadius)
-		{
-			PickUp(AttractTarget);
-			return;
-		}
 	}
 }
 
@@ -165,10 +180,14 @@ void AGoldPickup::OnPlayerEnterRange(UPrimitiveComponent* OverlappedComp, AActor
 
 void AGoldPickup::PickUp(AWukongCharacter* Player)
 {
-	if (!Player)
+	// 防止重复拾取
+	if (bIsPickedUp || !Player)
 	{
 		return;
 	}
+
+	// 标记为已拾取
+	bIsPickedUp = true;
 
 	// 获取玩家的金币组件
 	UWalletComponent* Wallet = Player->GetWalletComponent();
