@@ -15,10 +15,10 @@ void UTeleportButtonWidget::NativeOnInitialized()
 {
     Super::NativeOnInitialized();
 
-    // 显示 TempleID
+    // 隐藏 TempleID 文本，只显示按钮
     if (TempleNameText)
     {
-        TempleNameText->SetText(FText::FromName(TargetTempleID));
+        TempleNameText->SetVisibility(ESlateVisibility::Collapsed);
     }
 
     if (TeleportButton)
@@ -92,22 +92,9 @@ void UTeleportButtonWidget::NativePreConstruct()
 {
     Super::NativePreConstruct();
 
-    if (!TempleNameText)
+    // 隐藏文本标签
+    if (TempleNameText)
     {
-        return;
+        TempleNameText->SetVisibility(ESlateVisibility::Collapsed);
     }
-    else {
-        TempleNameText->SetText(
-            FText::FromName(TargetTempleID)
-        );
-    }
-
-    // === 蓝图：TargetTempleID → NameToString ===
-    FString NameString = TargetTempleID.ToString();
-
-    // === 蓝图：StringToText ===
-    FText DisplayText = FText::FromString(NameString);
-
-    // === 蓝图：SetText ===
-    TempleNameText->SetText(DisplayText);
 }
