@@ -1,8 +1,8 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
+#include "TempleMenuWidget.h"
 #include "TeleportMenuWidget.h"
 #include "Components/PanelWidget.h"
-#include "TempleMenuWidget.h"
 #include "TradeMenuWidget.h"
 #include "Kismet/GameplayStatics.h"
 #include "GameFramework/PlayerController.h"
@@ -15,7 +15,7 @@ void UTempleMenuWidget::OnTeleportClicked()
         return;
     }
 
-    // ¼ÓÔØ Teleport ²Ëµ¥À¶Í¼
+    // ï¿½ï¿½ï¿½ï¿½ Teleport ï¿½Ëµï¿½ï¿½ï¿½Í¼
     TSubclassOf<UTeleportMenuWidget> TeleportWidgetClass =
         LoadClass<UTeleportMenuWidget>(
             nullptr,
@@ -26,7 +26,7 @@ void UTempleMenuWidget::OnTeleportClicked()
         return;
     }
 
-    // ´´½¨ Teleport ²Ëµ¥
+    // ï¿½ï¿½ï¿½ï¿½ Teleport ï¿½Ëµï¿½
     UTeleportMenuWidget* TeleportMenu =
         CreateWidget<UTeleportMenuWidget>(PC, TeleportWidgetClass);
 
@@ -34,17 +34,17 @@ void UTempleMenuWidget::OnTeleportClicked()
         return;
     }
 
-    // ¸æËßËü£ºÄãÊÇ´Ó TempleMenu ´ò¿ªµÄ
+    // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ç´ï¿½ TempleMenu ï¿½ò¿ªµï¿½
     TeleportMenu->OwnerTempleWidget = this;
 
-    // Òþ²Ø×Ô¼º£¨¿ÉÑ¡£©
+    // ï¿½ï¿½ï¿½ï¿½ï¿½Ô¼ï¿½ï¿½ï¿½ï¿½ï¿½Ñ¡ï¿½ï¿½
     RemoveFromParent();
 
-    // ÏÔÊ¾ Teleport ²Ëµ¥
+    // ï¿½ï¿½Ê¾ Teleport ï¿½Ëµï¿½
     TeleportMenu->AddToViewport();
     UE_LOG(LogTemp, Warning, TEXT("TeleportMenu created"));
 
-    // UI ÊäÈëÄ£Ê½
+    // UI ï¿½ï¿½ï¿½ï¿½Ä£Ê½
     PC->SetInputMode(FInputModeUIOnly());
     PC->bShowMouseCursor = true;
 }
@@ -56,7 +56,7 @@ void UTempleMenuWidget::OnTradeClicked()
         return;
     }
 
-    // ¼ÓÔØ Trade ²Ëµ¥À¶Í¼
+    // ï¿½ï¿½ï¿½ï¿½ Trade ï¿½Ëµï¿½ï¿½ï¿½Í¼
     TSubclassOf<UTradeMenuWidget> TradeWidgetClass =
         LoadClass<UTradeMenuWidget>(
             nullptr,
@@ -67,7 +67,7 @@ void UTempleMenuWidget::OnTradeClicked()
         return;
     }
 
-    // ´´½¨ Trade ²Ëµ¥
+    // ï¿½ï¿½ï¿½ï¿½ Trade ï¿½Ëµï¿½
     UTradeMenuWidget* TradeMenu =
         CreateWidget<UTradeMenuWidget>(PC, TradeWidgetClass);
 
@@ -75,29 +75,29 @@ void UTempleMenuWidget::OnTradeClicked()
         return;
     }
 
-    // ¸æËßËü£ºÄãÊÇ´Ó TempleMenu ´ò¿ªµÄ
+    // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ç´ï¿½ TempleMenu ï¿½ò¿ªµï¿½
     TradeMenu->OwnerTempleWidget = this;
 
-    // Òþ²Ø×Ô¼º£¨¿ÉÑ¡£©
+    // ï¿½ï¿½ï¿½ï¿½ï¿½Ô¼ï¿½ï¿½ï¿½ï¿½ï¿½Ñ¡ï¿½ï¿½
     RemoveFromParent();
 
-    // ÏÔÊ¾ Teleport ²Ëµ¥
+    // ï¿½ï¿½Ê¾ Teleport ï¿½Ëµï¿½
     TradeMenu->AddToViewport();
 
-    // UI ÊäÈëÄ£Ê½
+    // UI ï¿½ï¿½ï¿½ï¿½Ä£Ê½
     PC->SetInputMode(FInputModeUIOnly());
     PC->bShowMouseCursor = true;
 }
 
 void UTempleMenuWidget::OnQuitClicked()
 {
-    // 1. »Ö¸´ÓÎÏ·ÔÝÍ£×´Ì¬
+    // 1. ï¿½Ö¸ï¿½ï¿½ï¿½Ï·ï¿½ï¿½Í£×´Ì¬
     UGameplayStatics::SetGamePaused(GetWorld(), false);
 
-    // 2. ¹Ø±ÕÔÝÍ£²Ëµ¥£¨ÒÆ³ý×Ô¼º£©
+    // 2. ï¿½Ø±ï¿½ï¿½ï¿½Í£ï¿½Ëµï¿½ï¿½ï¿½ï¿½Æ³ï¿½ï¿½Ô¼ï¿½ï¿½ï¿½
     RemoveFromParent();
 
-    // 3. »Ö¸´ÊäÈëÄ£Ê½ºÍÊó±êÒþ²Ø
+    // 3. ï¿½Ö¸ï¿½ï¿½ï¿½ï¿½ï¿½Ä£Ê½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
     if (APlayerController* PC = GetWorld()->GetFirstPlayerController())
     {
         FInputModeGameOnly InputMode;
