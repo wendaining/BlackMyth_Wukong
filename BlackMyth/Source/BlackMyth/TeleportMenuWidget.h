@@ -7,9 +7,14 @@
 #include "TeleportMenuWidget.generated.h"
 
 class UPanelWidget;
-class UCanvasPanel;
 class UImage;
+class UCanvasPanel;
 
+/**
+ * 传送菜单控件
+ * 显示所有已发现的土地庙，并在地图上标注其位置
+ * 支持自动布局和手动配置两种定位模式
+ */
 UCLASS()
 class BLACKMYTH_API UTeleportMenuWidget : public UUserWidget
 {
@@ -19,48 +24,54 @@ protected:
     virtual void NativeOnInitialized() override;
 
 public:
-    // 从TempleMenu打开
+    // 父级土地庙菜单控件引用
     UPROPERTY()
     UUserWidget* OwnerTempleWidget;
 
-    // 按钮蓝图类
+    // 传送按钮的蓝图类
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Teleport")
     TSubclassOf<UTeleportButtonWidget> TeleportButtonClass;
 
-    // UI 中的容器（VerticalBox / UniformGrid）
-    UPROPERTY(meta = (BindWidgetOptional))
+    // 按钮容器控件（支持VerticalBox、UniformGrid、CanvasPanel等）
+    UPROPERTY(meta = (BindWidget))
     class UPanelWidget* ButtonContainer;
 
-    // 地图底图（可选绑定）。如果绑定到 UMG 中的 Image，将用其 Brush ImageSize 作为布局基准
-    UPROPERTY(meta = (BindWidgetOptional))
-    UImage* MapImage;
+    // 地图背景图片控件
+    UPROPERTY(meta = (BindWidget))
+    class UImage* MapImage;
 
-    // 使用手动坐标映射（0~1 归一化）来摆放按钮（优先于自动从世界坐标归一化）
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Teleport|Map")
+    // 是否使用手动配置的位置
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Teleport")
     bool bUseManualPositions = false;
 
-    // 手动坐标映射（归一化 [0,1]）。Key 为 TempleID，Value 为在地图上的归一化位置
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Teleport|Map", meta=(EditCondition="bUseManualPositions"))
+    // 手动配置的土地庙位置（归一化坐标0-1）
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Teleport")
     TMap<FName, FVector2D> ManualNormalizedPositions;
 
-    // 自动布局时是否反转 Y（UI Y 向下，世界 Y 可能向上）
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Teleport|Map")
-    bool bInvertYForAutoLayout = false;
+    // 按钮像素尺寸
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Teleport")
+    FVector2D ButtonPixelSize = FVector2D(50.f, 50.f);
 
-    // 按钮在 Canvas 上的像素尺寸
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Teleport|Map")
-    FVector2D ButtonPixelSize = FVector2D(32.f, 32.f);
+    // 自动布局时是否反转Y轴
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Teleport")
+    bool bInvertYForAutoLayout = true;
 
-private:
-    // 记录动态生成的按钮，便于刷新时只清理这些而不影响固定控件（地图/返回键）
-    UPROPERTY(Transient)
-    TArray<TWeakObjectPtr<UUserWidget>> SpawnedTeleportButtons;
-
-    // 返回键
+    /**
+     * 返回按钮点击回调
+     * 关闭传送菜单并返回土地庙主菜单
+     */
     UFUNCTION(BlueprintCallable)
     void OnBackClicked();
 
+    /**
+     * 构建传送按钮
+     * 遍历场景中所有土地庙并创建对应的传送按钮
+     */
     UFUNCTION(BlueprintCallable)
     void BuildTeleportButtons();
+
+private:
+    // 已生成的传送按钮列表
+    TArray<TWeakObjectPtr<UUserWidget>> SpawnedTeleportButtons;
 };
 

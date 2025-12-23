@@ -10,94 +10,102 @@
 
 void UTempleMenuWidget::OnTeleportClicked()
 {
+    // 获取玩家控制器
     APlayerController* PC = GetOwningPlayer();
-    if (!PC) {
+    if (!PC)
+    {
         return;
     }
 
-    // ���� Teleport �˵���ͼ
+    // 动态加载传送菜单蓝图类
     TSubclassOf<UTeleportMenuWidget> TeleportWidgetClass =
         LoadClass<UTeleportMenuWidget>(
             nullptr,
             TEXT("/Game/_BlackMythGame/Blueprints/Menu/WBP_TeleportMenu.WBP_TeleportMenu_C")
         );
 
-    if (!TeleportWidgetClass) {
+    if (!TeleportWidgetClass)
+    {
         return;
     }
 
-    // ���� Teleport �˵�
+    // 创建传送菜单实例
     UTeleportMenuWidget* TeleportMenu =
         CreateWidget<UTeleportMenuWidget>(PC, TeleportWidgetClass);
 
-    if (!TeleportMenu) {
+    if (!TeleportMenu)
+    {
         return;
     }
 
-    // �����������Ǵ� TempleMenu �򿪵�
+    // 设置父菜单引用，支持返回功能
     TeleportMenu->OwnerTempleWidget = this;
 
-    // �����Լ�����ѡ��
+    // 隐藏当前土地庙主菜单
     RemoveFromParent();
 
-    // ��ʾ Teleport �˵�
+    // 显示传送菜单
     TeleportMenu->AddToViewport();
-    UE_LOG(LogTemp, Warning, TEXT("TeleportMenu created"));
+    UE_LOG(LogTemp, Warning, TEXT("传送菜单已创建"));
 
-    // UI ����ģʽ
+    // 确保保持UI输入模式
     PC->SetInputMode(FInputModeUIOnly());
     PC->bShowMouseCursor = true;
 }
 
 void UTempleMenuWidget::OnTradeClicked()
 {
+    // 获取玩家控制器
     APlayerController* PC = GetOwningPlayer();
-    if (!PC) {
+    if (!PC)
+    {
         return;
     }
 
-    // ���� Trade �˵���ͼ
+    // 动态加载交易菜单蓝图类
     TSubclassOf<UTradeMenuWidget> TradeWidgetClass =
         LoadClass<UTradeMenuWidget>(
             nullptr,
             TEXT("/Game/_BlackMythGame/Blueprints/Menu/WBP_TradeMenu.WBP_TradeMenu_C")
         );
 
-    if (!TradeWidgetClass) {
+    if (!TradeWidgetClass)
+    {
         return;
     }
 
-    // ���� Trade �˵�
+    // 创建交易菜单实例
     UTradeMenuWidget* TradeMenu =
         CreateWidget<UTradeMenuWidget>(PC, TradeWidgetClass);
 
-    if (!TradeMenu) {
+    if (!TradeMenu)
+    {
         return;
     }
 
-    // �����������Ǵ� TempleMenu �򿪵�
+    // 设置父菜单引用，支持返回功能
     TradeMenu->OwnerTempleWidget = this;
 
-    // �����Լ�����ѡ��
+    // 隐藏当前土地庙主菜单
     RemoveFromParent();
 
-    // ��ʾ Teleport �˵�
+    // 显示交易菜单
     TradeMenu->AddToViewport();
 
-    // UI ����ģʽ
+    // 确保保持UI输入模式
     PC->SetInputMode(FInputModeUIOnly());
     PC->bShowMouseCursor = true;
 }
 
 void UTempleMenuWidget::OnQuitClicked()
 {
-    // 1. �ָ���Ϸ��ͣ״̬
+    // 恢复游戏运行状态
     UGameplayStatics::SetGamePaused(GetWorld(), false);
 
-    // 2. �ر���ͣ�˵����Ƴ��Լ���
+    // 关闭土地庙菜单UI
     RemoveFromParent();
 
-    // 3. �ָ�����ģʽ���������
+    // 恢复游戏输入模式，隐藏鼠标光标
     if (APlayerController* PC = GetWorld()->GetFirstPlayerController())
     {
         FInputModeGameOnly InputMode;

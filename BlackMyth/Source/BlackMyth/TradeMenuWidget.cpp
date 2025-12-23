@@ -1,13 +1,13 @@
-// Fill out your copyright notice in the Description page of Project Settings.
-
-
 #include "TradeMenuWidget.h"
 
 void UTradeMenuWidget::OnBackClicked()
 {
+    // 关闭交易菜单
     RemoveFromParent();
 
-    if (OwnerTempleWidget) {
+    // 如果有父级菜单，则重新显示土地庙主菜单
+    if (OwnerTempleWidget)
+    {
         OwnerTempleWidget->AddToViewport();
     }
 }
