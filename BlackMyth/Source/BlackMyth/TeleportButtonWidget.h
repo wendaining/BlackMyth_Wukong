@@ -15,7 +15,7 @@ class BLACKMYTH_API UTeleportButtonWidget : public UUserWidget
     GENERATED_BODY()
 
 public:
-    // 按钮要传送到的土地庙 ID
+    // 鎸夐挳瑕佷紶閫佸埌鐨勫湡鍦板簷 ID
     UPROPERTY(BlueprintReadWrite, EditAnywhere, meta = (ExposeOnSpawn = true))
     FName TargetTempleID;
 
@@ -23,11 +23,11 @@ protected:
     virtual void NativeOnInitialized() override;
     virtual void NativePreConstruct() override;
 
-    /** 绑定蓝图里的 Button */
+    /** 缁戝畾钃濆浘閲岀殑 Button */
     UPROPERTY(meta = (BindWidget))
     UButton* TeleportButton;
 
-    /** 绑定蓝图里的 TextBlock */
+    /** 缁戝畾钃濆浘閲岀殑 TextBlock */
     UPROPERTY(meta = (BindWidget))
     UTextBlock* TempleNameText;
 

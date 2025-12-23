@@ -13,7 +13,7 @@ void UTeleportButtonWidget::NativeOnInitialized()
 {
     Super::NativeOnInitialized();
 
-    // ÏÔÊ¾ TempleID
+    // æ˜¾ç¤º TempleID
     if (TempleNameText)
     {
         TempleNameText->SetText(FText::FromName(TargetTempleID));
@@ -32,7 +32,7 @@ void UTeleportButtonWidget::OnTeleportClicked()
     UWorld* World = GetWorld();
     if (!World) return;
 
-    // 1. ÕÒÍæ¼Ò
+    // 1. æ‰¾çŽ©å®¶
     AWukongCharacter* Player =
         Cast<AWukongCharacter>(
             UGameplayStatics::GetPlayerCharacter(World, 0)
@@ -40,7 +40,7 @@ void UTeleportButtonWidget::OnTeleportClicked()
 
     if (!Player) return;
 
-    // 2. ÕÒÄ¿±ê Temple
+    // 2. æ‰¾ç›®æ ‡ Temple
     for (TActorIterator<AInteractableActor> It(World); It; ++It)
     {
         if (It->TempleID == TargetTempleID && It->TeleportPoint)
@@ -70,12 +70,12 @@ void UTeleportButtonWidget::NativePreConstruct()
         );
     }
 
-    // === À¶Í¼£ºTargetTempleID ¡ú NameToString ===
+    // === è“å›¾ï¼šTargetTempleID â†’ NameToString ===
     FString NameString = TargetTempleID.ToString();
 
-    // === À¶Í¼£ºStringToText ===
+    // === è“å›¾ï¼šStringToText ===
     FText DisplayText = FText::FromString(NameString);
 
-    // === À¶Í¼£ºSetText ===
+    // === è“å›¾ï¼šSetText ===
     TempleNameText->SetText(DisplayText);
 }

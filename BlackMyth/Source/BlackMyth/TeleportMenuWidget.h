@@ -17,19 +17,19 @@ protected:
     virtual void NativeOnInitialized() override;
 
 public:
-    // ´ÓTempleMenu´ò¿ª
+    // ä»TempleMenuæ‰“å¼€
     UPROPERTY()
     UUserWidget* OwnerTempleWidget;
 
-    // °´Å¥À¶Í¼Àà
+    // æŒ‰é’®è“å›¾ç±»
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Teleport")
     TSubclassOf<UTeleportButtonWidget> TeleportButtonClass;
 
-    // UI ÖĞµÄÈİÆ÷£¨VerticalBox / UniformGrid£©
+    // UI ä¸­çš„å®¹å™¨ï¼ˆVerticalBox / UniformGridï¼‰
     UPROPERTY(meta = (BindWidget))
     class UPanelWidget* ButtonContainer;
 
-    // ·µ»Ø¼ü
+    // è¿”å›é”®
     UFUNCTION(BlueprintCallable)
     void OnBackClicked();
 
