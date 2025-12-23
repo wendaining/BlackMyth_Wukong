@@ -1,8 +1,8 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
+#include "TempleMenuWidget.h"
 #include "TeleportMenuWidget.h"
 #include "Components/PanelWidget.h"
-#include "TempleMenuWidget.h"
 #include "TradeMenuWidget.h"
 #include "Kismet/GameplayStatics.h"
 #include "GameFramework/PlayerController.h"
@@ -10,94 +10,102 @@
 
 void UTempleMenuWidget::OnTeleportClicked()
 {
+    // è·å–ç©å®¶æ§åˆ¶å™¨
     APlayerController* PC = GetOwningPlayer();
-    if (!PC) {
+    if (!PC)
+    {
         return;
     }
 
-    // ¼ÓÔØ Teleport ²Ëµ¥À¶Í¼
+    // åŠ¨æ€åŠ è½½ä¼ é€èœå•è“å›¾ç±»
     TSubclassOf<UTeleportMenuWidget> TeleportWidgetClass =
         LoadClass<UTeleportMenuWidget>(
             nullptr,
             TEXT("/Game/_BlackMythGame/Blueprints/Menu/WBP_TeleportMenu.WBP_TeleportMenu_C")
         );
 
-    if (!TeleportWidgetClass) {
+    if (!TeleportWidgetClass)
+    {
         return;
     }
 
-    // ´´½¨ Teleport ²Ëµ¥
+    // åˆ›å»ºä¼ é€èœå•å®ä¾‹
     UTeleportMenuWidget* TeleportMenu =
         CreateWidget<UTeleportMenuWidget>(PC, TeleportWidgetClass);
 
-    if (!TeleportMenu) {
+    if (!TeleportMenu)
+    {
         return;
     }
 
-    // ¸æËßËü£ºÄãÊÇ´Ó TempleMenu ´ò¿ªµÄ
+    // è®¾ç½®çˆ¶èœå•å¼•ç”¨ï¼Œæ”¯æŒè¿”å›åŠŸèƒ½
     TeleportMenu->OwnerTempleWidget = this;
 
-    // Òş²Ø×Ô¼º£¨¿ÉÑ¡£©
+    // éšè—å½“å‰åœŸåœ°åº™ä¸»èœå•
     RemoveFromParent();
 
-    // ÏÔÊ¾ Teleport ²Ëµ¥
+    // æ˜¾ç¤ºä¼ é€èœå•
     TeleportMenu->AddToViewport();
-    UE_LOG(LogTemp, Warning, TEXT("TeleportMenu created"));
+    UE_LOG(LogTemp, Warning, TEXT("ä¼ é€èœå•å·²åˆ›å»º"));
 
-    // UI ÊäÈëÄ£Ê½
+    // ç¡®ä¿ä¿æŒUIè¾“å…¥æ¨¡å¼
     PC->SetInputMode(FInputModeUIOnly());
     PC->bShowMouseCursor = true;
 }
 
 void UTempleMenuWidget::OnTradeClicked()
 {
+    // è·å–ç©å®¶æ§åˆ¶å™¨
     APlayerController* PC = GetOwningPlayer();
-    if (!PC) {
+    if (!PC)
+    {
         return;
     }
 
-    // ¼ÓÔØ Trade ²Ëµ¥À¶Í¼
+    // åŠ¨æ€åŠ è½½äº¤æ˜“èœå•è“å›¾ç±»
     TSubclassOf<UTradeMenuWidget> TradeWidgetClass =
         LoadClass<UTradeMenuWidget>(
             nullptr,
             TEXT("/Game/_BlackMythGame/Blueprints/Menu/WBP_TradeMenu.WBP_TradeMenu_C")
         );
 
-    if (!TradeWidgetClass) {
+    if (!TradeWidgetClass)
+    {
         return;
     }
 
-    // ´´½¨ Trade ²Ëµ¥
+    // åˆ›å»ºäº¤æ˜“èœå•å®ä¾‹
     UTradeMenuWidget* TradeMenu =
         CreateWidget<UTradeMenuWidget>(PC, TradeWidgetClass);
 
-    if (!TradeMenu) {
+    if (!TradeMenu)
+    {
         return;
     }
 
-    // ¸æËßËü£ºÄãÊÇ´Ó TempleMenu ´ò¿ªµÄ
+    // è®¾ç½®çˆ¶èœå•å¼•ç”¨ï¼Œæ”¯æŒè¿”å›åŠŸèƒ½
     TradeMenu->OwnerTempleWidget = this;
 
-    // Òş²Ø×Ô¼º£¨¿ÉÑ¡£©
+    // éšè—å½“å‰åœŸåœ°åº™ä¸»èœå•
     RemoveFromParent();
 
-    // ÏÔÊ¾ Teleport ²Ëµ¥
+    // æ˜¾ç¤ºäº¤æ˜“èœå•
     TradeMenu->AddToViewport();
 
-    // UI ÊäÈëÄ£Ê½
+    // ç¡®ä¿ä¿æŒUIè¾“å…¥æ¨¡å¼
     PC->SetInputMode(FInputModeUIOnly());
     PC->bShowMouseCursor = true;
 }
 
 void UTempleMenuWidget::OnQuitClicked()
 {
-    // 1. »Ö¸´ÓÎÏ·ÔİÍ£×´Ì¬
+    // æ¢å¤æ¸¸æˆè¿è¡ŒçŠ¶æ€
     UGameplayStatics::SetGamePaused(GetWorld(), false);
 
-    // 2. ¹Ø±ÕÔİÍ£²Ëµ¥£¨ÒÆ³ı×Ô¼º£©
+    // å…³é—­åœŸåœ°åº™èœå•UI
     RemoveFromParent();
 
-    // 3. »Ö¸´ÊäÈëÄ£Ê½ºÍÊó±êÒş²Ø
+    // æ¢å¤æ¸¸æˆè¾“å…¥æ¨¡å¼ï¼Œéšè—é¼ æ ‡å…‰æ ‡
     if (APlayerController* PC = GetWorld()->GetFirstPlayerController())
     {
         FInputModeGameOnly InputMode;
