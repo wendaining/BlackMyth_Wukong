@@ -23,6 +23,7 @@ class UInteractionPromptWidget;
 class APotionActor;
 class USpringArmComponent;
 class UCameraComponent;
+class AGoldPickup;
 struct FInputActionValue;
 
 // 角色状态枚举
@@ -258,6 +259,10 @@ protected:
 	/** 背包开关输入动作 (Tab键) */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UInputAction> ToggleInventoryAction;
+
+	/** 拾取输入动作 (F键) */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input", meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<UInputAction> PickupAction;
 
 	// ========== 组件 ==========
 
@@ -761,6 +766,18 @@ public:
 	/** 当前可交互的Actor */
 	UPROPERTY()
 	AActor* CurrentInteractable;
+
+	/** 当前可拾取的金币 */
+	UPROPERTY()
+	AGoldPickup* NearbyGold;
+
+	/** 设置附近金币（由GoldPickup调用） */
+	UFUNCTION(BlueprintCallable, Category = "Pickup")
+	void SetNearbyGold(AGoldPickup* Gold);
+
+	/** 尝试拾取（按F键时调用） */
+	UFUNCTION(BlueprintCallable, Category = "Pickup")
+	void TryPickup();
 
 protected:
 	/** 交互提示UI实例 */

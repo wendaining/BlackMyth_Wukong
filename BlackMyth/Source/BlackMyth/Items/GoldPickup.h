@@ -105,12 +105,21 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Pickup")
 	void SetGoldAmount(int32 Amount) { GoldAmount = Amount; }
 
-protected:
 	/** 玩家进入检测范围 */
 	UFUNCTION()
 	void OnPlayerEnterRange(UPrimitiveComponent* OverlappedComp, AActor* OtherActor,
 		UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep,
 		const FHitResult& SweepResult);
+
+	/** 开始吸附（玩家按F键时调用） */
+	UFUNCTION(BlueprintCallable, Category = "Pickup")
+	void StartAttract();
+
+protected:
+	/** 玩家离开检测范围 */
+	UFUNCTION()
+	void OnPlayerExitRange(UPrimitiveComponent* OverlappedComp, AActor* OtherActor,
+		UPrimitiveComponent* OtherComp, int32 OtherBodyIndex);
 
 private:
 	/** 是否已被拾取（防止重复调用） */
@@ -119,9 +128,16 @@ private:
 	/** 是否正在被吸附 */
 	bool bIsBeingAttracted = false;
 
+	/** 是否等待玩家按F拾取 */
+	bool bWaitingForPickup = false;
+
 	/** 吸附目标玩家 */
 	UPROPERTY()
 	AWukongCharacter* AttractTarget;
+
+	/** 当前附近的玩家（用于显示提示和响应F键） */
+	UPROPERTY()
+	AWukongCharacter* NearbyPlayer;
 
 	/** 初始Z位置（用于浮动效果） */
 	float InitialZ = 0.0f;

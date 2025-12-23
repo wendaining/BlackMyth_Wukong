@@ -19,6 +19,7 @@
 #include "Components/StatusEffectComponent.h"
 #include "Components/InventoryComponent.h"
 #include "Components/WalletComponent.h"
+#include "Items/GoldPickup.h"
 #include "Combat/TraceHitboxComponent.h"
 #include "Dialogue/DialogueComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
@@ -214,6 +215,7 @@ void AWukongCharacter::BeginPlay()
 
     // 初始化交互系统
     NearbyNPC = nullptr;
+    NearbyGold = nullptr;
     InteractionPromptWidget = nullptr;
     InteractionCheckTimer = 0.0f;
 
@@ -442,6 +444,18 @@ void AWukongCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCom
         {
             UE_LOG(LogTemp, Warning, TEXT("  ToggleInventoryAction is NULL! Inventory (Tab) will not work! Assign IA_ToggleInventory in BP_Wukong."));
         }
+
+        // 绑定拾取Action（F键）
+        if (PickupAction)
+        {
+            EnhancedInputComponent->BindAction(PickupAction, ETriggerEvent::Started, this, &AWukongCharacter::TryPickup);
+            UE_LOG(LogTemp, Warning, TEXT("  Bound PickupAction (F) to TryPickup"));
+        }
+        else
+        {
+            UE_LOG(LogTemp, Warning, TEXT("  PickupAction is NULL! Pickup (F) will not work! Assign IA_Pickup in BP_Wukong."));
+        }
+
         EnhancedInputComponent->BindAction(TempleAction, ETriggerEvent::Started,
         this, &AWukongCharacter::OnTempleInteract);
         UE_LOG(LogTemp, Error,
@@ -2268,6 +2282,73 @@ void AWukongCharacter::HideInteractionPrompt()
 	if (InteractionPromptWidget)
 	{
 		InteractionPromptWidget->HidePrompt();
+	}
+}
+
+// ========== 金币拾取系统 ==========
+
+void AWukongCharacter::SetNearbyGold(AGoldPickup* Gold)
+{
+	NearbyGold = Gold;
+
+	if (Gold)
+	{
+		// 确保交互提示Widget已创建
+		if (!InteractionPromptWidget && InteractionPromptWidgetClass)
+		{
+			if (APlayerController* PC = Cast<APlayerController>(GetController()))
+			{
+				InteractionPromptWidget = CreateWidget<UInteractionPromptWidget>(PC, InteractionPromptWidgetClass);
+				if (InteractionPromptWidget)
+				{
+					InteractionPromptWidget->AddToViewport(100);
+				}
+			}
+		}
+
+		// 显示"按F拾取"提示（仅当没有NPC在附近时）
+		if (!NearbyNPC && InteractionPromptWidget)
+		{
+			InteractionPromptWidget->ShowPrompt(FText::FromString(TEXT("按 [F] 拾取")));
+			UE_LOG(LogTemp, Log, TEXT("[Pickup] Showing pickup prompt"));
+		}
+	}
+	else
+	{
+		// 隐藏提示（仅当不在NPC对话范围内时）
+		if (!NearbyNPC && InteractionPromptWidget)
+		{
+			InteractionPromptWidget->HidePrompt();
+			UE_LOG(LogTemp, Log, TEXT("[Pickup] Hiding pickup prompt"));
+		}
+	}
+}
+
+void AWukongCharacter::TryPickup()
+{
+	UE_LOG(LogTemp, Log, TEXT("[Pickup] TryPickup called, NearbyGold: %s"),
+		NearbyGold ? *NearbyGold->GetName() : TEXT("NULL"));
+
+	// 对话中不能拾取
+	if (bIsInDialogue)
+	{
+		UE_LOG(LogTemp, Log, TEXT("[Pickup] Blocked - in dialogue"));
+		return;
+	}
+
+	// 如果有附近的金币，开始吸附
+	if (NearbyGold)
+	{
+		NearbyGold->StartAttract();
+
+		// 隐藏提示
+		if (InteractionPromptWidget)
+		{
+			InteractionPromptWidget->HidePrompt();
+		}
+
+		// 清除引用（金币会在吸附完成后销毁自己）
+		NearbyGold = nullptr;
 	}
 }
 

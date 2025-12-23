@@ -55,6 +55,7 @@ void AGoldPickup::BeginPlay()
 	if (CollisionSphere)
 	{
 		CollisionSphere->OnComponentBeginOverlap.AddDynamic(this, &AGoldPickup::OnPlayerEnterRange);
+		CollisionSphere->OnComponentEndOverlap.AddDynamic(this, &AGoldPickup::OnPlayerExitRange);
 		// 更新碰撞半径（使用较大的吸附半径）
 		CollisionSphere->SetSphereRadius(AttractRadius);
 	}
@@ -163,18 +164,58 @@ void AGoldPickup::OnPlayerEnterRange(UPrimitiveComponent* OverlappedComp, AActor
 		return;
 	}
 
+	// 如果已经在吸附或等待状态，不再处理
+	if (bIsBeingAttracted || bWaitingForPickup)
+	{
+		return;
+	}
+
 	float Distance = FVector::Dist(GetActorLocation(), Player->GetActorLocation());
 
-	// 如果在自动拾取范围内，直接拾取
-	if (bAutoPickup && Distance <= AutoPickupRadius)
+	// 进入吸附范围时，等待玩家按F拾取
+	if (Distance <= AttractRadius)
 	{
-		PickUp(Player);
+		bWaitingForPickup = true;
+		NearbyPlayer = Player;
+		// 通知玩家有金币可拾取
+		Player->SetNearbyGold(this);
+		UE_LOG(LogTemp, Log, TEXT("[GoldPickup] Player entered range, waiting for pickup"));
 	}
-	// 如果在吸附范围内，开始吸附
-	else if (Distance <= AttractRadius)
+}
+
+// 玩家离开检测范围
+void AGoldPickup::OnPlayerExitRange(UPrimitiveComponent* OverlappedComp, AActor* OtherActor,
+	UPrimitiveComponent* OtherComp, int32 OtherBodyIndex)
+{
+	AWukongCharacter* Player = Cast<AWukongCharacter>(OtherActor);
+	if (!Player || Player != NearbyPlayer)
+	{
+		return;
+	}
+
+	// 如果正在吸附中，不处理离开事件
+	if (bIsBeingAttracted)
+	{
+		return;
+	}
+
+	// 清除等待状态
+	bWaitingForPickup = false;
+	NearbyPlayer = nullptr;
+	// 通知玩家离开金币范围
+	Player->SetNearbyGold(nullptr);
+	UE_LOG(LogTemp, Log, TEXT("[GoldPickup] Player left range"));
+}
+
+// 开始吸附（玩家按F键时调用）
+void AGoldPickup::StartAttract()
+{
+	if (bWaitingForPickup && NearbyPlayer && !bIsBeingAttracted)
 	{
 		bIsBeingAttracted = true;
-		AttractTarget = Player;
+		AttractTarget = NearbyPlayer;
+		bWaitingForPickup = false;
+		UE_LOG(LogTemp, Log, TEXT("[GoldPickup] Started attracting to player"));
 	}
 }
 
