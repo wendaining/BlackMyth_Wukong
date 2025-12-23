@@ -8,6 +8,8 @@
 #include "EngineUtils.h"
 #include "Temple.h"
 #include "WukongCharacter.h"
+#include "TeleportMenuWidget.h"
+#include "GameFramework/PlayerController.h"
 
 void UTeleportButtonWidget::NativeOnInitialized()
 {
@@ -59,6 +61,28 @@ void UTeleportButtonWidget::OnTeleportClicked()
             
             Player->SetActorLocation(TeleportLoc);
             Player->SetActorRotation(TeleportRot);
+
+            // 3. 关闭菜单、解除暂停、恢复游戏输入
+            if (UTeleportMenuWidget* TeleportMenu = GetTypedOuter<UTeleportMenuWidget>())
+            {
+                if (TeleportMenu->OwnerTempleWidget)
+                {
+                    TeleportMenu->OwnerTempleWidget->RemoveFromParent();
+                }
+                TeleportMenu->RemoveFromParent();
+            }
+            else if (UUserWidget* OwnerWidget = GetTypedOuter<UUserWidget>())
+            {
+                OwnerWidget->RemoveFromParent();
+            }
+
+            UGameplayStatics::SetGamePaused(World, false);
+
+            if (APlayerController* PC = UGameplayStatics::GetPlayerController(World, 0))
+            {
+                PC->SetInputMode(FInputModeGameOnly());
+                PC->bShowMouseCursor = false;
+            }
             break;
         }
     }

@@ -91,7 +91,7 @@ void UTeleportMenuWidget::BuildTeleportButtons()
         {
             if (!T) continue;
 
-            UTeleportButtonWidget* Button = CreateWidget<UTeleportButtonWidget>(GetWorld(), TeleportButtonClass);
+UTeleportButtonWidget* Button = CreateWidget<UTeleportButtonWidget>(this, TeleportButtonClass);
             if (!Button) continue;
             Button->TargetTempleID = T->TempleID;
             Button->SetVisibility(ESlateVisibility::Visible);
@@ -159,7 +159,7 @@ void UTeleportMenuWidget::BuildTeleportButtons()
         for (AInteractableActor* T : Temples)
         {
             if (!T) continue;
-            UTeleportButtonWidget* Button = CreateWidget<UTeleportButtonWidget>(GetWorld(), TeleportButtonClass);
+            UTeleportButtonWidget* Button = CreateWidget<UTeleportButtonWidget>(this, TeleportButtonClass);
             if (!Button) continue;
             Button->TargetTempleID = T->TempleID;
             Button->SetVisibility(ESlateVisibility::Visible);
