@@ -18,10 +18,8 @@ void UMainMenuWidget::StartGame()
             pc->bShowMouseCursor = false;
         }
     }
-    // 3. 进入游戏地图
-    UGameplayStatics::OpenLevel(this, FName(TEXT("/Game/ThirdPerson/Maps/ThirdPersonMap")));
-    // 即将使用的地图
-    // /Game/JapaneseFeudalCastle/Levels/L_Showcase.L_Showcase'
+    // 3. 进入游戏地图（使用绝对路径，不带后缀）
+    UGameplayStatics::OpenLevel(this, FName(TEXT("/Game/JapaneseFeudalCastle/Levels/L_Showcase")), true, TEXT(""));
 }
 
 void UMainMenuWidget::QuitGame()
@@ -40,7 +38,7 @@ void UMainMenuWidget::LoadGame()
     // LoadGame=1 是自定义参数
     UGameplayStatics::OpenLevel(
         this,
-        FName(TEXT("/Game/ThirdPerson/Maps/ThirdPersonMap")),
+        FName(TEXT("/Game/JapaneseFeudalCastle/Levels/L_Showcase")),
         true,
         TEXT("LoadGame=1")
     );

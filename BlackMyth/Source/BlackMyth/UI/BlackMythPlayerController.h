@@ -60,4 +60,26 @@ protected:
 
     UFUNCTION()
     void Interact();
+
+private:
+    /** 等待流式关卡加载完毕后再恢复角色移动。 */
+    void BeginDeferredSpawnProtection();
+
+    /** 检查流式关卡是否就绪，若就绪则恢复移动和碰撞。 */
+    void TryEnablePawnAfterStreaming();
+
+    /** 探测脚下地面，找到可行走平面并给出安全落点。 */
+    bool ProbeGroundAndGetSafeLocation(class AWukongCharacter* Wukong, FVector& OutSafeLocation) const;
+
+    FTimerHandle StreamingCheckHandle;
+    float CachedGravityScale = 1.0f;
+    TEnumAsByte<EMovementMode> CachedMovementMode = MOVE_Walking;
+    bool bSpawnProtectionActive = false;
+
+    /** 出生保护起始时间与上限，避免长时间悬浮。 */
+    float SpawnProtectionStartTime = 0.f;
+    float MaxSpawnProtectionDuration = 3.0f; // 秒
+
+    /** 地面探测深度（单位厘米）。 */
+    float GroundProbeDistance = 5000.0f;
 };
