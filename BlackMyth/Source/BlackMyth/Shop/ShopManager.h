@@ -25,6 +25,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Shop")
 	void InitializeDefaultItems();
 
+	// 从玩家背包初始化商品数据
+	UFUNCTION(BlueprintCallable, Category = "Shop")
+	void InitializeFromInventory(AWukongCharacter* Player);
+
 	// 获取商品列表
 	const TArray<FShopItemData>& GetShopItems() const { return ShopItems; }
 

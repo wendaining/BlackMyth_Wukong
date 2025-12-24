@@ -36,7 +36,7 @@ void UTradeMenuWidget::InitializeShop()
 	if (!ShopManager)
 	{
 		ShopManager = NewObject<UShopManager>(this);
-		ShopManager->InitializeDefaultItems();
+		ShopManager->InitializeFromInventory(CustomerPlayer);
 	}
 
 	// 绑定金币变化事件
@@ -52,16 +52,28 @@ void UTradeMenuWidget::InitializeShop()
 
 void UTradeMenuWidget::RefreshGoldDisplay()
 {
-	if (!GoldText || !CustomerPlayer)
+	if (!GoldText)
 	{
+		UE_LOG(LogTemp, Warning, TEXT("TradeMenuWidget: GoldText 控件为空，请检查蓝图中控件名称是否为 GoldText"));
 		return;
 	}
 
-	if (UWalletComponent* Wallet = CustomerPlayer->GetWalletComponent())
+	if (!CustomerPlayer)
 	{
-		FString GoldString = FString::Printf(TEXT("金币: %d"), Wallet->GetGold());
-		GoldText->SetText(FText::FromString(GoldString));
+		UE_LOG(LogTemp, Warning, TEXT("TradeMenuWidget: CustomerPlayer 为空"));
+		return;
 	}
+
+	UWalletComponent* Wallet = CustomerPlayer->GetWalletComponent();
+	if (!Wallet)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("TradeMenuWidget: WalletComponent 为空，请确认玩家蓝图中添加了 WalletComponent"));
+		return;
+	}
+
+	FString GoldString = FString::Printf(TEXT("金币: %d"), Wallet->GetGold());
+	GoldText->SetText(FText::FromString(GoldString));
+	UE_LOG(LogTemp, Log, TEXT("TradeMenuWidget: 金币显示已更新为 %d"), Wallet->GetGold());
 }
 
 void UTradeMenuWidget::OnGoldChanged(int32 NewGold)
@@ -157,22 +169,25 @@ void UTradeMenuWidget::RefreshSelectedItemDetails()
 	{
 		// 显示价格和购买限制信息
 		FString PriceString;
-		int32 RemainingPurchases = ShopManager->GetRemainingPurchases(SelectedItemIndex);
 
 		if (Item.PurchaseLimit == 0)
 		{
-			// 无限购买
-			PriceString = FString::Printf(TEXT("价格: %d 金币"), Item.Price);
-		}
-		else if (RemainingPurchases == -1)
-		{
-			// 已达上限
-			PriceString = FString::Printf(TEXT("价格: %d 金币 (已售罄)"), Item.Price);
+			// 无限购买 - 显示"不限购"
+			PriceString = FString::Printf(TEXT("价格: %d 金币 (不限购)"), Item.Price);
 		}
 		else
 		{
-			// 显示剩余次数
-			PriceString = FString::Printf(TEXT("价格: %d 金币 (剩余 %d)"), Item.Price, RemainingPurchases);
+			int32 RemainingPurchases = ShopManager->GetRemainingPurchases(SelectedItemIndex);
+			if (RemainingPurchases == -1)
+			{
+				// 已达上限
+				PriceString = FString::Printf(TEXT("价格: %d 金币 (已售罄)"), Item.Price);
+			}
+			else
+			{
+				// 显示剩余次数
+				PriceString = FString::Printf(TEXT("价格: %d 金币 (剩余 %d)"), Item.Price, RemainingPurchases);
+			}
 		}
 
 		SelectedItemPrice->SetText(FText::FromString(PriceString));

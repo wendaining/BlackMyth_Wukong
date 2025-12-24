@@ -170,3 +170,74 @@ void UShopManager::ResetPurchaseCounts()
 {
 	PurchaseCounts.Empty();
 }
+
+void UShopManager::InitializeFromInventory(AWukongCharacter* Player)
+{
+	if (!Player)
+	{
+		return;
+	}
+
+	UInventoryComponent* Inventory = Player->GetInventoryComponent();
+	if (!Inventory)
+	{
+		return;
+	}
+
+	ShopItems.Empty();
+	PurchaseCounts.Empty();
+
+	// 从背包槽位生成商品数据
+	for (int32 i = 0; i < Inventory->GetSlotCount(); i++)
+	{
+		const FItemSlot& Slot = Inventory->GetItemSlot(i);
+		if (Slot.ItemType == EItemType::None)
+		{
+			continue;
+		}
+
+		FShopItemData ShopItem;
+		ShopItem.ItemType = Slot.ItemType;
+		ShopItem.DisplayName = Slot.DisplayName;
+		ShopItem.Icon = Slot.Icon;
+
+		// 根据物品类型设置价格和描述
+		switch (Slot.ItemType)
+		{
+		case EItemType::HealthPotion:
+			ShopItem.Price = 100;
+			ShopItem.Description = FText::FromString(
+				FString::Printf(TEXT("恢复%.0f点生命值"), Slot.EffectValue));
+			ShopItem.PurchaseLimit = 0;  // 无限购买
+			break;
+
+		case EItemType::StaminaPotion:
+			ShopItem.Price = 80;
+			ShopItem.Description = FText::FromString(
+				FString::Printf(TEXT("恢复%.0f点体力"), Slot.EffectValue));
+			ShopItem.PurchaseLimit = 0;  // 无限购买
+			break;
+
+		case EItemType::AttackBuff:
+			ShopItem.Price = 200;
+			ShopItem.Description = FText::FromString(
+				FString::Printf(TEXT("攻击力提升%.0f%%，持续%.0f秒"),
+					(Slot.EffectValue - 1.0f) * 100.0f, Slot.EffectDuration));
+			ShopItem.PurchaseLimit = 5;  // 限购5个
+			break;
+
+		case EItemType::DefenseBuff:
+			ShopItem.Price = 200;
+			ShopItem.Description = FText::FromString(
+				FString::Printf(TEXT("受伤减免%.0f%%，持续%.0f秒"),
+					(1.0f - Slot.EffectValue) * 100.0f, Slot.EffectDuration));
+			ShopItem.PurchaseLimit = 5;  // 限购5个
+			break;
+
+		default:
+			continue;
+		}
+
+		ShopItems.Add(ShopItem);
+	}
+}

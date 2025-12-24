@@ -28,7 +28,7 @@ void UInventoryComponent::BeginPlay()
 		FItemSlot HealthPotionSlot;
 		HealthPotionSlot.ItemType = EItemType::HealthPotion;
 		HealthPotionSlot.CurrentCount = 3;
-		HealthPotionSlot.MaxCount = 3;
+		HealthPotionSlot.MaxCount = 5;  // 允许购买更多
 		HealthPotionSlot.EffectValue = 50.0f;  // 回复50点血
 		HealthPotionSlot.EffectDuration = 0.0f;
 		HealthPotionSlot.DisplayName = FText::FromString(TEXT("血药"));
@@ -38,7 +38,7 @@ void UInventoryComponent::BeginPlay()
 		FItemSlot StaminaPotionSlot;
 		StaminaPotionSlot.ItemType = EItemType::StaminaPotion;
 		StaminaPotionSlot.CurrentCount = 2;
-		StaminaPotionSlot.MaxCount = 2;
+		StaminaPotionSlot.MaxCount = 5;  // 允许购买更多
 		StaminaPotionSlot.EffectValue = 50.0f;  // 回复50点体力
 		StaminaPotionSlot.EffectDuration = 0.0f;
 		StaminaPotionSlot.DisplayName = FText::FromString(TEXT("体力药"));
@@ -48,7 +48,7 @@ void UInventoryComponent::BeginPlay()
 		FItemSlot AttackBuffSlot;
 		AttackBuffSlot.ItemType = EItemType::AttackBuff;
 		AttackBuffSlot.CurrentCount = 1;
-		AttackBuffSlot.MaxCount = 1;
+		AttackBuffSlot.MaxCount = 3;  // 允许购买更多
 		AttackBuffSlot.EffectValue = 1.3f;      // 攻击力提升30%
 		AttackBuffSlot.EffectDuration = 10.0f;  // 持续10秒
 		AttackBuffSlot.DisplayName = FText::FromString(TEXT("怒火丹"));
@@ -58,7 +58,7 @@ void UInventoryComponent::BeginPlay()
 		FItemSlot DefenseBuffSlot;
 		DefenseBuffSlot.ItemType = EItemType::DefenseBuff;
 		DefenseBuffSlot.CurrentCount = 1;
-		DefenseBuffSlot.MaxCount = 1;
+		DefenseBuffSlot.MaxCount = 3;  // 允许购买更多
 		DefenseBuffSlot.EffectValue = 0.5f;     // 受伤减免50%
 		DefenseBuffSlot.EffectDuration = 10.0f; // 持续10秒
 		DefenseBuffSlot.DisplayName = FText::FromString(TEXT("金刚丹"));
