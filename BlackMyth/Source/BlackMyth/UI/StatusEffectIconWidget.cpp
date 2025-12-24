@@ -124,9 +124,9 @@ FText UStatusEffectIconWidget::GetEffectNameForType(EStatusEffectType Type) cons
 	case EStatusEffectType::DefenseBuff:
 		return FText::FromString(TEXT("防御提升"));
 	case EStatusEffectType::HealingIndicator:
-		return FText::FromString(TEXT("体力恢复"));
-	case EStatusEffectType::StaminaIndicator:
 		return FText::FromString(TEXT("血量恢复"));
+	case EStatusEffectType::StaminaIndicator:
+		return FText::FromString(TEXT("体力恢复"));
 
 	default:
 		return FText::FromString(TEXT(""));
