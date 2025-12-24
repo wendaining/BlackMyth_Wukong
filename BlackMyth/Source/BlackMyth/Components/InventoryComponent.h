@@ -70,6 +70,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Inventory")
 	int32 GetSlotCount() const { return ItemSlots.Num(); }
 
+	/** 为指定类型物品调整数量（正数为增加，负数为减少），返回是否实际发生变更 */
+	UFUNCTION(BlueprintCallable, Category = "Inventory")
+	bool AddItemCount(EItemType Type, int32 Amount);
+
 	// === 委托 ===
 
 	/** 物品数量变化时触发 */

@@ -137,6 +137,37 @@ int32 UInventoryComponent::GetItemCount(EItemType Type) const
 	return 0;
 }
 
+bool UInventoryComponent::AddItemCount(EItemType Type, int32 Amount)
+{
+	if (Amount == 0)
+	{
+		return false;
+	}
+
+	for (int32 i = 0; i < ItemSlots.Num(); ++i)
+	{
+		FItemSlot& Slot = ItemSlots[i];
+		if (Slot.ItemType == Type)
+		{
+			const int32 OldCount = Slot.CurrentCount;
+			const int32 NewCount = FMath::Clamp(OldCount + Amount, 0, Slot.MaxCount);
+
+			if (NewCount != OldCount)
+			{
+				Slot.CurrentCount = NewCount;
+				OnItemCountChanged.Broadcast(i, Slot.CurrentCount);
+				return true;
+			}
+
+			// 未发生变化（例如已达上限或下限）
+			return false;
+		}
+	}
+
+	// 未找到该类型槽位
+	return false;
+}
+
 const FItemSlot& UInventoryComponent::GetItemSlot(int32 SlotIndex) const
 {
 	if (SlotIndex >= 0 && SlotIndex < ItemSlots.Num())

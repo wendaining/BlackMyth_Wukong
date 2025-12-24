@@ -90,4 +90,12 @@ public:
     // 传送目标点组件，玩家传送到此位置
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Teleport")
     USceneComponent* TeleportPoint;
+
+    // 本局游戏是否已在该土地庙获得过一瓶生命药水
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Temple")
+    bool bGrantedHealthPotionThisSession = false;
+
+    // 本局游戏是否已在该土地庙获得过一瓶体力药水
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Temple")
+    bool bGrantedStaminaPotionThisSession = false;
 };

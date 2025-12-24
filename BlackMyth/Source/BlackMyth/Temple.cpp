@@ -8,6 +8,8 @@
 #include "GameFramework/PlayerController.h"
 #include "Components/HealthComponent.h"
 #include "Components/StaminaComponent.h"
+#include "Components/InventoryComponent.h"
+#include "Items/ItemTypes.h"
 
 AInteractableActor::AInteractableActor()
 {
@@ -144,6 +146,43 @@ void AInteractableActor::OnInteract_Implementation(AActor* Interactor)
         PC->bShowMouseCursor = true;
 
         UE_LOG(LogTemp, Log, TEXT("土地庙交互菜单已打开"));
+    }
+
+    // 打开菜单的同时，尝试赠送一瓶生命药水（每个土地庙本局仅一次）
+    if (!bGrantedHealthPotionThisSession)
+    {
+        if (UInventoryComponent* Inv = Player->FindComponentByClass<UInventoryComponent>())
+        {
+            const bool bAdded = Inv->AddItemCount(EItemType::HealthPotion, 1);
+            if (bAdded)
+            {
+                bGrantedHealthPotionThisSession = true;
+                UE_LOG(LogTemp, Log, TEXT("[Temple] Granted +1 Health Potion from %s"), *GetName());
+            }
+            else
+            {
+                // 背包已满，未领取成功，不标记为已领取，允许之后再来领取
+                UE_LOG(LogTemp, Log, TEXT("[Temple] Health Potion is full, cannot grant now"));
+            }
+        }
+    }
+
+    // 同时尝试赠送一瓶体力药（每个土地庙本局仅一次）
+    if (!bGrantedStaminaPotionThisSession)
+    {
+        if (UInventoryComponent* Inv = Player->FindComponentByClass<UInventoryComponent>())
+        {
+            const bool bAddedStamina = Inv->AddItemCount(EItemType::StaminaPotion, 1);
+            if (bAddedStamina)
+            {
+                bGrantedStaminaPotionThisSession = true;
+                UE_LOG(LogTemp, Log, TEXT("[Temple] Granted +1 Stamina Potion from %s"), *GetName());
+            }
+            else
+            {
+                UE_LOG(LogTemp, Log, TEXT("[Temple] Stamina Potion is full, cannot grant now"));
+            }
+        }
     }
 
     // 完全恢复玩家的血量和体力
