@@ -24,26 +24,6 @@ void UInventoryComponent::BeginPlay()
 	// 如果没有在编辑器中配置，创建默认物品槽
 	if (ItemSlots.Num() == 0)
 	{
-		// 血药
-		FItemSlot HealthPotionSlot;
-		HealthPotionSlot.ItemType = EItemType::HealthPotion;
-		HealthPotionSlot.CurrentCount = 3;
-		HealthPotionSlot.MaxCount = 5;  // 允许购买更多
-		HealthPotionSlot.EffectValue = 50.0f;  // 回复50点血
-		HealthPotionSlot.EffectDuration = 0.0f;
-		HealthPotionSlot.DisplayName = FText::FromString(TEXT("血药"));
-		ItemSlots.Add(HealthPotionSlot);
-
-		// 体力药
-		FItemSlot StaminaPotionSlot;
-		StaminaPotionSlot.ItemType = EItemType::StaminaPotion;
-		StaminaPotionSlot.CurrentCount = 2;
-		StaminaPotionSlot.MaxCount = 5;  // 允许购买更多
-		StaminaPotionSlot.EffectValue = 50.0f;  // 回复50点体力
-		StaminaPotionSlot.EffectDuration = 0.0f;
-		StaminaPotionSlot.DisplayName = FText::FromString(TEXT("体力药"));
-		ItemSlots.Add(StaminaPotionSlot);
-
 		// 攻击Buff
 		FItemSlot AttackBuffSlot;
 		AttackBuffSlot.ItemType = EItemType::AttackBuff;
@@ -63,6 +43,26 @@ void UInventoryComponent::BeginPlay()
 		DefenseBuffSlot.EffectDuration = 10.0f; // 持续10秒
 		DefenseBuffSlot.DisplayName = FText::FromString(TEXT("金刚丹"));
 		ItemSlots.Add(DefenseBuffSlot);
+		
+		// 体力药
+		FItemSlot StaminaPotionSlot;
+		StaminaPotionSlot.ItemType = EItemType::StaminaPotion;
+		StaminaPotionSlot.CurrentCount = 2;
+		StaminaPotionSlot.MaxCount = 5;  // 允许购买更多
+		StaminaPotionSlot.EffectValue = 50.0f;  // 回复50点体力
+		StaminaPotionSlot.EffectDuration = 0.0f;
+		StaminaPotionSlot.DisplayName = FText::FromString(TEXT("体力药"));
+		ItemSlots.Add(StaminaPotionSlot);
+		
+		// 血药
+		FItemSlot HealthPotionSlot;
+		HealthPotionSlot.ItemType = EItemType::HealthPotion;
+		HealthPotionSlot.CurrentCount = 3;
+		HealthPotionSlot.MaxCount = 5;  // 允许购买更多
+		HealthPotionSlot.EffectValue = 50.0f;  // 回复50点血
+		HealthPotionSlot.EffectDuration = 0.0f;
+		HealthPotionSlot.DisplayName = FText::FromString(TEXT("血药"));
+		ItemSlots.Add(HealthPotionSlot);
 	}
 }
 
