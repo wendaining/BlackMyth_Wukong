@@ -83,6 +83,10 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Health")
 	bool IsFullHealth() const { return CurrentHealth >= MaxHealth; }
 
+	/** 复活（重置死亡状态并恢复血量） */
+	UFUNCTION(BlueprintCallable, Category = "Health")
+	void Revive();
+
 	// ========== 无敌状态 ==========
 
 	/** 设置无敌状态 */

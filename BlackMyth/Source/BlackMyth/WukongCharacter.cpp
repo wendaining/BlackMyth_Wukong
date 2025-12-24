@@ -6,6 +6,7 @@
 #include "EnemyBase.h"
 #include "NPCCharacter.h"
 #include "ButterflyPawn.h"
+#include "BlackMythGameInstance.h"
 #include "UI/PlayerHUDWidget.h"
 #include "UI/InteractionPromptWidget.h"
 #include "Blueprint/UserWidget.h"
@@ -93,6 +94,12 @@ void AWukongCharacter::BeginPlay()
     Super::BeginPlay();
 
     CurrentState = EWukongState::Idle;
+
+    // 保存初始出生点（如果没有与Temple交互，就使用这个作为默认重生点）
+    // 加上一点高度防止卡在地下
+    InitialSpawnLocation = GetActorLocation() + FVector(0, 0, 100.0f);
+    InitialSpawnRotation = GetActorRotation();
+    UE_LOG(LogTemp, Log, TEXT("[WukongCharacter] Initial spawn point saved at %s"), *InitialSpawnLocation.ToString());
 
     // Configure movement speeds and physics
     if (UCharacterMovementComponent* Movement = GetCharacterMovement())
@@ -1882,6 +1889,162 @@ void AWukongCharacter::Die()
     }
 
     UE_LOG(LogTemp, Warning, TEXT("Die: Character has died"));
+
+    // 延迟显示死亡菜单，让死亡动画播放一会儿
+    FTimerHandle DeathMenuTimerHandle;
+    GetWorldTimerManager().SetTimer(DeathMenuTimerHandle, this, &AWukongCharacter::ShowDeathMenu, 2.0f, false);
+}
+
+void AWukongCharacter::ShowDeathMenu()
+{
+    // 检查是否已经有死亡菜单显示
+    if (DeathMenuInstance)
+    {
+        return;
+    }
+
+    // 检查是否配置了死亡菜单类
+    if (!DeathMenuWidgetClass)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[WukongCharacter] DeathMenuWidgetClass not configured"));
+        return;
+    }
+
+    // 获取玩家控制器
+    APlayerController* PC = Cast<APlayerController>(GetController());
+    if (!PC)
+    {
+        UE_LOG(LogTemp, Error, TEXT("[WukongCharacter] Failed to get PlayerController for death menu"));
+        return;
+    }
+
+    // 创建死亡菜单
+    DeathMenuInstance = CreateWidget<UUserWidget>(PC, DeathMenuWidgetClass);
+    if (DeathMenuInstance)
+    {
+        DeathMenuInstance->AddToViewport(100);
+
+        // 暂停游戏
+        UGameplayStatics::SetGamePaused(GetWorld(), true);
+
+        // 切换到UI输入模式
+        PC->SetInputMode(FInputModeUIOnly());
+        PC->bShowMouseCursor = true;
+
+        UE_LOG(LogTemp, Log, TEXT("[WukongCharacter] Death menu displayed"));
+    }
+}
+
+void AWukongCharacter::SaveRespawnPoint(FVector Location, FRotator Rotation, FName TempleID)
+{
+    RespawnLocation = Location;
+    RespawnRotation = Rotation;
+    RespawnTempleID = TempleID;
+    bHasRespawnPoint = true;
+    UE_LOG(LogTemp, Warning, TEXT("[WukongCharacter] Respawn point saved: Temple=%s at Location=%s, bHasRespawnPoint=%d"), 
+        *TempleID.ToString(), *Location.ToString(), bHasRespawnPoint);
+}
+
+void AWukongCharacter::Respawn()
+{
+    UE_LOG(LogTemp, Warning, TEXT("[WukongCharacter] Respawning... bHasRespawnPoint=%d"), bHasRespawnPoint);
+
+    // 检查是否有重生点，如果没有就使用初始出生点
+    FVector SpawnLocation;
+    FRotator SpawnRotation;
+    
+    if (bHasRespawnPoint)
+    {
+        // 使用已保存的重生点（Temple重生点）
+        SpawnLocation = RespawnLocation;
+        SpawnRotation = RespawnRotation;
+        UE_LOG(LogTemp, Warning, TEXT("[WukongCharacter] Using saved Temple respawn point: %s at %s"), *RespawnTempleID.ToString(), *SpawnLocation.ToString());
+    }
+    else
+    {
+        // 使用初始出生点
+        SpawnLocation = InitialSpawnLocation;
+        SpawnRotation = InitialSpawnRotation;
+        UE_LOG(LogTemp, Warning, TEXT("[WukongCharacter] No Temple respawn point, using initial spawn location: %s"), *SpawnLocation.ToString());
+    }
+
+    // 重置状态（必须先重置状态，否则FullHeal会因为bIsDead而失败）
+    ChangeState(EWukongState::Idle);
+
+    // 恢复动画蓝图模式
+    if (USkeletalMeshComponent* MeshComp = GetMesh())
+    {
+        MeshComp->SetAnimationMode(EAnimationMode::AnimationBlueprint);
+    }
+
+    // 恢复碰撞
+    if (GetCapsuleComponent())
+    {
+        GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+    }
+
+    // 先恢复生命值和体力（在状态重置后立即恢复，确保bIsDead为false）
+    if (HealthComponent)
+    {
+        // 使用Revive函数正确重置死亡状态并恢复血量
+        HealthComponent->Revive();
+        
+        UE_LOG(LogTemp, Warning, TEXT("[WukongCharacter] Health restored: %f/%f (IsAlive: %d, IsDead: %d)"), 
+            HealthComponent->GetCurrentHealth(), HealthComponent->GetMaxHealth(), 
+            HealthComponent->IsAlive(), HealthComponent->IsDead());
+    }
+
+    if (StaminaComponent)
+    {
+        StaminaComponent->RestoreStamina(StaminaComponent->GetMaxStamina());
+        UE_LOG(LogTemp, Warning, TEXT("[WukongCharacter] Stamina restored: %f/%f"), 
+            StaminaComponent->GetCurrentStamina(), StaminaComponent->GetMaxStamina());
+    }
+
+    // 清除所有速度
+    if (UCharacterMovementComponent* Movement = GetCharacterMovement())
+    {
+        Movement->Velocity = FVector::ZeroVector;
+        Movement->StopMovementImmediately();
+    }
+
+    // 清理死亡菜单
+    if (DeathMenuInstance)
+    {
+        DeathMenuInstance->RemoveFromParent();
+        DeathMenuInstance = nullptr;
+        UE_LOG(LogTemp, Log, TEXT("[WukongCharacter] Death menu removed"));
+    }
+
+    // 获取玩家控制器
+    APlayerController* PC = Cast<APlayerController>(GetController());
+    if (PC)
+    {
+        // 取消游戏暂停
+        UGameplayStatics::SetGamePaused(GetWorld(), false);
+
+        // 恢复游戏输入模式
+        PC->SetInputMode(FInputModeGameOnly());
+        PC->bShowMouseCursor = false;
+
+        // 恢复玩家输入
+        EnableInput(PC);
+
+        UE_LOG(LogTemp, Log, TEXT("[WukongCharacter] Game unpaused and input restored"));
+    }
+
+    // 传送到重生点（使用TeleportTo保证位置生效）
+    // 加上一点高度防止卡在地面里
+    FVector AdjustedLocation = SpawnLocation + FVector(0, 0, 100.0f);
+    bool bTeleported = TeleportTo(AdjustedLocation, SpawnRotation, false, true);
+
+    // 强制更新位置
+    if (UCharacterMovementComponent* Movement = GetCharacterMovement())
+    {
+        Movement->UpdateComponentVelocity();
+    }
+
+    UE_LOG(LogTemp, Warning, TEXT("[WukongCharacter] Respawned at location: %s (Teleport success: %d)"), *AdjustedLocation.ToString(), bTeleported);
 }
 
 void AWukongCharacter::UpdateMovementSpeed()
@@ -2728,6 +2891,26 @@ void AWukongCharacter::OnTempleInteract()
             *CurrentInteractable->GetName());
 
         IInteractInterface::Execute_OnInteract(CurrentInteractable, this);
+
+        // 直接在这里保存重生点（防止蓝图覆盖导致保存失败）
+        AInteractableActor* Temple = Cast<AInteractableActor>(CurrentInteractable);
+        if (Temple && Temple->TeleportPoint)
+        {
+            FVector SpawnLocation = Temple->TeleportPoint->GetComponentLocation();
+            FRotator SpawnRotation = Temple->TeleportPoint->GetComponentRotation();
+            SaveRespawnPoint(SpawnLocation, SpawnRotation, Temple->TempleID);
+            UE_LOG(LogTemp, Warning, TEXT("[WukongCharacter] Saved respawn point from OnTempleInteract: %s at %s"), 
+                *Temple->TempleID.ToString(), *SpawnLocation.ToString());
+        }
+        else if (Temple)
+        {
+            // 如果没有TeleportPoint，使用Temple自身位置
+            FVector SpawnLocation = Temple->GetActorLocation() + FVector(0, 0, 100.0f);
+            FRotator SpawnRotation = Temple->GetActorRotation();
+            SaveRespawnPoint(SpawnLocation, SpawnRotation, Temple->TempleID);
+            UE_LOG(LogTemp, Warning, TEXT("[WukongCharacter] Saved respawn point from OnTempleInteract (no TeleportPoint): %s at %s"), 
+                *Temple->TempleID.ToString(), *SpawnLocation.ToString());
+        }
     }
 }
 

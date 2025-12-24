@@ -8,6 +8,9 @@
 #include "GameFramework/PlayerController.h"
 #include "Components/HealthComponent.h"
 #include "Components/StaminaComponent.h"
+#include "Components/InventoryComponent.h"
+#include "Items/ItemTypes.h"
+#include "BlackMythGameInstance.h"
 
 AInteractableActor::AInteractableActor()
 {
@@ -103,6 +106,8 @@ void AInteractableActor::DoInteract()
 
 void AInteractableActor::OnInteract_Implementation(AActor* Interactor)
 {
+    UE_LOG(LogTemp, Warning, TEXT("[Temple] OnInteract_Implementation called!"));
+
     // 验证交互者是否为玩家角色
     AWukongCharacter* Player = Cast<AWukongCharacter>(Interactor);
     if (!Player)
@@ -110,6 +115,8 @@ void AInteractableActor::OnInteract_Implementation(AActor* Interactor)
         UE_LOG(LogTemp, Warning, TEXT("[土地庙] 交互者不是悟空角色"));
         return;
     }
+
+    UE_LOG(LogTemp, Warning, TEXT("[Temple] Player cast successful, opening menu..."));
 
     // 检查交互菜单蓝图是否配置
     if (!InteractMenuWidgetClass)
@@ -146,6 +153,80 @@ void AInteractableActor::OnInteract_Implementation(AActor* Interactor)
         UE_LOG(LogTemp, Log, TEXT("土地庙交互菜单已打开"));
     }
 
+    // 打开菜单的同时，尝试赠送一瓶生命药水（每个土地庙本局仅一次）
+    if (!bGrantedHealthPotionThisSession)
+    {
+        if (UInventoryComponent* Inv = Player->FindComponentByClass<UInventoryComponent>())
+        {
+            const bool bAdded = Inv->AddItemCount(EItemType::HealthPotion, 1);
+            if (bAdded)
+            {
+                bGrantedHealthPotionThisSession = true;
+                UE_LOG(LogTemp, Log, TEXT("[Temple] Granted +1 Health Potion from %s"), *GetName());
+            }
+            else
+            {
+                // 背包已满，未领取成功，不标记为已领取，允许之后再来领取
+                UE_LOG(LogTemp, Log, TEXT("[Temple] Health Potion is full, cannot grant now"));
+            }
+        }
+    }
+
+    // 同时尝试赠送一瓶体力药（每个土地庙本局仅一次）
+    if (!bGrantedStaminaPotionThisSession)
+    {
+        if (UInventoryComponent* Inv = Player->FindComponentByClass<UInventoryComponent>())
+        {
+            const bool bAddedStamina = Inv->AddItemCount(EItemType::StaminaPotion, 1);
+            if (bAddedStamina)
+            {
+                bGrantedStaminaPotionThisSession = true;
+                UE_LOG(LogTemp, Log, TEXT("[Temple] Granted +1 Stamina Potion from %s"), *GetName());
+            }
+            else
+            {
+                UE_LOG(LogTemp, Log, TEXT("[Temple] Stamina Potion is full, cannot grant now"));
+            }
+        }
+    }
+
     // 完全恢复玩家的血量和体力
     Player->FullRestore();
+
+    UE_LOG(LogTemp, Warning, TEXT("[Temple] About to save respawn point..."));
+
+    // 保存当前土地庙为重生点
+    SaveRespawnPoint(Player);
+
+    UE_LOG(LogTemp, Warning, TEXT("[Temple] OnInteract_Implementation completed!"));
+}
+
+void AInteractableActor::SaveRespawnPoint(AWukongCharacter* Player)
+{
+    if (!Player)
+    {
+        UE_LOG(LogTemp, Error, TEXT("[Temple] SaveRespawnPoint: Player is null!"));
+        return;
+    }
+    
+    if (!TeleportPoint)
+    {
+        UE_LOG(LogTemp, Error, TEXT("[Temple] SaveRespawnPoint: TeleportPoint is null! Using Actor location instead"));
+        // 如果没有TeleportPoint，使用Temple自身的位置
+        FVector SpawnLocation = GetActorLocation() + FVector(0, 0, 100.0f);
+        FRotator SpawnRotation = GetActorRotation();
+        Player->SaveRespawnPoint(SpawnLocation, SpawnRotation, TempleID);
+        return;
+    }
+
+    // 获取传送点的世界位置和旋转
+    FVector SpawnLocation = TeleportPoint->GetComponentLocation();
+    FRotator SpawnRotation = TeleportPoint->GetComponentRotation();
+
+    UE_LOG(LogTemp, Warning, TEXT("[Temple] Saving respawn point - Temple: %s, Location: %s"), *TempleID.ToString(), *SpawnLocation.ToString());
+
+    // 直接保存到玩家角色
+    Player->SaveRespawnPoint(SpawnLocation, SpawnRotation, TempleID);
+
+    UE_LOG(LogTemp, Warning, TEXT("[Temple] Respawn point saved successfully!"));
 }

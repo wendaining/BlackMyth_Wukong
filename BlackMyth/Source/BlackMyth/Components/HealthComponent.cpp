@@ -98,6 +98,21 @@ void UHealthComponent::SetHealth(float NewHealth)
 	}
 }
 
+void UHealthComponent::Revive()
+{
+	// 重置死亡状态
+	bIsDead = false;
+	
+	// 恢复满血
+	CurrentHealth = MaxHealth;
+	
+	// 广播生命值变化
+	BroadcastHealthChange();
+	
+	UE_LOG(LogTemp, Log, TEXT("[HealthComponent] Character revived with full health: %f/%f"), CurrentHealth, MaxHealth);
+}
+
+
 void UHealthComponent::Kill(AActor* Killer)
 {
 	if (bIsDead)

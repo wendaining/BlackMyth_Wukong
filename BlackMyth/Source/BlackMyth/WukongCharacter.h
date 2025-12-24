@@ -860,4 +860,49 @@ public:
 	UFUNCTION(BlueprintCallable)
 	void TeleportToTemple(FName TempleID);
 
+	// ========== 死亡和重生系统 ==========
+	
+	/** 死亡菜单Widget类（在蓝图中配置） */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Death")
+	TSubclassOf<class UUserWidget> DeathMenuWidgetClass;
+
+	/** 当前显示的死亡菜单实例 */
+	UPROPERTY()
+	UUserWidget* DeathMenuInstance;
+
+	/** 重生点位置 */
+	UPROPERTY(BlueprintReadWrite, Category = "Death")
+	FVector RespawnLocation;
+
+	/** 重生点旋转 */
+	UPROPERTY(BlueprintReadWrite, Category = "Death")
+	FRotator RespawnRotation;
+
+	/** 重生点所属Temple ID */
+	UPROPERTY(BlueprintReadWrite, Category = "Death")
+	FName RespawnTempleID;
+
+	/** 是否有已保存的重生点 */
+	UPROPERTY(BlueprintReadOnly, Category = "Death")
+	bool bHasRespawnPoint = false;
+
+	/** 初始出生点位置（游戏开始时保存） */
+	UPROPERTY(BlueprintReadWrite, Category = "Death")
+	FVector InitialSpawnLocation;
+
+	/** 初始出生点旋转（游戏开始时保存） */
+	UPROPERTY(BlueprintReadWrite, Category = "Death")
+	FRotator InitialSpawnRotation;
+
+	/** 重生函数 - 在保存的重生点复活角色 */
+	UFUNCTION(BlueprintCallable, Category = "Death")
+	void Respawn();
+
+	/** 显示死亡菜单 */
+	void ShowDeathMenu();
+
+	/** 保存重生点 */
+	UFUNCTION(BlueprintCallable, Category = "Death")
+	void SaveRespawnPoint(FVector Location, FRotator Rotation, FName TempleID);
+
 };
