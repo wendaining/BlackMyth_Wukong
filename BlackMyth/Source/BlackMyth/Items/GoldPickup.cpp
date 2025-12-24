@@ -4,7 +4,9 @@
 #include "../WukongCharacter.h"
 #include "Components/SphereComponent.h"
 #include "Components/StaticMeshComponent.h"
+#include "Components/WidgetComponent.h"
 #include "../Components/WalletComponent.h"
+#include "../UI/GoldValueWidget.h"
 #include "Kismet/GameplayStatics.h"
 #include "NiagaraFunctionLibrary.h"
 #include "NiagaraSystem.h"
@@ -45,6 +47,15 @@ AGoldPickup::AGoldPickup()
 	CollisionSphere->SetSphereRadius(AutoPickupRadius);
 	CollisionSphere->SetCollisionProfileName(TEXT("OverlapAllDynamic"));
 	CollisionSphere->SetGenerateOverlapEvents(true);
+
+	// 创建价值显示Widget组件
+	ValueWidgetComponent = CreateDefaultSubobject<UWidgetComponent>(TEXT("ValueWidget"));
+	ValueWidgetComponent->SetupAttachment(RootSceneComponent);
+	ValueWidgetComponent->SetRelativeLocation(FVector(0.0f, 0.0f, ValueTextHeightOffset));
+	ValueWidgetComponent->SetWidgetSpace(EWidgetSpace::Screen);  // 屏幕空间（始终朝向镜头）
+	ValueWidgetComponent->SetDrawSize(ValueTextDrawSize);
+	ValueWidgetComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	ValueWidgetComponent->SetVisibility(true);  // 默认显示
 }
 
 void AGoldPickup::BeginPlay()
@@ -58,6 +69,22 @@ void AGoldPickup::BeginPlay()
 		CollisionSphere->OnComponentEndOverlap.AddDynamic(this, &AGoldPickup::OnPlayerExitRange);
 		// 更新碰撞半径（使用较大的吸附半径）
 		CollisionSphere->SetSphereRadius(AttractRadius);
+	}
+
+	// 初始化价值显示Widget
+	if (ValueWidgetComponent && ValueWidgetClass)
+	{
+		ValueWidgetComponent->SetWidgetClass(ValueWidgetClass);
+		ValueWidgetComponent->SetRelativeLocation(FVector(0.0f, 0.0f, ValueTextHeightOffset));
+		ValueWidgetComponent->InitWidget();  // 强制初始化
+
+		// 获取Widget实例并设置显示的金币数值
+		UGoldValueWidget* ValueWidget = Cast<UGoldValueWidget>(ValueWidgetComponent->GetWidget());
+		if (ValueWidget)
+		{
+			ValueWidget->SetGoldValue(GoldAmount);
+			UE_LOG(LogTemp, Log, TEXT("[GoldPickup] Initialized value widget with %d gold"), GoldAmount);
+		}
 	}
 
 	// 设置存活时间
@@ -202,9 +229,16 @@ void AGoldPickup::OnPlayerExitRange(UPrimitiveComponent* OverlappedComp, AActor*
 	// 清除等待状态
 	bWaitingForPickup = false;
 	NearbyPlayer = nullptr;
-	// 通知玩家离开金币范围
-	Player->SetNearbyGold(nullptr);
-	UE_LOG(LogTemp, Log, TEXT("[GoldPickup] Player left range"));
+
+	// 从玩家的金币列表中移除自己
+	Player->NearbyGolds.Remove(this);
+	UE_LOG(LogTemp, Log, TEXT("[GoldPickup] Player left range, removed from list"));
+
+	// 如果玩家附近没有金币了，通知玩家隐藏提示
+	if (Player->NearbyGolds.Num() == 0)
+	{
+		Player->SetNearbyGold(nullptr);
+	}
 }
 
 // 开始吸附（玩家按F键时调用）
@@ -215,6 +249,13 @@ void AGoldPickup::StartAttract()
 		bIsBeingAttracted = true;
 		AttractTarget = NearbyPlayer;
 		bWaitingForPickup = false;
+
+		// 吸附时隐藏价值文本
+		if (ValueWidgetComponent)
+		{
+			ValueWidgetComponent->SetVisibility(false);
+		}
+
 		UE_LOG(LogTemp, Log, TEXT("[GoldPickup] Started attracting to player"));
 	}
 }
@@ -229,6 +270,12 @@ void AGoldPickup::PickUp(AWukongCharacter* Player)
 
 	// 标记为已拾取
 	bIsPickedUp = true;
+
+	// 从玩家的附近金币列表中移除自己
+	if (Player->NearbyGolds.Contains(this))
+	{
+		Player->NearbyGolds.Remove(this);
+	}
 
 	// 获取玩家的金币组件
 	UWalletComponent* Wallet = Player->GetWalletComponent();

@@ -769,7 +769,7 @@ public:
 
 	/** 当前可拾取的金币 */
 	UPROPERTY()
-	AGoldPickup* NearbyGold;
+	TArray<AGoldPickup*> NearbyGolds;
 
 	/** 设置附近金币（由GoldPickup调用） */
 	UFUNCTION(BlueprintCallable, Category = "Pickup")

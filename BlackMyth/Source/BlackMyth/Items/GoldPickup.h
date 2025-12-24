@@ -8,6 +8,7 @@
 
 class USphereComponent;
 class AWukongCharacter;
+class UWidgetComponent;
 
 /**
  * 金币掉落物
@@ -40,6 +41,10 @@ public:
 	/** 碰撞球体（用于检测玩家接近） */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	USphereComponent* CollisionSphere;
+
+	/** 金币价值显示Widget组件 */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
+	TObjectPtr<UWidgetComponent> ValueWidgetComponent;
 
 	// ========== 掉落物配置 ==========
 
@@ -94,6 +99,20 @@ public:
 	/** 上下浮动频率 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Pickup")
 	float FloatFrequency = 2.0f;
+
+	// ========== UI 配置 ==========
+
+	/** 金币价值Widget类（在蓝图中配置） */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "UI")
+	TSubclassOf<UUserWidget> ValueWidgetClass;
+
+	/** 文本显示高度偏移 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "UI")
+	float ValueTextHeightOffset = 40.0f;
+
+	/** 文本显示大小 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "UI")
+	FVector2D ValueTextDrawSize = FVector2D(50.0f, 30.0f);
 
 	// ========== 公共接口 ==========
 

@@ -215,7 +215,7 @@ void AWukongCharacter::BeginPlay()
 
     // 初始化交互系统
     NearbyNPC = nullptr;
-    NearbyGold = nullptr;
+    NearbyGolds.Empty();  // 清空附近金币数组
     InteractionPromptWidget = nullptr;
     InteractionCheckTimer = 0.0f;
 
@@ -2289,10 +2289,15 @@ void AWukongCharacter::HideInteractionPrompt()
 
 void AWukongCharacter::SetNearbyGold(AGoldPickup* Gold)
 {
-	NearbyGold = Gold;
-
 	if (Gold)
 	{
+		// 添加金币（避免重复添加）
+		if (!NearbyGolds.Contains(Gold))
+		{
+			NearbyGolds.Add(Gold);
+			UE_LOG(LogTemp, Log, TEXT("[Pickup] Added gold to list, total: %d"), NearbyGolds.Num());
+		}
+
 		// 确保交互提示Widget已创建
 		if (!InteractionPromptWidget && InteractionPromptWidgetClass)
 		{
@@ -2306,17 +2311,19 @@ void AWukongCharacter::SetNearbyGold(AGoldPickup* Gold)
 			}
 		}
 
-		// 显示"按F拾取"提示（仅当没有NPC在附近时）
-		if (!NearbyNPC && InteractionPromptWidget)
+		// 显示"按F拾取"提示（仅当没有NPC在附近时，显示金币数量）
+		if (!NearbyNPC && InteractionPromptWidget && NearbyGolds.Num() > 0)
 		{
-			InteractionPromptWidget->ShowPrompt(FText::FromString(TEXT("按 [F] 拾取")));
-			UE_LOG(LogTemp, Log, TEXT("[Pickup] Showing pickup prompt"));
+			FString PromptText = FString::Printf(TEXT("按 [F] 拾取 (%d)"), NearbyGolds.Num());
+			InteractionPromptWidget->ShowPrompt(FText::FromString(PromptText));
+			UE_LOG(LogTemp, Log, TEXT("[Pickup] Showing pickup prompt: %s"), *PromptText);
 		}
 	}
 	else
 	{
-		// 隐藏提示（仅当不在NPC对话范围内时）
-		if (!NearbyNPC && InteractionPromptWidget)
+		// Gold 为 nullptr 时不做移除（因为金币被销毁时会自己清理）
+		// 只处理 UI 显示
+		if (NearbyGolds.Num() == 0 && !NearbyNPC && InteractionPromptWidget)
 		{
 			InteractionPromptWidget->HidePrompt();
 			UE_LOG(LogTemp, Log, TEXT("[Pickup] Hiding pickup prompt"));
@@ -2326,8 +2333,7 @@ void AWukongCharacter::SetNearbyGold(AGoldPickup* Gold)
 
 void AWukongCharacter::TryPickup()
 {
-	UE_LOG(LogTemp, Log, TEXT("[Pickup] TryPickup called, NearbyGold: %s"),
-		NearbyGold ? *NearbyGold->GetName() : TEXT("NULL"));
+	UE_LOG(LogTemp, Log, TEXT("[Pickup] TryPickup called, NearbyGolds count: %d"), NearbyGolds.Num());
 
 	// 对话中不能拾取
 	if (bIsInDialogue)
@@ -2336,19 +2342,28 @@ void AWukongCharacter::TryPickup()
 		return;
 	}
 
-	// 如果有附近的金币，开始吸附
-	if (NearbyGold)
+	// 拾取所有附近的金币
+	if (NearbyGolds.Num() > 0)
 	{
-		NearbyGold->StartAttract();
+		UE_LOG(LogTemp, Log, TEXT("[Pickup] Picking up %d golds"), NearbyGolds.Num());
+
+		// 遍历所有金币并开始吸附
+		for (AGoldPickup* Gold : NearbyGolds)
+		{
+			if (Gold && IsValid(Gold))
+			{
+				Gold->StartAttract();
+			}
+		}
+
+		// 清空数组（金币会在吸附完成后销毁自己）
+		NearbyGolds.Empty();
 
 		// 隐藏提示
 		if (InteractionPromptWidget)
 		{
 			InteractionPromptWidget->HidePrompt();
 		}
-
-		// 清除引用（金币会在吸附完成后销毁自己）
-		NearbyGold = nullptr;
 	}
 }
 
