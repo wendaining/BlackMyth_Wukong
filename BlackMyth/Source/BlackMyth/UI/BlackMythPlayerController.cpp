@@ -6,6 +6,11 @@
 #include "Kismet/GameplayStatics.h"
 #include "../InteractInterface.h"
 #include "../WukongCharacter.h"
+#include "GameFramework/CharacterMovementComponent.h"
+#include "Engine/LevelStreaming.h"
+#include "Algo/AllOf.h"
+#include "Components/CapsuleComponent.h"
+#include "Engine/World.h"
 ABlackMythPlayerController::ABlackMythPlayerController()
     : PauseMenuInstance(nullptr)
 {
@@ -54,6 +59,9 @@ void ABlackMythPlayerController::BeginPlay() {
             false
         );
     }
+
+    // 等待流式关卡就绪后再启用重力和碰撞，避免出生时掉落穿地。
+    BeginDeferredSpawnProtection();
 }
 
 void ABlackMythPlayerController::SetupInputComponent() {
@@ -162,4 +170,147 @@ void ABlackMythPlayerController::EnterLoadGameFromPause()
     {
         PauseWidget->OnLoadClicked();
     }
+}
+
+void ABlackMythPlayerController::BeginDeferredSpawnProtection()
+{
+    if (bSpawnProtectionActive)
+    {
+        return;
+    }
+
+    UWorld* World = GetWorld();
+    if (!World)
+    {
+        return;
+    }
+
+    if (AWukongCharacter* Wukong = Cast<AWukongCharacter>(GetPawn()))
+    {
+        if (UCharacterMovementComponent* Move = Wukong->GetCharacterMovement())
+        {
+            CachedGravityScale = Move->GravityScale;
+            CachedMovementMode = Move->MovementMode;
+            Move->SetMovementMode(MOVE_Flying);
+            Move->GravityScale = 0.0f;
+            Move->Velocity = FVector::ZeroVector;
+        }
+
+        Wukong->SetActorEnableCollision(false);
+    }
+
+    bSpawnProtectionActive = true;
+    SpawnProtectionStartTime = World->GetTimeSeconds();
+
+    World->GetTimerManager().SetTimer(
+        StreamingCheckHandle,
+        this,
+        &ABlackMythPlayerController::TryEnablePawnAfterStreaming,
+        0.2f,
+        true);
+}
+
+void ABlackMythPlayerController::TryEnablePawnAfterStreaming()
+{
+    UWorld* World = GetWorld();
+    if (!World)
+    {
+        return;
+    }
+
+    bool bReadyToEnable = false;
+
+    // 条件1：脚下已有可行走平面，优先使用
+    if (AWukongCharacter* Wukong = Cast<AWukongCharacter>(GetPawn()))
+    {
+        FVector SafeLoc;
+        if (ProbeGroundAndGetSafeLocation(Wukong, SafeLoc))
+        {
+            Wukong->SetActorLocation(SafeLoc, false, nullptr, ETeleportType::TeleportPhysics);
+            bReadyToEnable = true;
+        }
+    }
+
+    // 条件2：所有流式关卡已可见且加载完成
+    if (!bReadyToEnable)
+    {
+        const bool bStreamingReady = Algo::AllOf(
+            World->GetStreamingLevels(),
+            [](const ULevelStreaming* Level)
+            {
+                return Level == nullptr || (Level->IsLevelLoaded() && Level->IsLevelVisible());
+            });
+        bReadyToEnable = bStreamingReady;
+    }
+
+    // 条件3：超时兜底，避免长时间悬浮
+    if (!bReadyToEnable && (World->GetTimeSeconds() - SpawnProtectionStartTime) >= MaxSpawnProtectionDuration)
+    {
+        bReadyToEnable = true;
+    }
+
+    if (!bReadyToEnable)
+    {
+        return;
+    }
+
+    World->GetTimerManager().ClearTimer(StreamingCheckHandle);
+
+    if (AWukongCharacter* Wukong = Cast<AWukongCharacter>(GetPawn()))
+    {
+        if (UCharacterMovementComponent* Move = Wukong->GetCharacterMovement())
+        {
+            Move->GravityScale = CachedGravityScale;
+            Move->SetMovementMode(MOVE_Walking);
+        }
+
+        Wukong->SetActorEnableCollision(true);
+    }
+
+    bSpawnProtectionActive = false;
+}
+
+bool ABlackMythPlayerController::ProbeGroundAndGetSafeLocation(AWukongCharacter* Wukong, FVector& OutSafeLocation) const
+{
+    if (!Wukong)
+    {
+        return false;
+    }
+
+    const UCapsuleComponent* Capsule = Wukong->GetCapsuleComponent();
+    const UWorld* World = GetWorld();
+    if (!Capsule || !World)
+    {
+        return false;
+    }
+
+    const float Radius = Capsule->GetScaledCapsuleRadius();
+    const float HalfHeight = Capsule->GetScaledCapsuleHalfHeight();
+
+    const FVector Start = Wukong->GetActorLocation();
+    const FVector End = Start - FVector(0.f, 0.f, GroundProbeDistance);
+
+    FCollisionQueryParams Params(TEXT("SpawnProbe"), false, Wukong);
+    FCollisionResponseParams RespParams;
+    FHitResult Hit;
+    const FCollisionShape Shape = FCollisionShape::MakeCapsule(Radius, HalfHeight);
+
+    // 使用可见性通道或世界静态通道均可，根据项目碰撞配置选择。
+    const ECollisionChannel Channel = ECollisionChannel::ECC_Visibility;
+
+    const bool bHit = World->SweepSingleByChannel(Hit, Start, End, FQuat::Identity, Channel, Shape, Params, RespParams);
+    if (!bHit || !Hit.bBlockingHit)
+    {
+        return false;
+    }
+
+    // 简单判定可行走坡度：法线Z分量足够大（避免墙面命中）。
+    if (Hit.ImpactNormal.Z < 0.5f)
+    {
+        return false;
+    }
+
+    // 计算安全落点：命中点上抬胶囊半高，并留出微小余量。
+    OutSafeLocation = Hit.ImpactPoint + FVector(0.f, 0.f, HalfHeight + 2.f);
+    return true;
 }
