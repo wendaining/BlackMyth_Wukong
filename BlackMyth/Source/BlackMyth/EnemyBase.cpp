@@ -27,6 +27,7 @@
 #include "NiagaraComponent.h"
 #include "Blueprint/UserWidget.h"
 #include "GameFramework/GameStateBase.h"
+#include "Items/GoldPickup.h"
 
 AEnemyBase::AEnemyBase()
 {
@@ -594,7 +595,7 @@ void AEnemyBase::Die()
 	{
 		RemoveFreeze();
 	}
-	
+
 	EnemyState = EEnemyState::EES_Dead;
 
 	// 播放死亡音效
@@ -608,6 +609,9 @@ void AEnemyBase::Die()
 	{
 		PlayAnimMontage(DeathMontage);
 	}
+
+	// 生成金币掉落物
+	SpawnGoldDrop();
 
 	// 隐藏血条
 	HideHealthBar();
@@ -1519,4 +1523,97 @@ void AEnemyBase::ApplyAttackStatusEffects(AActor* Target)
 				Config.TriggerChance);
 		}
 	}
+}
+
+// ========== 金币掉落系统实现 ==========
+
+void AEnemyBase::SpawnGoldDrop()
+{
+	// 如果没有设置金币掉落类，则不生成
+	if (!GoldPickupClass)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[%s] SpawnGoldDrop - No GoldPickupClass set, skipping drop"), *GetName());
+		return;
+	}
+
+	// 如果掉落范围为0，则不生成
+	if (GoldDropMax <= 0)
+	{
+		return;
+	}
+
+	// 计算总金币数量
+	const int32 TotalGold = FMath::RandRange(GoldDropMin, GoldDropMax);
+	if (TotalGold <= 0)
+	{
+		return;
+	}
+
+	// 确保掉落数量至少为1
+	const int32 ActualDropCount = FMath::Max(1, GoldDropCount);
+
+	// 计算每个掉落物的金币数量
+	TArray<int32> GoldPerDrop;
+	GoldPerDrop.SetNum(ActualDropCount);
+
+	// 分配金币到各个掉落物
+	int32 RemainingGold = TotalGold;
+	for (int32 i = 0; i < ActualDropCount; ++i)
+	{
+		if (i == ActualDropCount - 1)
+		{
+			// 最后一个掉落物获得所有剩余金币
+			GoldPerDrop[i] = RemainingGold;
+		}
+		else
+		{
+			// 随机分配一部分金币
+			const int32 MaxForThis = FMath::Max(1, RemainingGold / (ActualDropCount - i));
+			GoldPerDrop[i] = FMath::RandRange(1, MaxForThis);
+			RemainingGold -= GoldPerDrop[i];
+		}
+	}
+
+	// 生成掉落物
+	FVector BaseLocation = GetActorLocation();
+	BaseLocation.Z += 50.0f; // 稍微抬高生成位置
+
+	for (int32 i = 0; i < ActualDropCount; ++i)
+	{
+		if (GoldPerDrop[i] <= 0)
+		{
+			continue;
+		}
+
+		// 计算散布位置
+		FVector SpawnLocation = BaseLocation;
+		if (ActualDropCount > 1 && DropSpreadRadius > 0.0f)
+		{
+			// 在圆形区域内随机散布
+			const float RandomAngle = FMath::RandRange(0.0f, 360.0f);
+			const float RandomRadius = FMath::RandRange(0.0f, DropSpreadRadius);
+			SpawnLocation.X += FMath::Cos(FMath::DegreesToRadians(RandomAngle)) * RandomRadius;
+			SpawnLocation.Y += FMath::Sin(FMath::DegreesToRadians(RandomAngle)) * RandomRadius;
+		}
+
+		// 生成金币掉落物
+		FActorSpawnParameters SpawnParams;
+		SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
+
+		AGoldPickup* GoldPickup = GetWorld()->SpawnActor<AGoldPickup>(
+			GoldPickupClass,
+			SpawnLocation,
+			FRotator::ZeroRotator,
+			SpawnParams
+		);
+
+		if (GoldPickup)
+		{
+			GoldPickup->SetGoldAmount(GoldPerDrop[i]);
+			UE_LOG(LogTemp, Log, TEXT("[%s] Spawned gold pickup with %d gold at %s"),
+				*GetName(), GoldPerDrop[i], *SpawnLocation.ToString());
+		}
+	}
+
+	UE_LOG(LogTemp, Log, TEXT("[%s] Dropped %d gold in %d pickup(s)"), *GetName(), TotalGold, ActualDropCount);
 }

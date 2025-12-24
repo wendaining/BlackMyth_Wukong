@@ -15,6 +15,7 @@ class UTargetingComponent;
 class UTeamComponent;
 class UStatusEffectComponent;
 class UInventoryComponent;
+class UWalletComponent;
 class UWukongAnimInstance;
 class UPlayerHUDWidget;
 class ANPCCharacter;
@@ -22,6 +23,7 @@ class UInteractionPromptWidget;
 class APotionActor;
 class USpringArmComponent;
 class UCameraComponent;
+class AGoldPickup;
 struct FInputActionValue;
 
 // 角色状态枚举
@@ -153,6 +155,10 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Inventory")
 	UInventoryComponent* GetInventoryComponent() const { return InventoryComponent; }
 
+	/** 获取金币组件 */
+	UFUNCTION(BlueprintPure, Category = "Wallet")
+	UWalletComponent* GetWalletComponent() const { return WalletComponent; }
+
 	// ========== 药瓶系统 ==========
 
 	/** 当前使用的药瓶 Actor（喝药动画中生成） */
@@ -254,6 +260,10 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UInputAction> ToggleInventoryAction;
 
+	/** 拾取输入动作 (F键) */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input", meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<UInputAction> PickupAction;
+
 	// ========== 组件 ==========
 
 	/** 生命值组件 */
@@ -287,6 +297,10 @@ protected:
 	/** 背包组件（管理物品和消耗品） */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	TObjectPtr<UInventoryComponent> InventoryComponent;
+
+	/** 金币组件（管理玩家金币） */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
+	TObjectPtr<UWalletComponent> WalletComponent;
 
 	// ========== 移动属性 ==========
 	
@@ -752,6 +766,18 @@ public:
 	/** 当前可交互的Actor */
 	UPROPERTY()
 	AActor* CurrentInteractable;
+
+	/** 当前可拾取的金币 */
+	UPROPERTY()
+	TArray<AGoldPickup*> NearbyGolds;
+
+	/** 设置附近金币（由GoldPickup调用） */
+	UFUNCTION(BlueprintCallable, Category = "Pickup")
+	void SetNearbyGold(AGoldPickup* Gold);
+
+	/** 尝试拾取（按F键时调用） */
+	UFUNCTION(BlueprintCallable, Category = "Pickup")
+	void TryPickup();
 
 protected:
 	/** 交互提示UI实例 */

@@ -53,6 +53,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "HUD")
 	void SetComboVisible(bool bVisible);
 
+	/** 更新金币显示 */
+	UFUNCTION(BlueprintCallable, Category = "HUD")
+	void UpdateGoldDisplay(int32 NewGold);
+
 	/** 触发技能冷却显示（按槽位索引） */
 	UFUNCTION(BlueprintCallable, Category = "HUD|Skill")
 	void TriggerSkillCooldown(int32 SlotIndex, float CooldownDuration);
@@ -107,6 +111,10 @@ protected:
 	/** 连击计数文本 - 蓝图中必须有同名 TextBlock（可选） */
 	UPROPERTY(meta = (BindWidgetOptional))
 	UTextBlock* ComboText;
+
+	/** 金币显示文本 - 蓝图中必须有同名 TextBlock（可选） */
+	UPROPERTY(meta = (BindWidgetOptional))
+	UTextBlock* GoldText;
 
 	/** 技能栏 Widget - 蓝图中必须有同名 Widget（可选） */
 	UPROPERTY(meta = (BindWidgetOptional))

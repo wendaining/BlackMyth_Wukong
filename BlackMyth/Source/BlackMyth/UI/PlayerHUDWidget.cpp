@@ -180,6 +180,14 @@ void UPlayerHUDWidget::SetComboVisible(bool bVisible)
 	}
 }
 
+void UPlayerHUDWidget::UpdateGoldDisplay(int32 NewGold)
+{
+	if (GoldText)
+	{
+		GoldText->SetText(FText::FromString(FString::Printf(TEXT("%d"), NewGold)));
+	}
+}
+
 void UPlayerHUDWidget::HideCombo()
 {
 	if (ComboText)

@@ -473,6 +473,32 @@ public:
 	UPROPERTY()
 	TObjectPtr<UNiagaraComponent> ActiveFreezeEffectComponent;
 
+	// ========== 金币掉落配置 ==========
+
+	/** 最小金币掉落数量 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Loot")
+	int32 GoldDropMin = 5;
+
+	/** 最大金币掉落数量 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Loot")
+	int32 GoldDropMax = 15;
+
+	/** 金币掉落物蓝图类（在蓝图中设置） */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Loot")
+	TSubclassOf<class AGoldPickup> GoldPickupClass;
+
+	/** 金币掉落数量（1-3个掉落物） */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Loot")
+	int32 GoldDropCount = 1;
+
+	/** 掉落物散布半径 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Loot")
+	float DropSpreadRadius = 50.0f;
+
+	/** 生成金币掉落物 */
+	UFUNCTION(BlueprintCallable, Category = "Loot")
+	void SpawnGoldDrop();
+
 	// ========== 存档数据 ==========
 
 	/** 生成存档数据 */

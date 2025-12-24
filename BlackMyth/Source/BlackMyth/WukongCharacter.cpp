@@ -19,6 +19,8 @@
 #include "Components/SceneStateComponent.h"
 #include "Components/StatusEffectComponent.h"
 #include "Components/InventoryComponent.h"
+#include "Components/WalletComponent.h"
+#include "Items/GoldPickup.h"
 #include "Combat/TraceHitboxComponent.h"
 #include "Dialogue/DialogueComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
@@ -83,6 +85,9 @@ AWukongCharacter::AWukongCharacter()
 
     // 创建背包组件（管理物品和消耗品）
     InventoryComponent = CreateDefaultSubobject<UInventoryComponent>(TEXT("InventoryComponent"));
+
+    // 创建金币组件（管理玩家金币）
+    WalletComponent = CreateDefaultSubobject<UWalletComponent>(TEXT("WalletComponent"));
 
     // 所有动画资产和输入动作都应在蓝图类 (BP_Wukong) 中设置
     // 不在 C++ 构造函数中硬编码加载路径，以便于在编辑器中灵活配置
@@ -197,6 +202,15 @@ void AWukongCharacter::BeginPlay()
                     UE_LOG(LogTemp, Log, TEXT("[Wukong] PlayerHUD bound to StatusEffectComponent"));
                 }
 
+                // 绑定金币变化事件到 HUD（用于显示金币数量）
+                if (WalletComponent)
+                {
+                    WalletComponent->OnGoldChanged.AddDynamic(PlayerHUD, &UPlayerHUDWidget::UpdateGoldDisplay);
+                    // 初始化金币显示
+                    PlayerHUD->UpdateGoldDisplay(WalletComponent->GetGold());
+                    UE_LOG(LogTemp, Log, TEXT("[Wukong] PlayerHUD bound to WalletComponent, initial gold: %d"), WalletComponent->GetGold());
+                }
+
                 UE_LOG(LogTemp, Log, TEXT("[Wukong] PlayerHUD created and initialized"));
             }
         }
@@ -208,6 +222,7 @@ void AWukongCharacter::BeginPlay()
 
     // 初始化交互系统
     NearbyNPC = nullptr;
+    NearbyGolds.Empty();  // 清空附近金币数组
     InteractionPromptWidget = nullptr;
     InteractionCheckTimer = 0.0f;
 
@@ -436,6 +451,18 @@ void AWukongCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCom
         {
             UE_LOG(LogTemp, Warning, TEXT("  ToggleInventoryAction is NULL! Inventory (Tab) will not work! Assign IA_ToggleInventory in BP_Wukong."));
         }
+
+        // 绑定拾取Action（F键）
+        if (PickupAction)
+        {
+            EnhancedInputComponent->BindAction(PickupAction, ETriggerEvent::Started, this, &AWukongCharacter::TryPickup);
+            UE_LOG(LogTemp, Warning, TEXT("  Bound PickupAction (F) to TryPickup"));
+        }
+        else
+        {
+            UE_LOG(LogTemp, Warning, TEXT("  PickupAction is NULL! Pickup (F) will not work! Assign IA_Pickup in BP_Wukong."));
+        }
+
         EnhancedInputComponent->BindAction(TempleAction, ETriggerEvent::Started,
         this, &AWukongCharacter::OnTempleInteract);
         UE_LOG(LogTemp, Error,
@@ -2418,6 +2445,88 @@ void AWukongCharacter::HideInteractionPrompt()
 	if (InteractionPromptWidget)
 	{
 		InteractionPromptWidget->HidePrompt();
+	}
+}
+
+// ========== 金币拾取系统 ==========
+
+void AWukongCharacter::SetNearbyGold(AGoldPickup* Gold)
+{
+	if (Gold)
+	{
+		// 添加金币（避免重复添加）
+		if (!NearbyGolds.Contains(Gold))
+		{
+			NearbyGolds.Add(Gold);
+			UE_LOG(LogTemp, Log, TEXT("[Pickup] Added gold to list, total: %d"), NearbyGolds.Num());
+		}
+
+		// 确保交互提示Widget已创建
+		if (!InteractionPromptWidget && InteractionPromptWidgetClass)
+		{
+			if (APlayerController* PC = Cast<APlayerController>(GetController()))
+			{
+				InteractionPromptWidget = CreateWidget<UInteractionPromptWidget>(PC, InteractionPromptWidgetClass);
+				if (InteractionPromptWidget)
+				{
+					InteractionPromptWidget->AddToViewport(100);
+				}
+			}
+		}
+
+		// 显示"按F拾取"提示（仅当没有NPC在附近时，显示金币数量）
+		if (!NearbyNPC && InteractionPromptWidget && NearbyGolds.Num() > 0)
+		{
+			FString PromptText = FString::Printf(TEXT("按 [F] 拾取 (%d)"), NearbyGolds.Num());
+			InteractionPromptWidget->ShowPrompt(FText::FromString(PromptText));
+			UE_LOG(LogTemp, Log, TEXT("[Pickup] Showing pickup prompt: %s"), *PromptText);
+		}
+	}
+	else
+	{
+		// Gold 为 nullptr 时不做移除（因为金币被销毁时会自己清理）
+		// 只处理 UI 显示
+		if (NearbyGolds.Num() == 0 && !NearbyNPC && InteractionPromptWidget)
+		{
+			InteractionPromptWidget->HidePrompt();
+			UE_LOG(LogTemp, Log, TEXT("[Pickup] Hiding pickup prompt"));
+		}
+	}
+}
+
+void AWukongCharacter::TryPickup()
+{
+	UE_LOG(LogTemp, Log, TEXT("[Pickup] TryPickup called, NearbyGolds count: %d"), NearbyGolds.Num());
+
+	// 对话中不能拾取
+	if (bIsInDialogue)
+	{
+		UE_LOG(LogTemp, Log, TEXT("[Pickup] Blocked - in dialogue"));
+		return;
+	}
+
+	// 拾取所有附近的金币
+	if (NearbyGolds.Num() > 0)
+	{
+		UE_LOG(LogTemp, Log, TEXT("[Pickup] Picking up %d golds"), NearbyGolds.Num());
+
+		// 遍历所有金币并开始吸附
+		for (AGoldPickup* Gold : NearbyGolds)
+		{
+			if (Gold && IsValid(Gold))
+			{
+				Gold->StartAttract();
+			}
+		}
+
+		// 清空数组（金币会在吸附完成后销毁自己）
+		NearbyGolds.Empty();
+
+		// 隐藏提示
+		if (InteractionPromptWidget)
+		{
+			InteractionPromptWidget->HidePrompt();
+		}
 	}
 }
 

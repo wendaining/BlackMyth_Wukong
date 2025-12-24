@@ -28,7 +28,7 @@ void UInventoryComponent::BeginPlay()
 		FItemSlot HealthPotionSlot;
 		HealthPotionSlot.ItemType = EItemType::HealthPotion;
 		HealthPotionSlot.CurrentCount = 3;
-		HealthPotionSlot.MaxCount = 3;
+		HealthPotionSlot.MaxCount = 5;  // 允许购买更多
 		HealthPotionSlot.EffectValue = 50.0f;  // 回复50点血
 		HealthPotionSlot.EffectDuration = 0.0f;
 		HealthPotionSlot.DisplayName = FText::FromString(TEXT("血药"));
@@ -38,7 +38,7 @@ void UInventoryComponent::BeginPlay()
 		FItemSlot StaminaPotionSlot;
 		StaminaPotionSlot.ItemType = EItemType::StaminaPotion;
 		StaminaPotionSlot.CurrentCount = 2;
-		StaminaPotionSlot.MaxCount = 2;
+		StaminaPotionSlot.MaxCount = 5;  // 允许购买更多
 		StaminaPotionSlot.EffectValue = 50.0f;  // 回复50点体力
 		StaminaPotionSlot.EffectDuration = 0.0f;
 		StaminaPotionSlot.DisplayName = FText::FromString(TEXT("体力药"));
@@ -48,7 +48,7 @@ void UInventoryComponent::BeginPlay()
 		FItemSlot AttackBuffSlot;
 		AttackBuffSlot.ItemType = EItemType::AttackBuff;
 		AttackBuffSlot.CurrentCount = 1;
-		AttackBuffSlot.MaxCount = 1;
+		AttackBuffSlot.MaxCount = 3;  // 允许购买更多
 		AttackBuffSlot.EffectValue = 1.3f;      // 攻击力提升30%
 		AttackBuffSlot.EffectDuration = 10.0f;  // 持续10秒
 		AttackBuffSlot.DisplayName = FText::FromString(TEXT("怒火丹"));
@@ -58,7 +58,7 @@ void UInventoryComponent::BeginPlay()
 		FItemSlot DefenseBuffSlot;
 		DefenseBuffSlot.ItemType = EItemType::DefenseBuff;
 		DefenseBuffSlot.CurrentCount = 1;
-		DefenseBuffSlot.MaxCount = 1;
+		DefenseBuffSlot.MaxCount = 3;  // 允许购买更多
 		DefenseBuffSlot.EffectValue = 0.5f;     // 受伤减免50%
 		DefenseBuffSlot.EffectDuration = 10.0f; // 持续10秒
 		DefenseBuffSlot.DisplayName = FText::FromString(TEXT("金刚丹"));
@@ -245,4 +245,29 @@ void UInventoryComponent::ApplyItemEffect(const FItemSlot& Item)
 	default:
 		break;
 	}
+}
+
+bool UInventoryComponent::AddItemByType(EItemType Type, int32 Amount)
+{
+	// 查找对应类型的槽位
+	for (int32 i = 0; i < ItemSlots.Num(); i++)
+	{
+		if (ItemSlots[i].ItemType == Type)
+		{
+			// 计算可添加的数量
+			int32 SpaceLeft = ItemSlots[i].MaxCount - ItemSlots[i].CurrentCount;
+			if (SpaceLeft <= 0)
+			{
+				return false;  // 已满
+			}
+
+			int32 ActualAdd = FMath::Min(Amount, SpaceLeft);
+			ItemSlots[i].CurrentCount += ActualAdd;
+
+			// 广播数量变化
+			OnItemCountChanged.Broadcast(i, ItemSlots[i].CurrentCount);
+			return true;
+		}
+	}
+	return false;  // 未找到对应槽位
 }
