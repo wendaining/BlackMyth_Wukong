@@ -83,6 +83,12 @@ public:
     UFUNCTION()
     void OnInteract_Implementation(AActor* Interactor);
 
+    /**
+     * 保存重生点到GameInstance
+     * @param Player 玩家角色
+     */
+    void SaveRespawnPoint(class AWukongCharacter* Player);
+
     // 土地庙唯一标识符，用于传送系统
     UPROPERTY(EditAnywhere, BlueprintReadOnly)
     FName TempleID;

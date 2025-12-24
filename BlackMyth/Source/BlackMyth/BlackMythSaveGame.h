@@ -114,6 +114,23 @@ class BLACKMYTH_API UBlackMythSaveGame : public USaveGame {
 
   // 敌人数据
   UPROPERTY()
-
   TArray<FEnemySaveData> Enemies;
+
+  // ========== 重生点数据 ==========
+  
+  /** 是否有已保存的重生点 */
+  UPROPERTY(VisibleAnywhere, Category = "Respawn")
+  bool bHasRespawnPoint = false;
+
+  /** 重生点位置 */
+  UPROPERTY(VisibleAnywhere, Category = "Respawn")
+  FVector RespawnLocation = FVector::ZeroVector;
+
+  /** 重生点旋转 */
+  UPROPERTY(VisibleAnywhere, Category = "Respawn")
+  FRotator RespawnRotation = FRotator::ZeroRotator;
+
+  /** 重生点所属的Temple ID */
+  UPROPERTY(VisibleAnywhere, Category = "Respawn")
+  FName RespawnTempleID = NAME_None;
 };
