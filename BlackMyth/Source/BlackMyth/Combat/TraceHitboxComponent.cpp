@@ -31,6 +31,9 @@ void UTraceHitboxComponent::BeginPlay()
 	DamageInfo.Instigator = GetOwner();
 	DamageInfo.DamageCauser = GetOwner();
 
+	// [Fix] 强制关闭调试线 (用户反馈有绿色线条)
+	bDebugDraw = false;
+
 	// 缓存骨骼网格体组件
 	if (ACharacter* OwnerChar = Cast<ACharacter>(GetOwner()))
 	{
@@ -219,10 +222,10 @@ void UTraceHitboxComponent::PerformTrace()
 			}
 
 			// 调试绘制
-			if (bDebugDraw)
-			{
-				DrawDebugLine(GetWorld(), TipStart, TipEnd, bHit ? DebugColorHit : DebugColorMiss, false, DebugDrawDuration, 0, 2.0f);
-			}
+			// if (bDebugDraw)
+			// {
+			// 	DrawDebugLine(GetWorld(), TipStart, TipEnd, bHit ? DebugColorHit : DebugColorMiss, false, DebugDrawDuration, 0, 2.0f);
+			// }
 		}
 	}
 	else
@@ -240,10 +243,10 @@ void UTraceHitboxComponent::PerformTrace()
 		);
 
 		// 绘制调试
-		if (bDebugDraw)
-		{
-			DrawDebugTrace(CurrentStart, CurrentEnd, bHit);
-		}
+		// if (bDebugDraw)
+		// {
+		// 	DrawDebugTrace(CurrentStart, CurrentEnd, bHit);
+		// }
 	}
 
 	// 处理命中结果

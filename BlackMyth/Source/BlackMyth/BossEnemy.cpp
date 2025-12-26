@@ -20,8 +20,8 @@ ABossEnemy::ABossEnemy()
 	ChasingSpeed = 600.0f;
 	PatrollingSpeed = 300.0f;
 	
-	// 增加攻击范围 (三尖两刃刀的距离感)
-	AttackRadius = 350.0f;
+	// 增加攻击范围 (三尖两刃刀的距离感) - [User Request] 增加攻击判定距离
+	AttackRadius = 550.0f;
 	
 	// 缩短反应时间 (人到立即出招)
 	AttackMin = 0.1f;
@@ -107,8 +107,10 @@ void ABossEnemy::Tick(float DeltaTime)
 				{
 					FAIMoveRequest MoveRequest;
 					MoveRequest.SetGoalActor(CombatTarget);
-					// [Tuning] 接受半径设为攻击范围略小一点，确保进入攻击判定线
-					MoveRequest.SetAcceptanceRadius(AttackRadius - 30.0f); 
+					// [Fix] 减小接受半径，防止 MoveTo 因为胶囊体碰撞(Surface Distance)提前认为到达，
+					// 而导致 Center-to-Center 的 AttackRadius 判定无法通过的问题。
+					// 这里的 50.0f 只是给导航一个足够近的目标，真正的刹车逻辑由下方的 StopMovement() 控制。
+					MoveRequest.SetAcceptanceRadius(50.0f); 
 					AIController->MoveTo(MoveRequest);
 				}
 			}
