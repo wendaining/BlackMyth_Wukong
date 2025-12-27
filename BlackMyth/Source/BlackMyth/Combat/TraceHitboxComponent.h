@@ -153,7 +153,7 @@ protected:
 	/** 绘制调试信息 */
 	void DrawDebugTrace(const FVector& Start, const FVector& End, bool bHit);
 
-protected:
+public:
 	// ========== Socket 配置 ==========
 
 	/** 武器起点 Socket/Bone 名称（握把位置） */
@@ -212,7 +212,7 @@ protected:
 
 	/** 是否绘制调试信息 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TraceHitbox|Debug")
-	bool bDebugDraw = true;
+	bool bDebugDraw = false;
 
 	/** 调试颜色 - 未命中 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TraceHitbox|Debug")
@@ -225,6 +225,20 @@ protected:
 	/** 调试绘制持续时间（0 = 一帧） */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TraceHitbox|Debug")
 	float DebugDrawDuration = 0.0f;
+
+	// ========== 音效 ==========
+
+	/** 命中音效 (Weapon Impact) - 当武器击中目标时播放 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TraceHitbox|Audio")
+	TObjectPtr<USoundBase> HitImpactSound;
+
+	/** 挥舞音效 (Weapon Swing) - 当开始攻击/激活判定时播放 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TraceHitbox|Audio")
+	TObjectPtr<USoundBase> SwingSound;
+
+	/** 设置要进行扫描的网格体组件 (支持 StaticMesh 或 SkeletalMesh) */
+	UFUNCTION(BlueprintCallable, Category = "TraceHitbox|Config")
+	void SetMeshToTrace(USceneComponent* NewMesh);
 
 private:
 	/** 是否正在扫描 */
@@ -247,7 +261,7 @@ private:
 	UPROPERTY()
 	TWeakObjectPtr<UCombatComponent> CachedCombatComponent;
 
-	/** 缓存的骨骼网格体组件 */
+	/** 缓存的网格体组件 (改为 SceneComponent 以支持 StaticMesh) */
 	UPROPERTY()
-	TWeakObjectPtr<USkeletalMeshComponent> CachedMesh;
+	TWeakObjectPtr<USceneComponent> CachedMesh;
 };

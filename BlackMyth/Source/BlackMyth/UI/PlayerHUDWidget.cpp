@@ -1,12 +1,18 @@
 // 玩家 HUD Widget 实现
 
 #include "PlayerHUDWidget.h"
+#include "StatusEffectIconWidget.h"
+#include "SkillBarWidget.h"
+#include "InventoryBarWidget.h"
 #include "Components/ProgressBar.h"
 #include "Components/TextBlock.h"
+#include "Components/HorizontalBox.h"
+#include "Components/HorizontalBoxSlot.h"
 #include "GameFramework/Character.h"
 #include "TimerManager.h"
 #include "../Components/HealthComponent.h"
 #include "../Components/StaminaComponent.h"
+#include "../Components/StatusEffectComponent.h"
 
 void UPlayerHUDWidget::NativeConstruct()
 {
@@ -25,17 +31,28 @@ void UPlayerHUDWidget::NativeConstruct()
 	{
 		ComboText->SetVisibility(ESlateVisibility::Collapsed);
 	}
+
+	// 默认隐藏背包栏
+	if (InventoryBar)
+	{
+		InventoryBar->SetVisibility(ESlateVisibility::Collapsed);
+	}
 }
 
 void UPlayerHUDWidget::NativeDestruct()
 {
 	UnbindComponentDelegates();
-	
+	UnbindStatusEffectDelegates();
+
 	// 清除计时器
 	if (GetWorld())
 	{
 		GetWorld()->GetTimerManager().ClearTimer(ComboHideTimerHandle);
 	}
+
+	// 清除所有状态效果图标
+	ActiveEffectIcons.Empty();
+	EffectTotalDurations.Empty();
 
 	Super::NativeDestruct();
 }
@@ -163,6 +180,14 @@ void UPlayerHUDWidget::SetComboVisible(bool bVisible)
 	}
 }
 
+void UPlayerHUDWidget::UpdateGoldDisplay(int32 NewGold)
+{
+	if (GoldText)
+	{
+		GoldText->SetText(FText::FromString(FString::Printf(TEXT("%d"), NewGold)));
+	}
+}
+
 void UPlayerHUDWidget::HideCombo()
 {
 	if (ComboText)
@@ -170,3 +195,159 @@ void UPlayerHUDWidget::HideCombo()
 		ComboText->SetVisibility(ESlateVisibility::Collapsed);
 	}
 }
+
+void UPlayerHUDWidget::TriggerSkillCooldown(int32 SlotIndex, float CooldownDuration)
+{
+	if (SkillBar)
+	{
+		SkillBar->TriggerSkillCooldown(SlotIndex, CooldownDuration);
+	}
+}
+
+void UPlayerHUDWidget::TriggerSkillCooldownByName(const FString& SkillName, float CooldownDuration)
+{
+	if (SkillBar)
+	{
+		SkillBar->TriggerSkillCooldownByName(SkillName, CooldownDuration);
+	}
+}
+
+// ========== 状态效果相关实现 ==========
+
+void UPlayerHUDWidget::BindStatusEffectComponent(UStatusEffectComponent* StatusEffectComponent)
+{
+	if (!StatusEffectComponent)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("PlayerHUDWidget::BindStatusEffectComponent - StatusEffectComponent is null!"));
+		return;
+	}
+
+	// 解绑旧组件
+	UnbindStatusEffectDelegates();
+
+	// 缓存组件引用
+	CachedStatusEffectComponent = StatusEffectComponent;
+
+	// 绑定委托
+	StatusEffectComponent->OnEffectApplied.AddDynamic(this, &UPlayerHUDWidget::AddStatusEffectIcon);
+	StatusEffectComponent->OnEffectRemoved.AddDynamic(this, &UPlayerHUDWidget::RemoveStatusEffectIcon);
+	StatusEffectComponent->OnEffectUpdated.AddDynamic(this, &UPlayerHUDWidget::UpdateStatusEffectDuration);
+
+	UE_LOG(LogTemp, Log, TEXT("PlayerHUDWidget: Bound to StatusEffectComponent"));
+}
+
+void UPlayerHUDWidget::UnbindStatusEffectDelegates()
+{
+	if (CachedStatusEffectComponent.IsValid())
+	{
+		CachedStatusEffectComponent->OnEffectApplied.RemoveDynamic(this, &UPlayerHUDWidget::AddStatusEffectIcon);
+		CachedStatusEffectComponent->OnEffectRemoved.RemoveDynamic(this, &UPlayerHUDWidget::RemoveStatusEffectIcon);
+		CachedStatusEffectComponent->OnEffectUpdated.RemoveDynamic(this, &UPlayerHUDWidget::UpdateStatusEffectDuration);
+	}
+}
+
+void UPlayerHUDWidget::AddStatusEffectIcon(EStatusEffectType EffectType, float Duration)
+{
+	// 检查容器是否存在
+	if (!StatusEffectContainer)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("PlayerHUDWidget::AddStatusEffectIcon - StatusEffectContainer is null!"));
+		return;
+	}
+
+	// 检查是否已经有这个效果的图标（如有则更新持续时间）
+	if (ActiveEffectIcons.Contains(EffectType))
+	{
+		// 刷新总持续时间
+		EffectTotalDurations.Add(EffectType, Duration);
+		UE_LOG(LogTemp, Log, TEXT("PlayerHUDWidget: Refreshed effect icon for type %d, duration: %.1f"), static_cast<int32>(EffectType), Duration);
+		return;
+	}
+
+	// 检查图标类是否设置
+	if (!StatusEffectIconClass)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("PlayerHUDWidget::AddStatusEffectIcon - StatusEffectIconClass is not set!"));
+		return;
+	}
+
+	// 创建新的图标 Widget
+	UStatusEffectIconWidget* NewIcon = CreateWidget<UStatusEffectIconWidget>(this, StatusEffectIconClass);
+	if (!NewIcon)
+	{
+		UE_LOG(LogTemp, Error, TEXT("PlayerHUDWidget::AddStatusEffectIcon - Failed to create icon widget!"));
+		return;
+	}
+
+	// 设置效果类型
+	NewIcon->SetEffectType(EffectType);
+
+	// 添加到容器
+	UHorizontalBoxSlot* IconSlot = StatusEffectContainer->AddChildToHorizontalBox(NewIcon);
+	if (IconSlot)
+	{
+		// 设置间距
+		IconSlot->SetPadding(FMargin(5.0f, 0.0f, 5.0f, 0.0f));
+	}
+
+	// 保存引用和持续时间
+	ActiveEffectIcons.Add(EffectType, NewIcon);
+	EffectTotalDurations.Add(EffectType, Duration);
+
+	UE_LOG(LogTemp, Log, TEXT("PlayerHUDWidget: Added effect icon for type %d, duration: %.1f"), static_cast<int32>(EffectType), Duration);
+}
+
+void UPlayerHUDWidget::RemoveStatusEffectIcon(EStatusEffectType EffectType)
+{
+	// 检查是否存在该图标
+	UStatusEffectIconWidget** FoundIcon = ActiveEffectIcons.Find(EffectType);
+	if (!FoundIcon || !(*FoundIcon))
+	{
+		return;
+	}
+
+	// 从容器中移除并销毁
+	(*FoundIcon)->RemoveFromParent();
+
+	// 从映射中移除
+	ActiveEffectIcons.Remove(EffectType);
+	EffectTotalDurations.Remove(EffectType);
+
+	UE_LOG(LogTemp, Log, TEXT("PlayerHUDWidget: Removed effect icon for type %d"), static_cast<int32>(EffectType));
+}
+
+void UPlayerHUDWidget::UpdateStatusEffectDuration(EStatusEffectType EffectType, float RemainingTime)
+{
+	// 查找图标
+	UStatusEffectIconWidget** FoundIcon = ActiveEffectIcons.Find(EffectType);
+	if (!FoundIcon || !(*FoundIcon))
+	{
+		return;
+	}
+
+	// 获取总持续时间
+	float TotalDuration = 0.0f;
+	if (float* FoundDuration = EffectTotalDurations.Find(EffectType))
+	{
+		TotalDuration = *FoundDuration;
+	}
+
+	// 更新图标显示
+	(*FoundIcon)->UpdateDuration(RemainingTime, TotalDuration);
+}
+
+// ========== 背包栏相关实现 ==========
+
+void UPlayerHUDWidget::SetInventoryVisible(bool bVisible)
+{
+	if (InventoryBar)
+	{
+		InventoryBar->SetVisibility(bVisible ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
+		UE_LOG(LogTemp, Log, TEXT("PlayerHUDWidget: Inventory visibility set to %s"), bVisible ? TEXT("Visible") : TEXT("Hidden"));
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("PlayerHUDWidget::SetInventoryVisible - InventoryBar is null!"));
+	}
+}
+

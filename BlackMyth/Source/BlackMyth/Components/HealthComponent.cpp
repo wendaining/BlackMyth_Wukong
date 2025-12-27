@@ -24,8 +24,11 @@ void UHealthComponent::TakeDamage(float Damage, AActor* Instigator)
 		return;
 	}
 
+	// 应用伤害减免
+	float FinalDamage = Damage * DamageReductionMultiplier;
+
 	float OldHealth = CurrentHealth;
-	CurrentHealth = FMath::Clamp(CurrentHealth - Damage, 0.0f, MaxHealth);
+	CurrentHealth = FMath::Clamp(CurrentHealth - FinalDamage, 0.0f, MaxHealth);
 
 	// 广播受伤事件
 	BroadcastHealthChange();
@@ -94,6 +97,21 @@ void UHealthComponent::SetHealth(float NewHealth)
 		OnDeath.Broadcast(nullptr);
 	}
 }
+
+void UHealthComponent::Revive()
+{
+	// 重置死亡状态
+	bIsDead = false;
+	
+	// 恢复满血
+	CurrentHealth = MaxHealth;
+	
+	// 广播生命值变化
+	BroadcastHealthChange();
+	
+	UE_LOG(LogTemp, Log, TEXT("[HealthComponent] Character revived with full health: %f/%f"), CurrentHealth, MaxHealth);
+}
+
 
 void UHealthComponent::Kill(AActor* Killer)
 {

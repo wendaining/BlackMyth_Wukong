@@ -3,13 +3,23 @@
 #include "CoreMinimal.h"
 #include "BlackMythCharacter.h"
 #include "Components/WidgetComponent.h"
+#include "StatusEffect/StatusEffectTypes.h"
 #include "EnemyBase.generated.h"
 
 class UBehaviorTree;
 class AAIController;
 class UHealthComponent;
 class UCombatComponent;
+class UTraceHitboxComponent;
 class UEnemyHealthBarWidget;
+class UTeamComponent;
+class UNiagaraSystem;
+class UNiagaraComponent;
+class UEnemyDodgeComponent;
+class UEnemyAlertComponent;
+class UStatusEffectComponent;
+
+struct FEnemySaveData;
 
 /**
  * 敌人状态枚举
@@ -21,9 +31,13 @@ enum class EEnemyState : uint8
 	EES_Chasing UMETA(DisplayName = "Chasing"),
 	EES_Attacking UMETA(DisplayName = "Attacking"),
 	EES_Engaged UMETA(DisplayName = "Engaged"),
+	EES_Stunned UMETA(DisplayName = "Stunned"),
+	EES_Frozen UMETA(DisplayName = "Frozen"),  // 定身状态
 	EES_Dead UMETA(DisplayName = "Dead"),
 	EES_NoState UMETA(DisplayName = "NoState")
 };
+
+struct FEnemySaveData;
 
 /**
  * 敌人基类
@@ -47,9 +61,10 @@ public:
 	 * 接收伤害接口
 	 * @param Damage 伤害数值
 	 * @param DamageInstigator 伤害来源
+	 * @param bCanBeDodged 是否允许闪避（默认true，立棍等AOE控制技能应设为false）
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Combat")
-	virtual void ReceiveDamage(float Damage, AActor* DamageInstigator);
+	virtual void ReceiveDamage(float Damage, AActor* DamageInstigator, bool bCanBeDodged = true);
 
 	/** 获取当前生命值 */
 	UFUNCTION(BlueprintPure, Category = "Stats")
@@ -61,6 +76,9 @@ public:
 
 	/** 获取行为树资源 */
 	UBehaviorTree* GetBehaviorTree() const { return BehaviorTree; }
+
+	/** 开始巡逻 (公开给 AIController 调用) */
+	void StartPatrolling();
 
 protected:
 	/** 死亡处理 */
@@ -90,9 +108,6 @@ protected:
 	void HideHealthBar();
 	void ShowHealthBar();
 	
-	/** 开始巡逻 */
-	void StartPatrolling();
-	
 	/** 追逐目标 */
 	void ChaseTarget();
 	
@@ -117,9 +132,23 @@ protected:
 	bool IsInsideAttackRadius();
 	bool IsChasing();
 	bool IsAttacking();
-	bool IsDead();
 	bool IsEngaged();
 	bool InTargetRange(AActor* Target, double Radius);
+
+public:
+	bool IsDead() const;
+
+	/** 清除战斗目标（用于惟空变身时脱战） */
+	UFUNCTION(BlueprintCallable, Category = "AI")
+	void ClearCombatTarget();
+
+	/** 设置战斗目标 */
+	UFUNCTION(BlueprintCallable, Category = "AI")
+	void SetCombatTarget(AActor* NewTarget);
+
+	// 生成此敌人的Spawner名称（用于存档系统）
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Save")
+	FString SpawnerName;
 
 	// ========== 新增：头顶血条 ==========
 
@@ -156,6 +185,25 @@ protected:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	TObjectPtr<UCombatComponent> CombatComponent;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
+	TObjectPtr<UTraceHitboxComponent> TraceHitboxComponent;
+
+	/** 阵营组件（用于敌我判定，默认为敌人阵营） */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
+	TObjectPtr<UTeamComponent> TeamComponent;
+
+	// 闪避组件（敌人AI增强） 
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
+	TObjectPtr<UEnemyDodgeComponent> DodgeComponent;
+
+	// 警戒组件（敌人协同系统）
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
+	TObjectPtr<UEnemyAlertComponent> AlertComponent;
+
+	// 状态效果组件（管理中毒、减速等状态）
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
+	TObjectPtr<UStatusEffectComponent> StatusEffectComponent;
 
 	// 状态
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "State")
@@ -207,20 +255,262 @@ protected:
 	// 计时器句柄
 	FTimerHandle PatrolTimer;
 	FTimerHandle AttackTimer;
+	FTimerHandle AggroTimer;
+	FTimerHandle AttackEndTimer; // 攻击结束计时器（保底机制）
 
 	// 行为树 (保留，以备后续扩展)
 	UPROPERTY(EditAnywhere, Category = "AI")
 	TObjectPtr<UBehaviorTree> BehaviorTree;
 
-	// 动画蒙太奇 - 受击
+	/** 
+	 * 根据攻击位置播放对应的受击动画 
+	 * @param ImpactPoint 攻击者的位置或击中点
+	 */
+	void PlayHitReactMontage(const FVector& ImpactPoint);
+
+	// 动画蒙太奇 - 受击 (定向)
 	UPROPERTY(EditDefaultsOnly, Category = "Animation|Combat")
-	TObjectPtr<UAnimMontage> HitReactMontage;
+	TObjectPtr<UAnimMontage> HitReactMontage_Front;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Animation|Combat")
+	TObjectPtr<UAnimMontage> HitReactMontage_Back;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Animation|Combat")
+	TObjectPtr<UAnimMontage> HitReactMontage_Left;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Animation|Combat")
+	TObjectPtr<UAnimMontage> HitReactMontage_Right;
 
 	// 动画蒙太奇 - 死亡
 	UPROPERTY(EditDefaultsOnly, Category = "Animation|Combat")
 	TObjectPtr<UAnimMontage> DeathMontage;
 
+	// 动画蒙太奇 - 发现敌人(咆哮)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Animation|Combat")
+	TObjectPtr<UAnimMontage> AggroMontage;
+
 	// 动画蒙太奇 - 攻击
-	UPROPERTY(EditDefaultsOnly, Category = "Animation|Combat")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Animation|Combat")
 	TObjectPtr<UAnimMontage> AttackMontage;
+
+	// 动画蒙太奇 - 眩晕 (Stunned)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Animation|Combat")
+	TObjectPtr<UAnimMontage> StunMontage;
+
+	// ========== 韧性系统 (Poise) ==========
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stats|Poise")
+	float MaxPoise = 50.0f;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Stats|Poise")
+	float CurrentPoise;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stats|Poise")
+	float PoiseRecoveryRate = 10.0f; // 每秒恢复量
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stats|Poise")
+	float StunDuration = 3.0f; // 眩晕持续时间
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stats|Poise")
+	float PoiseRecoveryDelay = 3.0f; // 受击后多久开始恢复韧性
+
+	FTimerHandle StunTimer;
+	double LastHitTime = 0.0; // 上次受击时间
+
+	// ========== 音效 (SFX) ==========
+
+	// 眩晕时的音效
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Audio")
+	TObjectPtr<USoundBase> StunSound;
+
+	// 发现敌人时的咆哮声
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Audio")
+	TObjectPtr<USoundBase> AggroSound;
+
+	// 攻击时的挥舞声/吼叫声
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Audio")
+	TObjectPtr<USoundBase> AttackSound;
+
+	// 受击时的声音
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Audio")
+	TObjectPtr<USoundBase> HitSound;
+
+	// 死亡时的声音
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Audio")
+	TObjectPtr<USoundBase> DeathSound;
+
+	// 攻击命中时的声音 (Impact)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Audio")
+	TObjectPtr<USoundBase> AttackImpactSound;
+
+	// ========== 武器系统 (Weapon) ==========
+
+	/** 武器蓝图类 (可选) - 如果设置，将在 BeginPlay 时生成并附加到手中 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat|Weapon")
+	TSubclassOf<AActor> WeaponClass;
+
+	/** 武器附加的 Socket 名称 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat|Weapon")
+	FName WeaponSocketName = FName("weapon_r");
+
+	/** 当前持有的武器实例 */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Combat|Weapon")
+	TObjectPtr<AActor> CurrentWeapon;
+
+	// ========== 状态效果攻击配置 ==========
+
+	/** 攻击附带的状态效果列表（可在蓝图中配置多个效果） */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat|StatusEffect")
+	TArray<FStatusEffectConfig> AttackStatusEffects;
+
+	/** 获取状态效果组件 */
+	UFUNCTION(BlueprintPure, Category = "StatusEffect")
+	UStatusEffectComponent* GetStatusEffectComponent() const { return StatusEffectComponent; }
+
+	/**
+	 * 对目标施加攻击附带的状态效果
+	 * @param Target 目标Actor（需要拥有StatusEffectComponent）
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Combat|StatusEffect")
+	void ApplyAttackStatusEffects(AActor* Target);
+
+public:
+	/** 发现目标时调用 */
+	void OnTargetSensed(AActor* Target);
+
+	bool IsStunned();
+
+	// ========== 定身术系统 ==========
+
+	/**
+	 * 施加定身效果
+	 * @param Duration 定身持续时间（秒）
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Combat|Freeze")
+	void ApplyFreeze(float Duration);
+
+	/**
+	 * 解除定身效果
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Combat|Freeze")
+	void RemoveFreeze();
+
+	/**
+	 * 检查是否处于定身状态
+	 */
+	UFUNCTION(BlueprintPure, Category = "Combat|Freeze")
+	bool IsFrozen() const { return bIsFrozen; }
+
+protected:
+	/** 咆哮结束，开始追击 */
+	void StartChasingAfterAggro();
+
+	/** 眩晕结束 */
+	void StunEnd();
+
+	bool bHasAggroed = false;
+
+	// ========== 定身术系统 (内部实现) ==========
+
+	/** 是否处于定身状态 */
+	bool bIsFrozen = false;
+
+	/** 定身前的状态（用于解除后恢复） */
+	EEnemyState StateBeforeFreeze = EEnemyState::EES_NoState;
+
+	/** 定身时保存的动画播放位置 */
+	float FrozenAnimPosition = 0.0f;
+
+	/** 定身前的移动速度 */
+	float MovementSpeedBeforeFreeze = 0.0f;
+
+	/** 定身前所使用的覆盖材质 (用于解除后恢复，比如二郎神二阶段的红光) */
+	UPROPERTY()
+	TObjectPtr<UMaterialInterface> OriginalOverlayMaterial;
+
+	/** 定身计时器句柄 */
+	FTimerHandle FreezeTimer;
+
+	/** 内部定身处理函数 */
+	void OnFreezeTimerExpired();
+
+public:
+	// ========== 定身术 UI 与特效 ==========
+
+	/** 定身"定"字 Widget 组件（头顶显示） */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "UI|Freeze")
+	TObjectPtr<UWidgetComponent> FreezeTextWidgetComponent;
+
+	/** 定身文字 Widget 类（在蓝图中设置） */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "UI|Freeze")
+	TSubclassOf<UUserWidget> FreezeTextWidgetClass;
+
+	/** 定身"定"字距离头顶的高度偏移 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "UI|Freeze")
+	float FreezeTextHeightOffset = 180.0f;
+
+	/** 定身时播放的音效 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Audio|Freeze")
+	TObjectPtr<USoundBase> FreezeSound;
+
+	/** 定身解除时播放的音效 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Audio|Freeze")
+	TObjectPtr<USoundBase> UnfreezeSound;
+
+	/** 定身由于叠加覆盖产生的“金光”材质 (Overlay Material) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "FX|Freeze")
+	TObjectPtr<UMaterialInterface> FreezeOverlayMaterial;
+
+	/** 定身时播放的粒子特效（Niagara） */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "FX|Freeze")
+	TObjectPtr<UNiagaraSystem> FreezeEffect;
+
+	/** 定身解除时播放的粒子特效（Niagara） */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "FX|Freeze")
+	TObjectPtr<UNiagaraSystem> UnfreezeEffect;
+
+	/** 定身持续特效组件引用（用于解除时销毁） */
+	UPROPERTY()
+	TObjectPtr<UNiagaraComponent> ActiveFreezeEffectComponent;
+
+	// ========== 金币掉落配置 ==========
+
+	/** 最小金币掉落数量 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Loot")
+	int32 GoldDropMin = 5;
+
+	/** 最大金币掉落数量 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Loot")
+	int32 GoldDropMax = 15;
+
+	/** 金币掉落物蓝图类（在蓝图中设置） */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Loot")
+	TSubclassOf<class AGoldPickup> GoldPickupClass;
+
+	/** 金币掉落数量（1-3个掉落物） */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Loot")
+	int32 GoldDropCount = 1;
+
+	/** 掉落物散布半径 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Loot")
+	float DropSpreadRadius = 50.0f;
+
+	/** 生成金币掉落物 */
+	UFUNCTION(BlueprintCallable, Category = "Loot")
+	void SpawnGoldDrop();
+
+	// ========== 存档数据 ==========
+
+	/** 生成存档数据 */
+	void WriteEnemySaveData(struct FEnemySaveData& OutData) const;
+
+	/** 从存档数据恢复 */
+	void LoadEnemySaveData(const struct FEnemySaveData& InData);
+
+	/** 刷怪时初始化敌人属性 */
+	UFUNCTION(BlueprintCallable)
+	virtual void InitEnemy(int32 InLevel, bool bIsFromSave = false);
+
+	UPROPERTY()
+	FGuid EnemyID;
 };

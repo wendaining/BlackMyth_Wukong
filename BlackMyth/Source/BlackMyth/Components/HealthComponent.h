@@ -83,6 +83,10 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Health")
 	bool IsFullHealth() const { return CurrentHealth >= MaxHealth; }
 
+	/** 复活（重置死亡状态并恢复血量） */
+	UFUNCTION(BlueprintCallable, Category = "Health")
+	void Revive();
+
 	// ========== 无敌状态 ==========
 
 	/** 设置无敌状态 */
@@ -116,6 +120,10 @@ public:
 	/** 最大生命值 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Health|Config")
 	float MaxHealth = 100.0f;
+
+	/** 伤害减免倍率（1.0 = 无减免，0.5 = 减免50%） */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Health|Defense")
+	float DamageReductionMultiplier = 1.0f;
 
 	/** 是否启用生命值自动恢复 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Health|Regen")

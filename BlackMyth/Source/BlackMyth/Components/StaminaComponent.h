@@ -48,7 +48,6 @@ public:
 	/** 设置是否允许恢复 */
 	UFUNCTION(BlueprintCallable, Category = "Stamina")
 	void SetCanRegenerate(bool bCanRegen);
-
 	// ========== 查询接口 ==========
 
 	/** 获取当前体力值 */
@@ -89,11 +88,11 @@ public:
 
 	/** 最大体力值 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stamina|Config")
-	float MaxStamina = 100.0f;
+	float MaxStamina = 300.0f;
 
 	/** 体力自动恢复速度（每秒恢复量） */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stamina|Config")
-	float StaminaRegenRate = 15.0f;
+	float StaminaRegenRate = 45.0f;
 
 	/** 体力恢复延迟（消耗体力后多久开始恢复） */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stamina|Config")
@@ -112,6 +111,18 @@ public:
 	/** 攻击消耗体力 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stamina|Costs")
 	float AttackStaminaCost = 10.0f;
+
+	/** 重击消耗体力 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stamina|Costs")
+	float HeavyAttackStaminaCost = 25.0f;
+
+	/** 棍花消耗体力 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stamina|Costs")
+	float StaffSpinStaminaCost = 30.0f;
+
+	/** 立棍法消耗体力 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stamina|Costs")
+	float PoleStanceStaminaCost = 35.0f;
 
 	/** 翻滚消耗体力 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stamina|Costs")

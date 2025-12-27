@@ -1,14 +1,33 @@
 #include "EnemyBase.h"
+#include "BlackMythSaveGame.h"
+#include "WukongCharacter.h"
 #include "Components/CapsuleComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "EnemyAIController.h"
 #include "Kismet/GameplayStatics.h"
 #include "AIController.h"
+#include "BrainComponent.h"
+#include "BehaviorTree/BlackboardComponent.h"
 #include "Navigation/PathFollowingComponent.h"
 #include "Components/HealthComponent.h"
 #include "Components/CombatComponent.h"
+#include "Components/TeamComponent.h"
+#include "Components/SceneStateComponent.h"
+#include "Components/EnemyDodgeComponent.h"
+#include "Components/EnemyAlertComponent.h"
+#include "Components/StatusEffectComponent.h"
+#include "StatusEffect/StatusEffectBase.h"
+#include "Combat/TraceHitboxComponent.h"
 #include "Components/WidgetComponent.h"
 #include "UI/EnemyHealthBarWidget.h"
+#include "Engine/SkeletalMesh.h"
+#include "Animation/Skeleton.h"
+#include "Animation/AnimInstance.h"
+#include "NiagaraFunctionLibrary.h"
+#include "NiagaraComponent.h"
+#include "Blueprint/UserWidget.h"
+#include "GameFramework/GameStateBase.h"
+#include "Items/GoldPickup.h"
 
 AEnemyBase::AEnemyBase()
 {
@@ -17,6 +36,22 @@ AEnemyBase::AEnemyBase()
 	// 创建组件
 	HealthComponent = CreateDefaultSubobject<UHealthComponent>(TEXT("HealthComponent"));
 	CombatComponent = CreateDefaultSubobject<UCombatComponent>(TEXT("CombatComponent"));
+	TraceHitboxComponent = CreateDefaultSubobject<UTraceHitboxComponent>(TEXT("TraceHitboxComponent"));
+	// TraceHitboxComponent 是 ActorComponent，不需要 SetupAttachment
+	// TraceHitboxComponent->SetupAttachment(GetRootComponent());
+
+	// 创建阵营组件，设置为敌人阵营
+	TeamComponent = CreateDefaultSubobject<UTeamComponent>(TEXT("TeamComponent"));
+	TeamComponent->SetTeam(ETeam::Enemy);
+
+	// 创建闪避组件
+	DodgeComponent = CreateDefaultSubobject<UEnemyDodgeComponent>(TEXT("DodgeComponent"));
+
+	// 创建警戒组件
+	AlertComponent = CreateDefaultSubobject<UEnemyAlertComponent>(TEXT("AlertComponent"));
+
+	// 创建状态效果组件（管理中毒、减速等状态）
+	StatusEffectComponent = CreateDefaultSubobject<UStatusEffectComponent>(TEXT("StatusEffectComponent"));
 
 	// 设置默认 AI 控制器
 	AIControllerClass = AEnemyAIController::StaticClass();
@@ -33,6 +68,9 @@ AEnemyBase::AEnemyBase()
 	GetCharacterMovement()->RotationRate = FRotator(0.0f, 500.0f, 0.0f);
 	GetCharacterMovement()->MaxWalkSpeed = PatrollingSpeed;
 
+	// 默认攻击范围 (稍微加大一点，避免贴得太近)
+	AttackRadius = 200.0f;
+
 	// ========== 新增：创建血条组件 ==========
 	HealthBarWidgetComponent = CreateDefaultSubobject<UWidgetComponent>(TEXT("HealthBarWidget"));
 	HealthBarWidgetComponent->SetupAttachment(GetRootComponent());
@@ -41,12 +79,41 @@ AEnemyBase::AEnemyBase()
 	HealthBarWidgetComponent->SetDrawSize(FVector2D(150.0f, 20.0f));
 	HealthBarWidgetComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	HealthBarWidgetComponent->SetVisibility(false);  // 默认隐藏
+
+	// ========== 新增：创建定身"定"字 Widget 组件 ==========
+	FreezeTextWidgetComponent = CreateDefaultSubobject<UWidgetComponent>(TEXT("FreezeTextWidget"));
+	FreezeTextWidgetComponent->SetupAttachment(GetRootComponent());
+	FreezeTextWidgetComponent->SetRelativeLocation(FVector(0.0f, 0.0f, 180.0f));  // 头顶上方（比血条更高）
+	FreezeTextWidgetComponent->SetWidgetSpace(EWidgetSpace::Screen);  // 屏幕空间，始终面向摄像机
+	FreezeTextWidgetComponent->SetDrawSize(FVector2D(100.0f, 100.0f));
+	FreezeTextWidgetComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	FreezeTextWidgetComponent->SetVisibility(false);  // 默认隐藏
+
+	// ========== 加载定身术默认资产 ==========
+	// 默认"定"字 Widget 类（路径需要在创建蓝图后设置）
+	static ConstructorHelpers::FClassFinder<UUserWidget> DefaultFreezeWidgetClass(
+		TEXT("/Game/_BlackMythGame/UI/WBP_FreezeText"));
+	if (DefaultFreezeWidgetClass.Succeeded())
+	{
+		FreezeTextWidgetClass = DefaultFreezeWidgetClass.Class;
+	}
+
+	// 默认定身音效（可选，放在 Content/_BlackMythGame/Audio/ 下）
+	// static ConstructorHelpers::FObjectFinder<USoundBase> DefaultFreezeSound(
+	// 	TEXT("/Game/_BlackMythGame/Audio/SFX_Freeze"));
+	// if (DefaultFreezeSound.Succeeded())
+	// {
+	// 	FreezeSound = DefaultFreezeSound.Object;
+	// }
 }
 
 void AEnemyBase::BeginPlay()
 {
 	Super::BeginPlay();
 	// CurrentHealth = MaxHealth; // Managed by HealthComponent
+	
+	// 添加敌人标签，用于目标锁定系统识别
+	Tags.AddUnique(FName("Enemy"));
 	
 	EnemyController = Cast<AAIController>(GetController());
 	
@@ -55,8 +122,32 @@ void AEnemyBase::BeginPlay()
 		HealthComponent->OnDeath.AddDynamic(this, &AEnemyBase::HandleDeath);
 	}
 
+	// 调试日志：检查蒙太奇是否正确加载
+	if (AttackMontage)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("AEnemyBase::BeginPlay - AttackMontage is SET: %s"), *AttackMontage->GetName());
+	}
+	else
+	{
+		UE_LOG(LogTemp, Error, TEXT("AEnemyBase::BeginPlay - AttackMontage is NULL! Please check Blueprint assignment."));
+	}
+
+	if (AggroMontage)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("AEnemyBase::BeginPlay - AggroMontage is SET: %s"), *AggroMontage->GetName());
+	}
+
+	// 强制应用巡逻速度，确保蓝图配置生效
+	GetCharacterMovement()->MaxWalkSpeed = PatrollingSpeed;
+
+	// 统计场景中的敌人数量
+	TArray<AActor*> AllEnemies;
+	UGameplayStatics::GetAllActorsOfClass(this, AEnemyBase::StaticClass(), AllEnemies);
+	UE_LOG(LogTemp, Warning, TEXT("AEnemyBase::BeginPlay - Total Enemies: %d. I am: %s. AttackRadius: %f"), AllEnemies.Num(), *GetName(), AttackRadius);
+
 	// 初始化状态
 	StartPatrolling();
+	bHasAggroed = false;
 
 	// ========== 新增：初始化血条 ==========
 	if (HealthBarWidgetComponent && HealthBarWidgetClass)
@@ -64,11 +155,98 @@ void AEnemyBase::BeginPlay()
 		HealthBarWidgetComponent->SetWidgetClass(HealthBarWidgetClass);
 		HealthBarWidgetComponent->SetRelativeLocation(FVector(0.0f, 0.0f, HealthBarHeightOffset));
 
+		// 强制初始化 Widget (确保 GetWidget() 返回有效实例)
+		HealthBarWidgetComponent->InitWidget();
+
 		// 获取 Widget 实例并初始化
 		HealthBarWidget = Cast<UEnemyHealthBarWidget>(HealthBarWidgetComponent->GetWidget());
 		if (HealthBarWidget && HealthComponent)
 		{
 			HealthBarWidget->InitializeHealthBar(HealthComponent);
+			UE_LOG(LogTemp, Warning, TEXT("[%s] HealthBar Widget initialized successfully"), *GetName());
+		}
+		else
+		{
+			UE_LOG(LogTemp, Error, TEXT("[%s] Failed to get HealthBar Widget instance!"), *GetName());
+		}
+	}
+
+	// ========== 新增：生成武器 ==========
+	if (WeaponClass)
+	{
+		FActorSpawnParameters SpawnParams;
+		SpawnParams.Owner = this;
+		SpawnParams.Instigator = this;
+		SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+
+		CurrentWeapon = GetWorld()->SpawnActor<AActor>(WeaponClass, GetActorTransform(), SpawnParams);
+		if (CurrentWeapon)
+		{
+			// 附加到插槽
+			CurrentWeapon->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetIncludingScale, WeaponSocketName);
+			UE_LOG(LogTemp, Warning, TEXT("[%s] Spawned Weapon: %s attached to %s"), *GetName(), *CurrentWeapon->GetName(), *WeaponSocketName.ToString());
+
+			// 关键修复：让武器忽略持有者的碰撞，防止被弹飞
+			// 遍历武器的所有 PrimitiveComponent (如 CollisionSphere, StaticMesh 等)
+			TArray<UPrimitiveComponent*> WeaponComps;
+			CurrentWeapon->GetComponents(WeaponComps);
+			for (auto* Comp : WeaponComps)
+			{
+				if (Comp)
+				{
+					// 让武器组件忽略角色
+					Comp->IgnoreActorWhenMoving(this, true);
+					// 让角色胶囊体忽略武器组件
+					GetCapsuleComponent()->IgnoreComponentWhenMoving(Comp, true);
+				}
+			}
+
+			// 尝试查找武器的 Mesh 组件，用于 Hitbox 扫描
+			// 优先查找 SkeletalMesh (如复杂武器)，其次查找 StaticMesh (如简单武器)
+			USceneComponent* WeaponMesh = CurrentWeapon->FindComponentByClass<USkeletalMeshComponent>();
+			if (!WeaponMesh)
+			{
+				WeaponMesh = CurrentWeapon->FindComponentByClass<UStaticMeshComponent>();
+			}
+
+			// 如果找到了武器 Mesh，更新 Hitbox 组件的引用
+			if (WeaponMesh && TraceHitboxComponent)
+			{
+				TraceHitboxComponent->SetMeshToTrace(WeaponMesh);
+				UE_LOG(LogTemp, Log, TEXT("[%s] Updated TraceHitbox to use Weapon Mesh: %s"), *GetName(), *WeaponMesh->GetName());
+			}
+			else
+			{
+				UE_LOG(LogTemp, Warning, TEXT("[%s] Weapon spawned but no Mesh found for Hitbox!"), *GetName());
+			}
+		}
+	}
+
+	// 尝试自动配置 TraceHitbox 的 Socket
+	if (TraceHitboxComponent && GetMesh())
+	{
+		// 尝试常见的武器骨骼名称
+		const TArray<FName> PossibleStartSockets = { FName("weapon_r"), FName("hand_r"), FName("fx_trail_01") };
+		const TArray<FName> PossibleEndSockets = { FName("weapon_t"), FName("weapon_tip"), FName("fx_trail_02"), FName("middle_01_r") };
+
+		for (const FName& Name : PossibleStartSockets)
+		{
+			if (GetMesh()->DoesSocketExist(Name) || GetMesh()->GetBoneIndex(Name) != INDEX_NONE)
+			{
+				TraceHitboxComponent->SetStartSocket(Name);
+				UE_LOG(LogTemp, Warning, TEXT("AEnemyBase::BeginPlay - Auto-configured StartSocket: %s"), *Name.ToString());
+				break;
+			}
+		}
+
+		for (const FName& Name : PossibleEndSockets)
+		{
+			if (GetMesh()->DoesSocketExist(Name) || GetMesh()->GetBoneIndex(Name) != INDEX_NONE)
+			{
+				TraceHitboxComponent->SetEndSocket(Name);
+				UE_LOG(LogTemp, Warning, TEXT("AEnemyBase::BeginPlay - Auto-configured EndSocket: %s"), *Name.ToString());
+				break;
+			}
 		}
 	}
 
@@ -81,6 +259,10 @@ void AEnemyBase::BeginPlay()
 		// 隐藏血条 (如果实现了 UI)
 		HideHealthBar();
 	}
+
+	// 初始化韧性
+	CurrentPoise = MaxPoise;
+	LastHitTime = -100.0; // 确保一开始就能恢复
 }
 
 void AEnemyBase::Tick(float DeltaTime)
@@ -88,18 +270,121 @@ void AEnemyBase::Tick(float DeltaTime)
 	Super::Tick(DeltaTime);
 
 	if (IsDead()) return;
+	
+	// [Fix] 眩晕或定身时，跳过所有移动和战斗逻辑，只保持韧性恢复
+	if (IsStunned() || IsFrozen())
+	{
+		// 韧性恢复逻辑仍然运行（眩晕不影响韧性恢复）
+		const double TimeSinceLastHit = GetWorld()->GetTimeSeconds() - LastHitTime;
+		if (!IsStunned() && CurrentPoise < MaxPoise && TimeSinceLastHit > PoiseRecoveryDelay)
+		{
+			CurrentPoise = FMath::Min(CurrentPoise + PoiseRecoveryRate * DeltaTime, MaxPoise);
+		}
+		return; // 直接返回，不执行下面的移动和战斗逻辑
+	}
 
-	// 逻辑已移至行为树
+	// 韧性恢复逻辑：只有当 (当前时间 - 上次受击时间) > 恢复延迟时，才开始恢复
+	const double TimeSinceLastHit = GetWorld()->GetTimeSeconds() - LastHitTime;
+	if (CurrentPoise < MaxPoise && TimeSinceLastHit > PoiseRecoveryDelay)
+	{
+		CurrentPoise = FMath::Min(CurrentPoise + PoiseRecoveryRate * DeltaTime, MaxPoise);
+	}
+
+	if (CombatTarget)
+	{
+		const double DistanceToTarget = (CombatTarget->GetActorLocation() - GetActorLocation()).Size();
+
+		// 始终面向目标 (当不移动时)
+		// 解决“乱转”问题：当敌人停止移动准备攻击时，平滑旋转朝向目标
+		// [修复] 增加 !IsStunned() 和 !IsFrozen() 检查，防止眩晕或定身时还在转
+		if (!IsChasing() && !GetCharacterMovement()->IsFalling() && !IsStunned() && !IsFrozen())
+		{
+			FVector Direction = CombatTarget->GetActorLocation() - GetActorLocation();
+			Direction.Z = 0.0f; // 只在水平面旋转
+			if (!Direction.IsNearlyZero())
+			{
+				FRotator TargetRot = Direction.Rotation();
+				FRotator NewRot = FMath::RInterpTo(GetActorRotation(), TargetRot, DeltaTime, 5.0f);
+				SetActorRotation(NewRot);
+			}
+		}
+
+		// 如果处于追击状态
+		if (EnemyState == EEnemyState::EES_Chasing)
+		{
+			// 如果距离大于攻击范围，继续移动
+			if (DistanceToTarget > AttackRadius)
+			{
+				// 优化：只有在没有移动时才请求移动，避免每帧调用 MoveTo 重置路径
+				// [Fix] 移除 C++ 直接移动逻辑，交由行为树处理，防止“透视”Bug
+				/*
+				if (EnemyController && EnemyController->GetMoveStatus() == EPathFollowingStatus::Idle)
+				{
+					MoveToTarget(CombatTarget);
+				}
+				*/
+			}
+			// 如果进入攻击范围，准备攻击
+			else
+			{
+				// [Fix] 不要在这里调用 StopMovement()！
+				// 如果在这里强制停止移动，会导致行为树里的 MoveTo 任务被判定为 Failed (Aborted)。
+				// 一旦 MoveTo 失败，行为树的 Combat Sequence 就会中断，导致 AI 回退到 Patrol 分支，
+				// 表现为“走到面前突然转身跑远”。
+				// 我们应该信任行为树会自己走到目的地停下，或者在 Attack() 真正开始时再停止。
+				// if (EnemyController) EnemyController->StopMovement();
+				
+				// 开始攻击计时
+				StartAttackTimer();
+			}
+		}
+		// 如果处于等待攻击状态 (EES_Attacking)
+		else if (EnemyState == EEnemyState::EES_Attacking)
+		{
+			// 如果在等待攻击时目标跑远了，取消攻击并重新追击
+			// 增加 100.0f 的缓冲距离 (Hysteresis)，防止在边缘反复切换状态
+			// 之前是 50.0f，可能太小了，导致稍微一动就取消攻击
+			if (DistanceToTarget > (AttackRadius + 100.0f))
+			{
+				UE_LOG(LogTemp, Warning, TEXT("[%s] AEnemyBase::Tick - Target too far (%.2f > %.2f), Canceling Attack"), *GetName(), DistanceToTarget, AttackRadius + 100.0f);
+				ClearAttackTimer();
+				ChaseTarget();
+			}
+		}
+	}
 }
 
-void AEnemyBase::ReceiveDamage(float Damage, AActor* DamageInstigator)
+
+void AEnemyBase::ReceiveDamage(float Damage, AActor* DamageInstigator, bool bCanBeDodged)
 {
 	if (IsDead()) return;
+
+	// 闪避判定：在受到伤害前，尝试触发闪避（眩晕或定身时不能闪避）
+	// [Fix] 如果bCanBeDodged=false（如立棍AOE），则无视闪避直接受伤
+	if (bCanBeDodged && DodgeComponent && DamageInstigator && !IsStunned() && !IsFrozen())
+	{
+		FVector ThreatDir = (GetActorLocation() - DamageInstigator->GetActorLocation()).GetSafeNormal();
+		if (DodgeComponent->IsInDodge()) // 检查是否在无敌状态
+  		{
+  			UE_LOG(LogTemp, Log, TEXT("[%s] Dodged damage! (In dodge iframe)"), *GetName());
+      		return; // 无敌状态下不受伤
+  		}
+
+		// 再尝试触发新闪避
+		if (DodgeComponent->TryDodge(ThreatDir))
+		{
+			UE_LOG(LogTemp, Log, TEXT("[%s] Dodged damage! (New dodge triggered)"), *GetName());
+			return; // 触发闪避也不受伤
+		}
+	}
 
 	if (HealthComponent)
 	{
 		HealthComponent->TakeDamage(Damage, DamageInstigator);
 	}
+
+	// 如果受到伤害后死亡，立即停止后续逻辑
+	if (IsDead()) return;
 
 	// 显示血条
 	ShowHealthBar();
@@ -108,37 +393,216 @@ void AEnemyBase::ReceiveDamage(float Damage, AActor* DamageInstigator)
 	if (DamageInstigator)
 	{
 		CombatTarget = DamageInstigator;
+		
+		// [Fix] 同步更新黑板，确保行为树知道目标是谁
+		if (EnemyController)
+		{
+			if (UBlackboardComponent* BB = EnemyController->GetBlackboardComponent())
+			{
+				BB->SetValueAsObject(TEXT("TargetActor"), CombatTarget);
+			}
+		}
+
 		ClearPatrolTimer();
 		ClearAttackTimer();
 		
-		// 如果在攻击范围内，尝试反击
-		if (IsInsideAttackRadius() && !IsAttacking())
+		// 播放受击音效
+		if (HitSound)
 		{
-			StartAttackTimer();
+			UGameplayStatics::PlaySoundAtLocation(this, HitSound, GetActorLocation());
 		}
-		// 否则追击
-		else if (IsOutsideAttackRadius())
+
+		// [新增] 物理击退逻辑
+		// 计算击退方向：从攻击者指向受击者
+		FVector KnockbackDirection = (GetActorLocation() - DamageInstigator->GetActorLocation()).GetSafeNormal();
+		KnockbackDirection.Z = 0.0f; // 保持水平，不飞天
+		
+		// 击退力度 (您可以调整这个数值，比如 500, 800, 1000)
+		const float KnockbackStrength = 800.0f; 
+		
+		// 施加力 (LaunchCharacter 是 Character 类的内置函数)
+		LaunchCharacter(KnockbackDirection * KnockbackStrength, true, true);
+
+		// [新增] 韧性扣除逻辑
+		CurrentPoise -= Damage; // 假设伤害值等于削韧值，也可以单独传参
+		LastHitTime = GetWorld()->GetTimeSeconds(); // 记录受击时间
+		
+		// 调试日志：打印当前韧性
+		UE_LOG(LogTemp, Warning, TEXT("[%s] Took %.1f Damage. Poise: %.1f / %.1f"), *GetName(), Damage, CurrentPoise, MaxPoise);
+
+		if (CurrentPoise <= 0.0f)
 		{
-			ChaseTarget();
+			// 记录之前的状态，用于判断是否是新触发的眩晕
+			const bool bWasStunned = IsStunned();
+
+			// 触发大硬直 (Stun)
+			CurrentPoise = 0.0f; // 归零
+			
+			if (bWasStunned)
+			{
+				// 已经在眩晕状态，只重置计时器延长眩晕，不重新播放动画
+				GetWorldTimerManager().SetTimer(StunTimer, this, &AEnemyBase::StunEnd, StunDuration, false);
+				UE_LOG(LogTemp, Warning, TEXT("[%s] Already Stunned, extending duration to %.1fs"), *GetName(), StunDuration);
+				return; // 重要：直接返回，不执行下面的动画播放
+			}
+			
+			// 首次进入眩晕状态
+			// 停止移动和攻击
+			if (EnemyController) 
+			{
+				EnemyController->StopMovement();
+				// 暂停行为树，防止AI继续执行MoveTo任务
+				if (UBrainComponent* BrainComp = EnemyController->GetBrainComponent())
+				{
+					BrainComp->PauseLogic(TEXT("眩晕中"));
+				}
+			}
+			ClearAttackTimer();
+			GetWorldTimerManager().ClearTimer(AttackEndTimer); // [Fix] 必须清除攻击结束计时器，否则它会重置状态
+			
+			// 强制停止当前的攻击蒙太奇 (如果正在攻击)
+			if (IsAttacking() && AttackMontage)
+			{
+				StopAnimMontage(AttackMontage);
+			}
+			// 强制关闭攻击判定框 (防止眩晕时武器还有伤害)
+			if (TraceHitboxComponent)
+			{
+				TraceHitboxComponent->DeactivateTrace();
+			}
+
+			// 切换状态
+			EnemyState = EEnemyState::EES_Stunned;
+
+			// 播放眩晕音效
+			if (StunSound)
+			{
+				UGameplayStatics::PlaySoundAtLocation(this, StunSound, GetActorLocation());
+			}
+			
+			// 播放眩晕动画
+			if (StunMontage)
+			{
+				PlayAnimMontage(StunMontage);
+				
+				// 设置恢复计时器
+				GetWorldTimerManager().SetTimer(StunTimer, this, &AEnemyBase::StunEnd, StunDuration, false);
+				UE_LOG(LogTemp, Warning, TEXT("[%s] Stunned! Poise Broken. Duration: %.1fs"), *GetName(), StunDuration);
+			}
+			else
+			{
+				// 如果没有眩晕动画，就只播放普通受击，并重置韧性
+				CurrentPoise = MaxPoise;
+				PlayHitReactMontage(DamageInstigator->GetActorLocation());
+			}
+		}
+		else
+		{
+			// 韧性未破，只播放普通受击
+			// [Fix] 如果已经眩晕，不要播放受击动画，否则会打断眩晕动画导致“秒醒”
+			if (!IsStunned())
+			{
+				PlayHitReactMontage(DamageInstigator->GetActorLocation());
+			}
+		}
+
+		// 如果在攻击范围内，尝试反击 (仅在未眩晕时)
+		if (!IsStunned())
+		{
+			if (IsInsideAttackRadius() && !IsAttacking())
+			{
+				StartAttackTimer();
+			}
+			// 否则追击
+			else if (IsOutsideAttackRadius())
+			{
+				ChaseTarget();
+			}
 		}
 	}
-
-	// 播放受击动画
-	if (HitReactMontage)
+	// 如果没有攻击者（例如环境伤害），只播放正面受击
+	else 
 	{
-		// 停止当前的攻击
-		StopAnimMontage(AttackMontage);
-		PlayAnimMontage(HitReactMontage);
+		PlayHitReactMontage(GetActorLocation() + GetActorForwardVector() * 100.f);
 	}
 
 	// Death is handled by HealthComponent delegate
 }
 
+void AEnemyBase::PlayHitReactMontage(const FVector& ImpactPoint)
+{
+	// 如果已经死亡，不播放
+	if (IsDead()) return;
+
+	// 停止当前的攻击动画
+	StopAnimMontage(AttackMontage);
+
+	// 计算攻击方向向量 (攻击者位置 - 自身位置)
+	const FVector ImpactLowered(ImpactPoint.X, ImpactPoint.Y, GetActorLocation().Z);
+	const FVector ToHit = (ImpactLowered - GetActorLocation()).GetSafeNormal();
+
+	// 获取角色正前方向量
+	const FVector Forward = GetActorForwardVector();
+	
+	// 使用点乘判断前后 (Cosθ)
+	// Forward · ToHit > 0 表示在前方，< 0 表示在后方
+	const double CosTheta = FVector::DotProduct(Forward, ToHit);
+	
+	// 使用叉乘判断左右
+	// (Forward x ToHit).Z > 0 表示在右侧，< 0 表示在左侧
+	const FVector CrossProduct = FVector::CrossProduct(Forward, ToHit);
+
+	UAnimMontage* MontageToPlay = nullptr;
+
+	if (CosTheta >= 0.5f) // 夹角在 60度以内，视为正面
+	{
+		MontageToPlay = HitReactMontage_Front;
+	}
+	else if (CosTheta <= -0.5f) // 夹角在 120度以外，视为背面
+	{
+		MontageToPlay = HitReactMontage_Back;
+	}
+	else // 侧面
+	{
+		if (CrossProduct.Z > 0)
+		{
+			MontageToPlay = HitReactMontage_Right;
+		}
+		else
+		{
+			MontageToPlay = HitReactMontage_Left;
+		}
+	}
+
+	// 播放选中的蒙太奇
+	if (MontageToPlay)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[%s] PlayHitReactMontage - Playing: %s"), *GetName(), *MontageToPlay->GetName());
+		PlayAnimMontage(MontageToPlay);
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[%s] PlayHitReactMontage - No Montage found for this direction!"), *GetName());
+	}
+}
+
 void AEnemyBase::Die()
 {
 	if (IsDead()) return;
-	
+
+	// [Fix Restore] 如果被定身时被打死，强制解除定身，否则死亡动画会被冻结无法播放
+	if (bIsFrozen)
+	{
+		RemoveFreeze();
+	}
+
 	EnemyState = EEnemyState::EES_Dead;
+
+	// 播放死亡音效
+	if (DeathSound)
+	{
+		UGameplayStatics::PlaySoundAtLocation(this, DeathSound, GetActorLocation());
+	}
 
 	// 播放死亡动画
 	if (DeathMontage)
@@ -146,12 +610,17 @@ void AEnemyBase::Die()
 		PlayAnimMontage(DeathMontage);
 	}
 
+	// 生成金币掉落物
+	SpawnGoldDrop();
+
 	// 隐藏血条
 	HideHealthBar();
 
 	// 清除计时器
 	ClearAttackTimer();
 	ClearPatrolTimer();
+	GetWorldTimerManager().ClearTimer(AggroTimer);
+	GetWorldTimerManager().ClearTimer(AttackEndTimer);
 
 	// 禁用碰撞
 	GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
@@ -166,6 +635,32 @@ void AEnemyBase::Die()
 	if (EnemyController)
 	{
 		EnemyController->StopMovement();
+		if (UBrainComponent* Brain = EnemyController->GetBrainComponent())
+		{
+			Brain->StopLogic("Dead");
+		}
+	}
+
+	// 强制关闭攻击判定 (防止死后还能造成伤害)
+	if (TraceHitboxComponent)
+	{
+		TraceHitboxComponent->DeactivateTrace();
+	}
+
+	// 冻结动画 (防止蒙太奇播放完后瞬移回 Idle)
+	// 我们设置一个计时器，在蒙太奇播放完的那一刻暂停动画
+	if (DeathMontage)
+	{
+		const float DeathDuration = DeathMontage->GetPlayLength();
+		FTimerHandle DeathFreezeTimer;
+		GetWorldTimerManager().SetTimer(DeathFreezeTimer, [this]()
+		{
+			if (GetMesh())
+			{
+				GetMesh()->bPauseAnims = true;
+				GetMesh()->SetComponentTickEnabled(false);
+			}
+		}, DeathDuration - 0.1f, false); // 提前 0.1秒冻结，确保停在最后一帧
 	}
 
 	// 设置销毁定时器（例如 5 秒后消失）
@@ -175,24 +670,116 @@ void AEnemyBase::Die()
 void AEnemyBase::Attack()
 {
 	if (CombatTarget == nullptr || IsDead()) return;
+	if (IsStunned()) 
+	{
+		UE_LOG(LogTemp, Error, TEXT("[%s] !!! Attack() called but STUNNED, should not happen !!!"), *GetName());
+		return; // [Fix] 眩晕状态下禁止攻击
+	}
 	
+	// [Fix] 在攻击真正开始时停止移动，防止滑步
+	// 此时就算行为树中断也没关系，因为攻击动作已经接管了表现
+	if (EnemyController) EnemyController->StopMovement();
+
+	UE_LOG(LogTemp, Warning, TEXT("[%s] AEnemyBase::Attack - Attacking Target"), *GetName());
 	EnemyState = EEnemyState::EES_Engaged;
 	
+	// 强制打印 AttackMontage 的状态
 	if (AttackMontage)
 	{
-		PlayAnimMontage(AttackMontage);
+		UE_LOG(LogTemp, Warning, TEXT("[%s] AEnemyBase::Attack - Playing Montage: %s"), *GetName(), *AttackMontage->GetName());
+		
+		// 播放攻击音效
+		if (AttackSound)
+		{
+			UGameplayStatics::PlaySoundAtLocation(this, AttackSound, GetActorLocation());
+		}
+
+		// 开启攻击判定 (保底机制：如果蒙太奇里没有加 Notify，这里强制开启)
+		if (TraceHitboxComponent)
+		{
+			// 将攻击命中音效传递给 Hitbox 组件
+			if (AttackImpactSound)
+			{
+				TraceHitboxComponent->HitImpactSound = AttackImpactSound;
+			}
+			TraceHitboxComponent->ActivateTrace();
+		}
+
+		const float Duration = PlayAnimMontage(AttackMontage);
+		if (Duration <= 0.0f)
+		{
+			UE_LOG(LogTemp, Error, TEXT("[%s] AEnemyBase::Attack - Montage failed to play! Duration=0. Forcing AttackEnd."), *GetName());
+			AttackEnd();
+		}
+		else
+		{
+			// 设置保底计时器：如果动画蓝图没有发送 AttackEnd 通知，我们就在动画播放完毕后强制结束攻击
+			GetWorldTimerManager().SetTimer(AttackEndTimer, this, &AEnemyBase::AttackEnd, Duration, false);
+		}
+	}
+	else
+	{
+		UE_LOG(LogTemp, Error, TEXT("[%s] AEnemyBase::Attack - No AttackMontage assigned! (Ptr is NULL)"), *GetName());
+		AttackEnd();
 	}
 }
 
 void AEnemyBase::AttackEnd()
 {
-	EnemyState = EEnemyState::EES_NoState;
+	if (IsDead()) return;
+	if (IsStunned()) return; // [Fix] 眩晕状态下禁止执行攻击结束逻辑（防止重置状态）
+
+	UE_LOG(LogTemp, Warning, TEXT("[%s] AEnemyBase::AttackEnd - Attack Finished"), *GetName());
+	
+	// 关闭攻击判定
+	if (TraceHitboxComponent)
+	{
+		TraceHitboxComponent->DeactivateTrace();
+	}
+
+	// 清除保底计时器（如果是通过 AnimNotify 调用的，就不需要计时器了）
+	GetWorldTimerManager().ClearTimer(AttackEndTimer);
+
+	// 修复：攻击结束后，先将状态设为 Chasing，这样如果 CheckCombatTarget 决定不攻击，
+	// Tick 函数也能接管移动逻辑。
+	EnemyState = EEnemyState::EES_Chasing;
+	
 	CheckCombatTarget();
 }
 
 void AEnemyBase::CheckCombatTarget()
 {
-	// 逻辑移至行为树
+	if (IsDead()) return;
+	if (IsStunned()) return; // [Fix] 眩晕状态下禁止检测目标
+
+	if (CombatTarget)
+	{
+		// 如果有目标，且不在攻击范围内，继续追击
+		if (!IsInsideAttackRadius())
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[%s] AEnemyBase::CheckCombatTarget - Target out of range, Chasing"), *GetName());
+			// 清除攻击计时器，防止重复攻击
+			ClearAttackTimer();
+			
+			// 重新开始追击
+			ChaseTarget();
+		}
+		// 如果还在攻击范围内，且没有在攻击，准备下一次攻击
+		else if (!IsAttacking())
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[%s] AEnemyBase::CheckCombatTarget - Target in range, Preparing Attack"), *GetName());
+			// 确保没有移动
+			if (EnemyController) EnemyController->StopMovement();
+			
+			StartAttackTimer();
+		}
+	}
+	else
+	{
+		// 丢失目标，回到巡逻
+		ClearAttackTimer();
+		StartPatrolling();
+	}
 }
 
 void AEnemyBase::CheckPatrolTarget()
@@ -202,7 +789,7 @@ void AEnemyBase::CheckPatrolTarget()
 
 void AEnemyBase::PatrolTimerFinished()
 {
-	MoveToTarget(PatrolTarget);
+	// MoveToTarget(PatrolTarget); // [Fix] 移除直接移动，交由行为树
 }
 
 void AEnemyBase::ShowHealthBar()
@@ -223,16 +810,40 @@ void AEnemyBase::HideHealthBar()
 
 void AEnemyBase::StartPatrolling()
 {
+	if (IsDead()) return;
+
 	EnemyState = EEnemyState::EES_Patrolling;
 	GetCharacterMovement()->MaxWalkSpeed = PatrollingSpeed;
-	MoveToTarget(PatrolTarget);
+	
+	// 修复：重置仇恨状态，这样下次发现玩家时可以再次播放 AggroMontage
+	bHasAggroed = false;
+	CombatTarget = nullptr;
+
+	// 停止注视目标
+	if (EnemyController)
+	{
+		EnemyController->ClearFocus(EAIFocusPriority::Gameplay);
+	}
+	
+	// MoveToTarget(PatrolTarget); // [Fix] 移除直接移动，交由行为树
 }
 
 void AEnemyBase::ChaseTarget()
 {
+	if (IsDead()) return;
+
 	EnemyState = EEnemyState::EES_Chasing;
 	GetCharacterMovement()->MaxWalkSpeed = ChasingSpeed;
-	MoveToTarget(CombatTarget);
+	
+	// 强制停止当前移动，确保新的 MoveTo 请求能生效
+	if (EnemyController)
+	{
+		// EnemyController->StopMovement(); // [Fix] 不要停止移动，让行为树接管
+		// 锁定注视目标，防止乱转
+		EnemyController->SetFocus(CombatTarget);
+	}
+	
+	// MoveToTarget(CombatTarget); // [Fix] 移除直接移动，交由行为树
 }
 
 void AEnemyBase::MoveToTarget(AActor* Target)
@@ -241,8 +852,17 @@ void AEnemyBase::MoveToTarget(AActor* Target)
 	
 	FAIMoveRequest MoveRequest;
 	MoveRequest.SetGoalActor(Target);
-	MoveRequest.SetAcceptanceRadius(15.0f); // 稍微小一点的接受半径
-	EnemyController->MoveTo(MoveRequest);
+	
+	// 动态调整接受半径：目标是进入攻击范围，而不是贴脸
+	// 留出 50.0f 的余量，确保能触发 IsInsideAttackRadius，同时避免挤在一起导致原地打转
+	const float AcceptanceRadius = FMath::Max((float)AttackRadius - 50.0f, 50.0f);
+	MoveRequest.SetAcceptanceRadius(AcceptanceRadius); 
+	
+	FNavPathSharedPtr NavPath;
+	EnemyController->MoveTo(MoveRequest, &NavPath);
+	
+	// 简单的调试日志，检查移动请求是否发出
+	// UE_LOG(LogTemp, Log, TEXT("MoveToTarget: %s"), *Target->GetName());
 }
 
 AActor* AEnemyBase::ChoosePatrolTarget()
@@ -267,13 +887,22 @@ AActor* AEnemyBase::ChoosePatrolTarget()
 
 void AEnemyBase::StartAttackTimer()
 {
+	if (IsDead()) return;
+	if (IsStunned())
+	{
+		UE_LOG(LogTemp, Error, TEXT("[%s] !!! StartAttackTimer() called but STUNNED !!!"), *GetName());
+		return; // 眩晕状态下不应该设置攻击计时器
+	}
+
 	EnemyState = EEnemyState::EES_Attacking;
 	const float AttackTime = FMath::RandRange(AttackMin, AttackMax);
+	UE_LOG(LogTemp, Warning, TEXT("[%s] AEnemyBase::StartAttackTimer - Next attack in %f seconds"), *GetName(), AttackTime);
 	GetWorldTimerManager().SetTimer(AttackTimer, this, &AEnemyBase::Attack, AttackTime);
 }
 
 void AEnemyBase::ClearAttackTimer()
 {
+	UE_LOG(LogTemp, Warning, TEXT("[%s] ClearAttackTimer() called"), *GetName());
 	GetWorldTimerManager().ClearTimer(AttackTimer);
 }
 
@@ -307,14 +936,98 @@ bool AEnemyBase::IsAttacking()
 	return EnemyState == EEnemyState::EES_Attacking;
 }
 
-bool AEnemyBase::IsDead()
+bool AEnemyBase::IsDead() const
 {
 	return EnemyState == EEnemyState::EES_Dead;
+}
+
+void AEnemyBase::ClearCombatTarget()
+{
+	if (CombatTarget)
+	{
+		UE_LOG(LogTemp, Log, TEXT("[%s] ClearCombatTarget - Lost sight of target"), *GetName());
+	}
+	CombatTarget = nullptr;
+	
+	// 如果在追击或攻击状态，回到巡逻状态
+	if (EnemyState == EEnemyState::EES_Chasing || 
+		EnemyState == EEnemyState::EES_Attacking ||
+		EnemyState == EEnemyState::EES_Engaged)
+	{
+		EnemyState = EEnemyState::EES_Patrolling;
+		bHasAggroed = false;
+		
+		// 停止移动
+		if (EnemyController)
+		{
+			EnemyController->StopMovement();
+		}
+		
+		// 恢复巡逻速度
+		if (UCharacterMovementComponent* Movement = GetCharacterMovement())
+		{
+			Movement->MaxWalkSpeed = PatrollingSpeed;
+		}
+	}
+}
+
+void AEnemyBase::SetCombatTarget(AActor* NewTarget)
+{
+	// 如果目标是处于变身状态的悟空，忽略
+	if (AWukongCharacter* Wukong = Cast<AWukongCharacter>(NewTarget))
+	{
+		if (Wukong->IsTransformed())
+		{
+			UE_LOG(LogTemp, Log, TEXT("[%s] SetCombatTarget - Ignoring transformed Wukong"), *GetName());
+			return;
+		}
+	}
+	
+	CombatTarget = NewTarget;
+	if (CombatTarget)
+	{
+		UE_LOG(LogTemp, Log, TEXT("[%s] SetCombatTarget - New target: %s"), *GetName(), *CombatTarget->GetName());
+	}
 }
 
 bool AEnemyBase::IsEngaged()
 {
 	return EnemyState == EEnemyState::EES_Engaged;
+}
+
+bool AEnemyBase::IsStunned()
+{
+	return EnemyState == EEnemyState::EES_Stunned;
+}
+
+void AEnemyBase::StunEnd()
+{
+	if (IsDead()) return;
+	
+	UE_LOG(LogTemp, Error, TEXT("[%s] ===== STUN END - Recovering from stun ====="), *GetName());
+	
+	// 恢复韧性
+	CurrentPoise = MaxPoise;
+	
+	// 恢复状态
+	EnemyState = EEnemyState::EES_Chasing;
+	
+	// [Fix] 恢复行为树，让AI重新开始评估和移动
+	if (EnemyController)
+	{
+		if (UBrainComponent* BrainComp = EnemyController->GetBrainComponent())
+		{
+			BrainComp->ResumeLogic(TEXT("眩晕结束"));
+			UE_LOG(LogTemp, Warning, TEXT("[%s] Resumed AI Brain after stun"), *GetName());
+		}
+		
+		if (CombatTarget)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[%s] Starting to chase target after stun"), *GetName());
+			// 使用和ChaseTarget()相同的逻辑，让敌人重新追击
+			EnemyController->SetFocus(CombatTarget);
+		}
+	}
 }
 
 float AEnemyBase::GetCurrentHealth() const
@@ -337,4 +1050,570 @@ bool AEnemyBase::InTargetRange(AActor* Target, double Radius)
 	if (Target == nullptr) return false;
 	const double DistanceToTarget = (Target->GetActorLocation() - GetActorLocation()).Size();
 	return DistanceToTarget <= Radius;
+}
+
+void AEnemyBase::OnTargetSensed(AActor* Target)
+{
+	// 如果已经发现过，或者已经死了，就不再处理
+	if (bHasAggroed || IsDead()) return;
+
+	// 检查目标是否是处于变身状态的悟空，如果是则忽略
+	if (AWukongCharacter* Wukong = Cast<AWukongCharacter>(Target))
+	{
+		if (Wukong->IsTransformed())
+		{
+			UE_LOG(LogTemp, Log, TEXT("AEnemyBase::OnTargetSensed - Ignoring transformed Wukong"));
+			return;
+		}
+	}
+
+	bHasAggroed = true;
+	CombatTarget = Target;
+
+	UE_LOG(LogTemp, Warning, TEXT("AEnemyBase::OnTargetSensed - Target Sensed: %s"), *Target->GetName());
+
+	// 触发战斗BGM切换
+	if (AGameStateBase* GameState = GetWorld()->GetGameState())
+	{
+		if (USceneStateComponent* SceneComp = GameState->FindComponentByClass<USceneStateComponent>())
+		{
+			SceneComp->OnCombatInitiated();
+		}
+	}
+
+	// 停止移动 (防止滑步)
+	if (EnemyController)
+	{
+		EnemyController->StopMovement();
+		// 停止行为树逻辑 (防止行为树继续下发移动指令，导致“去别的地方”或“滑步”)
+		if (UBrainComponent* Brain = EnemyController->GetBrainComponent())
+		{
+			Brain->StopLogic("Aggro Sensed");
+		}
+	}
+	GetCharacterMovement()->StopMovementImmediately();
+
+	// 清除巡逻计时器 (防止在吼叫时触发巡逻移动，导致“去别的地方再冲过来”的 Bug)
+	ClearPatrolTimer();
+
+	// 播放发现音效
+	if (AggroSound)
+	{
+		UGameplayStatics::PlaySoundAtLocation(this, AggroSound, GetActorLocation());
+	}
+
+	/* 警戒广播：通知周围的敌人发现了目标 */
+	if (AlertComponent)
+	{
+		AlertComponent->BroadcastAlert(Target, 1000.0f); /* 1000单位范围内的敌人都会警戒 */
+		AlertComponent->ShowAlertIcon(true); /* 显示自己的警戒图标 */
+	}
+
+	// 播放咆哮动画
+	float Duration = 0.0f;
+	if (AggroMontage)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("AEnemyBase::OnTargetSensed - Playing AggroMontage: %s"), *AggroMontage->GetName());
+		Duration = PlayAnimMontage(AggroMontage);
+		EnemyState = EEnemyState::EES_Engaged; // 设为交战状态，防止其他逻辑干扰
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("AEnemyBase::OnTargetSensed - No AggroMontage assigned."));
+	}
+
+	// 如果没有动画，Duration 为 0，直接开始追击
+	// 如果有动画，等待动画播放完再追击
+	if (Duration > 0.0f)
+	{
+		GetWorldTimerManager().SetTimer(AggroTimer, this, &AEnemyBase::StartChasingAfterAggro, Duration, false);
+	}
+	else
+	{
+		StartChasingAfterAggro();
+	}
+}
+
+void AEnemyBase::StartChasingAfterAggro()
+{
+	if (IsDead()) return;
+
+	// 切换到追击状态
+	EnemyState = EEnemyState::EES_Chasing;
+	
+	// 设置更快的速度
+	GetCharacterMovement()->MaxWalkSpeed = ChasingSpeed;
+
+	// [Fix] 重新启动行为树逻辑，否则敌人会一直发呆
+	if (EnemyController)
+	{
+		if (UBrainComponent* Brain = EnemyController->GetBrainComponent())
+		{
+			Brain->RestartLogic();
+		}
+	}
+	
+	// 确保朝向目标
+	if (CombatTarget)
+	{
+		ChaseTarget();
+	}
+}
+
+// ========== 定身术系统实现 ==========
+
+void AEnemyBase::ApplyFreeze(float Duration)
+{
+	// 不能对死亡的敌人施加定身
+	if (IsDead()) return;
+
+	// 如果已经被定身，重置计时器
+	if (bIsFrozen)
+	{
+		GetWorldTimerManager().ClearTimer(FreezeTimer);
+	}
+	else
+	{
+		// 保存定身前的状态
+		StateBeforeFreeze = EnemyState;
+		MovementSpeedBeforeFreeze = GetCharacterMovement()->MaxWalkSpeed;
+
+		// 停止所有行为
+		if (EnemyController)
+		{
+			EnemyController->StopMovement();
+			// 清除焦点（防止 AI Controller 自动转向目标）
+			EnemyController->ClearFocus(EAIFocusPriority::Gameplay);
+			// 暂停行为树
+			if (UBrainComponent* Brain = EnemyController->GetBrainComponent())
+			{
+				Brain->PauseLogic("Frozen");
+			}
+		}
+
+		// 停止角色移动
+		GetCharacterMovement()->StopMovementImmediately();
+		GetCharacterMovement()->DisableMovement();
+
+		// 暂停动画 - 保持当前帧
+		if (UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance())
+		{
+			// 获取当前动画位置（用于恢复时参考）
+			if (UAnimMontage* CurrentMontage = AnimInstance->GetCurrentActiveMontage())
+			{
+				FrozenAnimPosition = AnimInstance->Montage_GetPosition(CurrentMontage);
+			}
+			
+			// 暂停整个动画蓝图（关键！这会冻结所有动画状态）
+			AnimInstance->bReceiveNotifiesFromLinkedInstances = false;
+			GetMesh()->bPauseAnims = true;
+			GetMesh()->bNoSkeletonUpdate = true;
+		}
+
+		// 清除所有计时器（攻击、巡逻、眩晕等）
+		ClearAttackTimer();
+		ClearPatrolTimer();
+		GetWorldTimerManager().ClearTimer(StunTimer);
+		GetWorldTimerManager().ClearTimer(AggroTimer);
+
+		// 设置定身状态
+		bIsFrozen = true;
+		EnemyState = EEnemyState::EES_Frozen;
+
+		// ========== 播放定身音效 ==========
+		if (FreezeSound)
+		{
+			UGameplayStatics::PlaySoundAtLocation(this, FreezeSound, GetActorLocation());
+		}
+
+		// ========== 播放定身特效 (Niagara) ==========
+		if (FreezeEffect)
+		{
+			// 在敌人身上生成持续特效
+			ActiveFreezeEffectComponent = UNiagaraFunctionLibrary::SpawnSystemAttached(
+				FreezeEffect,
+				GetMesh(),
+				NAME_None,
+				FVector(0.0f, 0.0f, 50.0f),  // 身体中心偏移
+				FRotator::ZeroRotator,
+				EAttachLocation::SnapToTarget,
+				false  // 不自动销毁，我们手动控制
+			);
+		}
+
+		// ========== 显示"定"字 UI ==========
+		if (FreezeTextWidgetComponent)
+		{
+			// 设置位置
+			FreezeTextWidgetComponent->SetRelativeLocation(FVector(0.0f, 0.0f, FreezeTextHeightOffset));
+			
+			// 如果有 Widget 类，设置并显示
+			if (FreezeTextWidgetClass)
+			{
+				FreezeTextWidgetComponent->SetWidgetClass(FreezeTextWidgetClass);
+			}
+			FreezeTextWidgetComponent->SetVisibility(true);
+		}
+
+		// ========== [New] 施加金色“覆盖材质”金身效果 ==========
+		if (GetMesh() && FreezeOverlayMaterial)
+		{
+			// 1. 保存当前的覆盖材质（比如二郎神二阶段的红光）
+			OriginalOverlayMaterial = GetMesh()->GetOverlayMaterial();
+			// 2. 覆盖为定身金光
+			GetMesh()->SetOverlayMaterial(FreezeOverlayMaterial);
+		}
+
+		UE_LOG(LogTemp, Warning, TEXT("[%s] 被定身！持续 %.1f 秒"), *GetName(), Duration);
+	}
+
+	// 设置定身结束计时器
+	GetWorldTimerManager().SetTimer(FreezeTimer, this, &AEnemyBase::OnFreezeTimerExpired, Duration, false);
+}
+
+void AEnemyBase::RemoveFreeze()
+{
+	if (!bIsFrozen) return;
+
+	bIsFrozen = false;
+
+	// 清除定身计时器
+	GetWorldTimerManager().ClearTimer(FreezeTimer);
+
+	// ========== 隐藏"定"字 UI ==========
+	if (FreezeTextWidgetComponent)
+	{
+		FreezeTextWidgetComponent->SetVisibility(false);
+	}
+
+	// ========== 停止定身持续特效 ==========
+	if (ActiveFreezeEffectComponent)
+	{
+		ActiveFreezeEffectComponent->DestroyComponent();
+		ActiveFreezeEffectComponent = nullptr;
+	}
+
+	// ========== 播放解除定身特效 ==========
+	if (UnfreezeEffect)
+	{
+		UNiagaraFunctionLibrary::SpawnSystemAtLocation(
+			GetWorld(),
+			UnfreezeEffect,
+			GetActorLocation() + FVector(0.0f, 0.0f, 50.0f),
+			FRotator::ZeroRotator
+		);
+	}
+
+	// ========== [New] 恢复之前的覆盖材质 ==========
+	if (GetMesh())
+	{
+		// 恢复为定身前的材质（比如把金光改回二郎神的红光，或者恢复为 null）
+		GetMesh()->SetOverlayMaterial(OriginalOverlayMaterial);
+		OriginalOverlayMaterial = nullptr;
+	}
+
+	// ========== 播放解除定身音效 ==========
+	if (UnfreezeSound)
+	{
+		UGameplayStatics::PlaySoundAtLocation(this, UnfreezeSound, GetActorLocation());
+	}
+
+	// 恢复动画播放
+	if (GetMesh())
+	{
+		GetMesh()->bPauseAnims = false;
+		GetMesh()->bNoSkeletonUpdate = false;
+	}
+
+	if (UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance())
+	{
+		AnimInstance->bReceiveNotifiesFromLinkedInstances = true;
+	}
+
+	// 恢复移动能力
+	GetCharacterMovement()->SetMovementMode(MOVE_Walking);
+	GetCharacterMovement()->MaxWalkSpeed = MovementSpeedBeforeFreeze;
+
+	// 恢复行为树
+	if (EnemyController)
+	{
+		if (UBrainComponent* Brain = EnemyController->GetBrainComponent())
+		{
+			Brain->ResumeLogic("Freeze Ended");
+		}
+	}
+
+	// 恢复之前的状态（如果之前在追击，继续追击）
+	if (StateBeforeFreeze != EEnemyState::EES_NoState && StateBeforeFreeze != EEnemyState::EES_Dead)
+	{
+		EnemyState = StateBeforeFreeze;
+
+		// 如果之前在战斗中，继续战斗
+		if (CombatTarget && (StateBeforeFreeze == EEnemyState::EES_Chasing || 
+			StateBeforeFreeze == EEnemyState::EES_Attacking ||
+			StateBeforeFreeze == EEnemyState::EES_Engaged))
+		{
+			ChaseTarget();
+		}
+	}
+	else
+	{
+		// 默认恢复到警戒/巡逻状态
+		StartPatrolling();
+	}
+
+	UE_LOG(LogTemp, Warning, TEXT("[%s] 定身解除！恢复到状态: %d"), *GetName(), (int32)EnemyState);
+}
+
+void AEnemyBase::OnFreezeTimerExpired()
+{
+	RemoveFreeze();
+}
+
+// ========== 保存敌人存档数据 ==========
+void AEnemyBase::WriteEnemySaveData(FEnemySaveData& OutData) const
+{
+	// 唯一ID
+	OutData.EnemyID = EnemyID;
+
+	// 基础状态
+	OutData.bIsDead = IsDead();
+	OutData.CurrentHealth = HealthComponent ? HealthComponent->GetCurrentHealth() : 0.f;
+	OutData.CurrentPoise = CurrentPoise;
+	OutData.EnemyState = EnemyState;
+
+	// 位置与旋转
+	OutData.Location = GetActorLocation();
+	OutData.Rotation = GetActorRotation();
+
+	// 定身状态
+	OutData.bIsFrozen = bIsFrozen;
+	OutData.FrozenAnimPosition = FrozenAnimPosition;
+	OutData.StateBeforeFreeze = StateBeforeFreeze;
+	OutData.MovementSpeedBeforeFreeze = MovementSpeedBeforeFreeze;
+
+	// 武器
+	OutData.WeaponClass = WeaponClass;
+	OutData.WeaponSocketName = WeaponSocketName;
+
+	// 敌人类型
+	OutData.EnemyClass = this->GetClass();
+
+	// Spawner名称
+	OutData.SpawnerName = SpawnerName;
+
+	// 等级（暂时设为1，如果有Level属性再修改）
+	OutData.Level = 1;
+}
+
+// ========== 导入敌人存档数据 ==========
+void AEnemyBase::LoadEnemySaveData(const FEnemySaveData& InData)
+{
+	if (!InData.EnemyClass)	
+	{
+		return;
+	}
+
+	// 恢复唯一ID
+	EnemyID = InData.EnemyID;
+
+	// 恢复Spawner名称
+	SpawnerName = InData.SpawnerName;
+
+	if (InData.bIsDead)
+	{
+		Die(); // 确保死掉的怪不会复活
+		return;
+	}
+
+	// 设置位置和旋转
+	SetActorLocation(InData.Location, false, nullptr, ETeleportType::TeleportPhysics);
+	SetActorRotation(InData.Rotation);
+
+	// 设置血量
+	if (HealthComponent)
+	{
+		HealthComponent->SetHealth(InData.CurrentHealth);
+	}
+	CurrentPoise = InData.CurrentPoise;
+
+	// 恢复状态
+	EnemyState = InData.EnemyState;
+
+	// 恢复定身
+	bIsFrozen = InData.bIsFrozen;
+	if (bIsFrozen)
+	{
+		StateBeforeFreeze = InData.StateBeforeFreeze;
+		FrozenAnimPosition = InData.FrozenAnimPosition;
+		MovementSpeedBeforeFreeze = InData.MovementSpeedBeforeFreeze;
+		GetCharacterMovement()->MaxWalkSpeed = 0.f;
+	}
+
+	// 恢复武器
+	if (InData.WeaponClass)
+	{
+		if (!CurrentWeapon)
+		{
+			FActorSpawnParameters SpawnParams;
+			SpawnParams.Owner = this;
+			CurrentWeapon = GetWorld()->SpawnActor<AActor>(InData.WeaponClass, SpawnParams);
+			if (CurrentWeapon)
+			{
+				CurrentWeapon->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetNotIncludingScale, InData.WeaponSocketName);
+			}
+		}
+	}
+}
+
+void AEnemyBase::InitEnemy(int32 InLevel, bool bIsFromSave)
+{
+	if (!bIsFromSave)
+	{
+		// 正常生成怪物的初始化，比如血量、状态
+	}
+}
+
+// ========== 状态效果攻击系统实现 ==========
+
+void AEnemyBase::ApplyAttackStatusEffects(AActor* Target)
+{
+	if (!Target)
+	{
+		return;
+	}
+	// 获取目标的 StatusEffectComponent
+	UStatusEffectComponent* TargetStatusComp = Target->FindComponentByClass<UStatusEffectComponent>();
+	if (!TargetStatusComp)
+	{
+		UE_LOG(LogTemp, Verbose, TEXT("[%s] ApplyAttackStatusEffects - Target %s has no StatusEffectComponent"),
+			*GetName(), *Target->GetName());
+		return;
+	}
+
+	// 遍历所有配置的攻击效果
+	for (const FStatusEffectConfig& Config : AttackStatusEffects)
+	{
+		// 检查效果类是否有效
+		if (!Config.EffectClass)
+		{
+			continue;
+		}
+
+		// 根据触发概率决定是否施加效果
+		const float RandomValue = FMath::FRand();  // 0.0 ~ 1.0
+		if (RandomValue <= Config.TriggerChance)
+		{
+			// 施加效果
+			TargetStatusComp->ApplyEffect(Config.EffectClass, this, Config.Duration);
+
+			UE_LOG(LogTemp, Log, TEXT("[%s] ApplyAttackStatusEffects - Applied %s to %s (Duration: %.1f, Chance: %.0f%%)"),
+				*GetName(),
+				*Config.EffectClass->GetName(),
+				*Target->GetName(),
+				Config.Duration,
+				Config.TriggerChance * 100.0f);
+		}
+		else
+		{
+			UE_LOG(LogTemp, Verbose, TEXT("[%s] ApplyAttackStatusEffects - %s effect did not trigger (Roll: %.2f, Chance: %.2f)"),
+				*GetName(),
+				*Config.EffectClass->GetName(),
+				RandomValue,
+				Config.TriggerChance);
+		}
+	}
+}
+
+// ========== 金币掉落系统实现 ==========
+
+void AEnemyBase::SpawnGoldDrop()
+{
+	// 如果没有设置金币掉落类，则不生成
+	if (!GoldPickupClass)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[%s] SpawnGoldDrop - No GoldPickupClass set, skipping drop"), *GetName());
+		return;
+	}
+
+	// 如果掉落范围为0，则不生成
+	if (GoldDropMax <= 0)
+	{
+		return;
+	}
+
+	// 计算总金币数量
+	const int32 TotalGold = FMath::RandRange(GoldDropMin, GoldDropMax);
+	if (TotalGold <= 0)
+	{
+		return;
+	}
+
+	// 确保掉落数量至少为1
+	const int32 ActualDropCount = FMath::Max(1, GoldDropCount);
+
+	// 计算每个掉落物的金币数量
+	TArray<int32> GoldPerDrop;
+	GoldPerDrop.SetNum(ActualDropCount);
+
+	// 分配金币到各个掉落物
+	int32 RemainingGold = TotalGold;
+	for (int32 i = 0; i < ActualDropCount; ++i)
+	{
+		if (i == ActualDropCount - 1)
+		{
+			// 最后一个掉落物获得所有剩余金币
+			GoldPerDrop[i] = RemainingGold;
+		}
+		else
+		{
+			// 随机分配一部分金币
+			const int32 MaxForThis = FMath::Max(1, RemainingGold / (ActualDropCount - i));
+			GoldPerDrop[i] = FMath::RandRange(1, MaxForThis);
+			RemainingGold -= GoldPerDrop[i];
+		}
+	}
+
+	// 生成掉落物
+	FVector BaseLocation = GetActorLocation();
+	BaseLocation.Z += 50.0f; // 稍微抬高生成位置
+
+	for (int32 i = 0; i < ActualDropCount; ++i)
+	{
+		if (GoldPerDrop[i] <= 0)
+		{
+			continue;
+		}
+
+		// 计算散布位置
+		FVector SpawnLocation = BaseLocation;
+		if (ActualDropCount > 1 && DropSpreadRadius > 0.0f)
+		{
+			// 在圆形区域内随机散布
+			const float RandomAngle = FMath::RandRange(0.0f, 360.0f);
+			const float RandomRadius = FMath::RandRange(0.0f, DropSpreadRadius);
+			SpawnLocation.X += FMath::Cos(FMath::DegreesToRadians(RandomAngle)) * RandomRadius;
+			SpawnLocation.Y += FMath::Sin(FMath::DegreesToRadians(RandomAngle)) * RandomRadius;
+		}
+
+		// 生成金币掉落物
+		FActorSpawnParameters SpawnParams;
+		SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
+
+		AGoldPickup* GoldPickup = GetWorld()->SpawnActor<AGoldPickup>(
+			GoldPickupClass,
+			SpawnLocation,
+			FRotator::ZeroRotator,
+			SpawnParams
+		);
+
+		if (GoldPickup)
+		{
+			GoldPickup->SetGoldAmount(GoldPerDrop[i]);
+			UE_LOG(LogTemp, Log, TEXT("[%s] Spawned gold pickup with %d gold at %s"),
+				*GetName(), GoldPerDrop[i], *SpawnLocation.ToString());
+		}
+	}
+
+	UE_LOG(LogTemp, Log, TEXT("[%s] Dropped %d gold in %d pickup(s)"), *GetName(), TotalGold, ActualDropCount);
 }

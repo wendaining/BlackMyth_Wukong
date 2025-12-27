@@ -64,9 +64,7 @@ git commit -m ""
 
 ### step 3
 
-打算将feature合并到dev上的时候
-
-**必须让feature基于当前最新的dev以防止conflict**
+如果想要有别人的工作且暂时不想合并自己的分支，可以这样做：
 
 ```bash
 git fetch origin
@@ -133,7 +131,7 @@ git merge --no-ff dev -m "message" // 同理
 git push origin main
 ```
 
-**step4和step5不要擅自去做，最好商讨之后再进行，或者最起码说一声**
+**step5不要擅自去做，最好商讨之后再进行，或者最起码说一声**
 
 ## 3. 关于commit message
 

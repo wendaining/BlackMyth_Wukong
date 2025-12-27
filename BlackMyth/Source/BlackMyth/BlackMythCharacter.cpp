@@ -98,6 +98,14 @@ void ABlackMythCharacter::Move(const FInputActionValue& Value)
 	// input is a Vector2D
 	FVector2D MovementVector = Value.Get<FVector2D>();
 
+	// 检查是否允许移动（例如攻击时禁止移动）
+	// 这里我们通过检查是否是 AWukongCharacter 并调用其状态检查函数来实现
+	// 或者更简单地，直接检查是否正在播放 Root Motion
+	if (GetMesh()->IsPlayingRootMotion())
+	{
+		return;
+	}
+
 	if (Controller != nullptr)
 	{
 		// find out which way is forward
