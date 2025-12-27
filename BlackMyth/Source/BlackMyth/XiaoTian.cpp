@@ -75,11 +75,11 @@ void AXiaoTian::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
-	// 调试绘制碰撞盒 (红色)
-	if (CollisionBox)
-	{
-		DrawDebugBox(GetWorld(), GetActorLocation(), CollisionBox->GetUnscaledBoxExtent(), GetActorRotation().Quaternion(), FColor::Red, false, -1.0f, 0, 2.0f);
-	}
+	// 调试绘制碰撞盒 (红色) - [Fix] Removed debug drawing
+	// if (CollisionBox)
+	// {
+	// 	DrawDebugBox(GetWorld(), GetActorLocation(), CollisionBox->GetUnscaledBoxExtent(), GetActorRotation().Quaternion(), FColor::Red, false, -1.0f, 0, 2.0f);
+	// }
 
 	if (CurrentState == EXiaoTianState::Flying)
 	{
