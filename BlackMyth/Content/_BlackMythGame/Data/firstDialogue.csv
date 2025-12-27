@@ -1,0 +1,5 @@
+---,DialogueID,SpeakerName,DialogueText,DisplayDuration,EventTag
+Row_001,Line001,天王,莫非是孙大圣，这世道实在是不太平，妖魔横行啊。,0,
+Row_002,Line002,天王,吾辈实在无法独自解决，孙大圣可否助我们一臂之力？,0,
+Row_003,Line003,悟空,既然让老孙撞见了，岂有不管之理？带路，待我扫清这些毛贼！,0,
+Row_004,Line004,天王,去吧，前方的路还很长。,0,dialogue_complete
