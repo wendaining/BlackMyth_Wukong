@@ -26,6 +26,11 @@ ABossEnemy::ABossEnemy()
 	// 缩短反应时间 (人到立即出招)
 	AttackMin = 0.1f;
 	AttackMax = 0.4f;
+
+	// [User Request] 设置超高韧性，防止被打出硬直 (Stunned)
+	// Float 能够轻松容纳 1,000,000 (10^6)，不会溢出
+	MaxPoise = 1000000.0f;
+	CurrentPoise = MaxPoise;
 }
 
 void ABossEnemy::BeginPlay()
