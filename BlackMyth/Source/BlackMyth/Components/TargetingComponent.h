@@ -155,6 +155,10 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Targeting|Indicator")
 	float IndicatorHeightOffset = 50.0f;
 
+	/** 锁定指示器 Widget 类（如果设置，将使用此 Widget 而不是 Debug Draw） */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Targeting|Indicator")
+	TSubclassOf<class UUserWidget> LockOnWidgetClass;
+
 	// ========== 运行时状态 ==========
 
 	/** 当前锁定的目标 */

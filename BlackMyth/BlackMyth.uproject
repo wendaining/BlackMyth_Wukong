@@ -38,6 +38,10 @@
 		{
 			"Name": "HairStrands",
 			"Enabled": true
+		},
+		{
+			"Name": "SimpleAssetCleaner",
+			"Enabled": true
 		}
 	]
 }

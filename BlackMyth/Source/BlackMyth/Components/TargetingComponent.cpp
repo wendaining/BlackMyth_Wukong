@@ -603,23 +603,28 @@ void UTargetingComponent::CreateTargetIndicator()
 	// 注册组件
 	TargetIndicatorWidget->RegisterComponent();
 
-	// 尝试加载自定义 Widget 蓝图（如果存在）
-	// 路径：Content/_BlackMythGame/UI/WBP_LockOnIndicator
-	UClass* WidgetClass = LoadClass<UUserWidget>(
-		nullptr, 
-		TEXT("/Game/_BlackMythGame/UI/WBP_LockOnIndicator.WBP_LockOnIndicator_C")
-	);
+	// 优先使用在编辑器中配置的 Widget 类
+	UClass* WidgetClass = LockOnWidgetClass;
+
+	// 如果未配置，尝试加载默认路径的 Widget 蓝图（兼容旧逻辑）
+	if (!WidgetClass)
+	{
+		WidgetClass = LoadClass<UUserWidget>(
+			nullptr, 
+			TEXT("/Game/_BlackMythGame/UI/WBP_LockOnIndicator.WBP_LockOnIndicator_C")
+		);
+	}
 	
 	if (WidgetClass)
 	{
 		TargetIndicatorWidget->SetWidgetClass(WidgetClass);
-		UE_LOG(LogTemp, Log, TEXT("[TargetingComponent] Using custom widget: WBP_LockOnIndicator"));
+		UE_LOG(LogTemp, Log, TEXT("[TargetingComponent] Using widget class: %s"), *WidgetClass->GetName());
 	}
 	else
 	{
 		// 如果没有自定义 Widget，使用 DrawDebug 方式作为后备
-		UE_LOG(LogTemp, Warning, TEXT("[TargetingComponent] WBP_LockOnIndicator not found. Create a Widget Blueprint at: Content/_BlackMythGame/UI/WBP_LockOnIndicator"));
-		UE_LOG(LogTemp, Warning, TEXT("[TargetingComponent] Using debug draw as fallback"));
+		UE_LOG(LogTemp, Warning, TEXT("[TargetingComponent] No LockOnWidgetClass set and WBP_LockOnIndicator not found."));
+		UE_LOG(LogTemp, Warning, TEXT("[TargetingComponent] Using debug draw as fallback (Will NOT show in Shipping builds!)"));
 	}
 
 	UE_LOG(LogTemp, Log, TEXT("[TargetingComponent] Target indicator widget created"));
