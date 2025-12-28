@@ -1,8 +1,8 @@
 # BlackMyth_Wukong——仿知名游戏黑神话悟空的课程大作业
 
-> [!WARNING]
+> [!CAUTION]
 >
-> **不要直接git clone！！！有需要的部分可以自行选取下载，直接git clone会消耗大量Git LFS带宽，也可以到[release](https://github.com/wendaining/BlackMyth_Wukong/releases/tag/v0.1.0)去下载**
+> **不要直接git clone！！！有需要的部分可以自行选取下载，直接git clone会消耗大量Git LFS带宽，也可以到[release](https://github.com/wendaining/BlackMyth_Wukong/releases/tag/v0.1.0)去下载可以直接游玩的版本。**
 
 ## 项目概述
 
