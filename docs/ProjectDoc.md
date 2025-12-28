@@ -26,9 +26,7 @@
     - `/UI`: 所有 Widget 的 C++ 后端逻辑。
     - `/Items`: 道具类定义。
 - **/BlackMyth/Content**
-  - **美术资产**：包含模型、材质、动画、音效、蓝图（Blueprints）等。
-  - `/BlackMythWukong`: 场景地图与关卡资源。
-  - `/Characters`: 角色模型与动画资源。
+  - **美术资产**：包含模型、材质、动画、音效、蓝图等。
 
 ## 实现功能概览
 
