@@ -11,7 +11,7 @@
 | **wendaining** | 25% | **核心框架与主角系统**：<br>- `WukongCharacter`: 悟空主角逻辑（移动、攻击、状态机）<br>- `HealthComponent`, `StaminaComponent`, `CombatComponent`: 核心数值组件<br>- `WukongClone`: 分身术技能实现<br>- `PerformFreezeSpell`: 定身术技能实现<br>- `RestingBarrier`: 安息术（画地为牢）实现<br>- `AnimNotify_PoleStanceAOE`: 立棍重击AOE判定<br>- `ButterflyPawn`: 变身术（蝴蝶）实现<br>- `NPCCharacter` & `Dialogue`: NPC交互与对话系统<br>- `InteractInterface`: 交互接口设计 |
 | **Palind** | 25% | **敌人AI与Boss系统**：<br>- `EnemyBase`: 敌人基类（状态机、感知、受击反馈）<br>- `RegularEnemy`, `RangedEnemy`: 近战与远程小怪实现<br>- `BossEnemy`: Boss二郎神逻辑（多阶段、技能、连招）<br>- `XiaoTian`: 哮天犬召唤物逻辑<br>- `EnemyAIController`: 行为树与黑板控制<br>- `BossCombatTrigger`: Boss战区域触发器<br>- `BossAnimInstance`: Boss动画状态机 |
 | **Aphrody-Dy** | 25% | **物品、商店与状态系统**：<br>- `InventoryComponent`: 背包与道具管理组件<br>- `ItemBase` (及子类): 道具系统基类<br>- `StatusEffectComponent`: 状态效果管理（Buff/Debuff）<br>- `EnemyDodgeComponent`: 敌人闪避逻辑组件<br>- `ShopManager`: 商店交易逻辑<br>- `TradeMenuWidget`: 商店UI实现<br>- `GoldPickup` / `GoldComponent`: 金币掉落与拾取逻辑<br>- `PotionActor`: 药水道具实现<br>- `TraceHitbox`: 攻击判定优化 |
-| **onnisama** | 25% | **系统功能与UI交互**：<br>- `BlackMythSaveGame`: 存档/读档系统底层实现<br>- `Temple`: 土地庙交互逻辑（存档点、恢复）<br>- `TeleportMenuWidget` / `TeleportButtonWidget`: 传送系统UI<br>- `MainMenuWidget`, `PauseMenuWidget`: 菜单系统<br>- `SaveMenuWidget`, `LoadMenuWidget`: 存档界面逻辑<br>- 代码规范化（Google C++ Style）与重构 |
+| **onnisama** | 25% | **系统功能与UI交互**：<br>- `BlackMythSaveGame`: 存档/读档系统底层实现<br>- `Temple`: 土地庙交互逻辑（存档点、恢复）<br>- `TeleportMenuWidget` / `TeleportButtonWidget`: 传送系统UI<br>- `MainMenuWidget`, `PauseMenuWidget`: 菜单系统<br>- `SaveMenuWidget`, `LoadMenuWidget`: 存档界面逻辑 |
 
 ## 项目组成
 项目主要目录结构如下：
