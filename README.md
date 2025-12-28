@@ -2,7 +2,8 @@
 
 > [!CAUTION]
 >
-> **不要直接git clone！！！有需要的部分可以自行选取下载，直接git clone会消耗大量Git LFS带宽，也可以到[release](https://github.com/wendaining/BlackMyth_Wukong/releases/tag/v0.1.0)去下载可以直接游玩的版本。**
+> 1. **不要直接git clone！！！有需要的部分可以自行选取下载，直接git clone会消耗大量Git LFS带宽，也可以到[release](https://github.com/wendaining/BlackMyth_Wukong/releases/tag/v0.1.0)去下载可以直接游玩的版本。**
+> 2. 本游戏的美术资源均获取于网络，请勿商用
 
 ## 项目概述
 
@@ -12,11 +13,30 @@
 [v0.1.0](https://github.com/wendaining/BlackMyth_Wukong/releases/tag/v0.1.0)
 目前仅在Windows11上测试运行过，注意采用了分卷压缩的形式。
 
+## 项目组成
+项目主要目录结构如下：
+
+- **/docs**
+  - 包含所有项目文档。
+- **/BlackMyth/Source/BlackMyth**
+  - **核心代码库**，包含所有 C++ 类实现：
+    - `/Components`: 通用组件（生命、体力、背包、状态等）。
+    - `/Combat`: 战斗相关逻辑。
+    - `/AI`: 敌人行为树与控制器。
+    - `/UI`: 所有 Widget 的 C++ 后端逻辑。
+    - `/Items`: 道具类定义。
+- **/BlackMyth/Content**
+  - **美术资产**：包含模型、材质、动画、音效、蓝图等。
+
 ## 项目文档
 
 详见 [项目说明文档](docs/ProjectDoc.md)
 
 ## 部分演示
+
+> [!IMPORTANT]
+>
+> 以下演示包含 gif 动图，请耐心等待加载完毕。
 
 ### 开始菜单
 
@@ -46,6 +66,10 @@
 
 ![安息术](https://github.com/user-attachments/assets/0823e7fe-39e8-48de-a696-c04b17ec1d73)
 
+### 使用道具
+
+![使用道具](https://github.com/user-attachments/assets/a466a533-55c0-490e-9c5b-854f310ecadc)
+
 ### NPC对话
 
 ![NPC对话](https://github.com/user-attachments/assets/bc4fe622-ca7d-41f8-b5b8-31a499f475b5)
@@ -74,10 +98,9 @@
 
 ### 2025-11-24
 
-* [Git 协作规范](docs\cooperatingSpecification.md)制定
+* [Git 协作规范](/docs/cooperatingSpecification.md)制定
 * 明确分支管理策略
 * 开始学习UE5.4的基础使用
-
 
 ### 2025-12-02
 
@@ -117,6 +140,10 @@
 * 导入敌人模型与动画
 * 实现混合空间（BlendSpace）
 * 优化敌人追逐速度
+
+### 2025-12-11
+
+* 初步实现主菜单并对后续功能完成规划
 
 ### 2025-12-12
 
@@ -174,7 +201,7 @@
 * 修复 Boss 硬直 Bug
 * 修正地图问题
 * 移除 Debug 线条
-* 项目打包成功，收尾与最终合并
+* 项目收尾与最终合并
 
 ### 2025-12-28
 

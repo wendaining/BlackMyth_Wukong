@@ -12,7 +12,6 @@
 ### 1. BlackMythGameInstance.h 和 .cpp
 **功能**: 在游戏实例中存储重生点数据
 
-**新增内容**:
 - `bHasRespawnPoint`: 是否有保存的重生点
 - `RespawnLocation`: 重生点位置
 - `RespawnRotation`: 重生点旋转
@@ -20,10 +19,9 @@
 - `SetRespawnPoint()`: 设置重生点的函数
 - `HasRespawnPoint()`: 检查是否有重生点的函数
 
-### 2. DeathMenuWidget.h 和 .cpp (新建)
+### 2. DeathMenuWidget.h 和 .cpp
 **功能**: 死亡菜单UI类
 
-**主要功能**:
 - `OnRespawnClicked()`: 处理重生按钮点击
 - `OnQuitGameClicked()`: 处理退出游戏按钮点击
 - 自动绑定UI按钮和文本控件
@@ -31,13 +29,10 @@
 **UI组件**:
 - `RespawnButton`: 重生按钮
 - `QuitGameButton`: 退出游戏按钮
-- `RespawnButtonText`: 重生按钮文本（可选）
-- `QuitGameButtonText`: 退出游戏按钮文本（可选）
 
 ### 3. Temple.h 和 .cpp
 **功能**: 在与土地庙交互时保存重生点
 
-**新增内容**:
 - `SaveRespawnPoint()`: 保存重生点到GameInstance的函数
 - 在 `OnInteract_Implementation()` 中调用保存重生点
 
@@ -50,8 +45,7 @@
 ### 4. WukongCharacter.h 和 .cpp
 **功能**: 实现角色死亡处理和重生逻辑
 
-**新增内容**:
-- `DeathMenuWidgetClass`: 死亡菜单Widget类（需在蓝图中配置）
+- `DeathMenuWidgetClass`: 死亡菜单Widget类
 - `DeathMenuInstance`: 当前显示的死亡菜单实例
 - `ShowDeathMenu()`: 显示死亡菜单的函数
 - `Respawn()`: 重生函数
@@ -73,29 +67,7 @@
 ### 5. BlackMythSaveGame.h
 **功能**: 添加重生点数据到存档系统（用于持久化存储）
 
-**新增字段**:
 - `bHasRespawnPoint`: 是否有保存的重生点
 - `RespawnLocation`: 重生点位置
 - `RespawnRotation`: 重生点旋转
 - `RespawnTempleID`: 重生点所属的Temple ID
-
-### 测试流程
-
-1. **设置重生点**：
-   - 靠近一个Temple
-   - 按G键与Temple交互
-   - 系统会自动保存当前Temple的TeleportPoint位置为重生点
-
-2. **触发死亡**：
-   - 让角色生命值降为0
-   - 死亡动画播放
-   - 2秒后显示死亡菜单
-
-3. **重生**：
-   - 点击"重生"按钮
-   - 角色在保存的Temple位置复活
-   - 生命值和体力值完全恢复
-
-4. **退出游戏**：
-   - 点击"退出游戏"按钮
-   - 游戏关闭
