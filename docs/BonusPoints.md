@@ -4,7 +4,7 @@
 
 ## 1. 版本控制与协作方面
 
-本项目采用 Git 进行全流程版本控制，并遵循规范的协作流程（详见 `docs/cooperatingSpecification.md`）：
+本项目采用 Git 进行全流程版本控制，并遵循规范的协作流程（详见[Git 协作规范](/docs/cooperatingSpecification.md)）：
 
 *   **Git LFS 支持**：针对虚幻引擎项目的大资产特性，配置了 `.gitattributes` 文件，使用 Git LFS (Large File Storage) 管理 `.uasset`、`.umap` 等二进制大文件，确保仓库体积可控且拉取高效。
 *   **严格的分支策略**：
@@ -18,12 +18,12 @@
 
 ## 2. 代码质量
 
-代码编写遵循虚幻引擎官方编码标准，具有良好的可读性和可维护性：
+代码编写遵循虚幻引擎官方编码标准以及Google Coding Style，具有良好的可读性和可维护性：
 
 *   **命名规范**：严格遵守 UE 命名约定，如类名以 `A` 或 `U` 开头（`AWukongCharacter`, `UHealthComponent`），布尔变量以 `b` 开头（`bIsInvincible`），枚举使用 `E` 前缀（`EEnemyState`）。
 *   **注释详尽**：核心逻辑均配有详细的中文注释。例如在 `WukongCharacter.cpp` 中，对 `BeginPlay` 中的移动组件配置、`Tick` 中的状态机更新均有清晰说明。
 *   **日志系统**：合理使用 `UE_LOG` 进行运行时调试与状态追踪，区分 `Log`、`Warning` 和 `Error` 级别，便于快速定位问题。
-*   **模块化设计**：将功能拆分为独立的组件（Component），避免了 "God Class"（上帝类）的出现。例如，生命值管理逻辑封装在 `HealthComponent`，背包逻辑封装在 `InventoryComponent`。
+*   **模块化设计**：将功能拆分为独立的组件（Component），避免了"God Class"的出现。例如，生命值管理逻辑封装在 `HealthComponent`，背包逻辑封装在 `InventoryComponent`。
 
 ## 3. 使用了多种C++11及以上的特性
 
