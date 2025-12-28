@@ -13,6 +13,21 @@
 [v0.1.0](https://github.com/wendaining/BlackMyth_Wukong/releases/tag/v0.1.0)
 目前仅在Windows11上测试运行过，注意采用了分卷压缩的形式。
 
+## 项目组成
+项目主要目录结构如下：
+
+- **/docs**
+  - 包含所有项目文档。
+- **/BlackMyth/Source/BlackMyth**
+  - **核心代码库**，包含所有 C++ 类实现：
+    - `/Components`: 通用组件（生命、体力、背包、状态等）。
+    - `/Combat`: 战斗相关逻辑。
+    - `/AI`: 敌人行为树与控制器。
+    - `/UI`: 所有 Widget 的 C++ 后端逻辑。
+    - `/Items`: 道具类定义。
+- **/BlackMyth/Content**
+  - **美术资产**：包含模型、材质、动画、音效、蓝图等。
+
 ## 项目文档
 
 详见 [项目说明文档](docs/ProjectDoc.md)
