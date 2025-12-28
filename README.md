@@ -47,6 +47,10 @@
 
 ![安息术](https://github.com/user-attachments/assets/0823e7fe-39e8-48de-a696-c04b17ec1d73)
 
+### 使用道具
+
+![使用道具](https://github.com/user-attachments/assets/a466a533-55c0-490e-9c5b-854f310ecadc)
+
 ### NPC对话
 
 ![NPC对话](https://github.com/user-attachments/assets/bc4fe622-ca7d-41f8-b5b8-31a499f475b5)
