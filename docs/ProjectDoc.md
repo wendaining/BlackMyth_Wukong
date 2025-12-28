@@ -11,7 +11,7 @@
 | **wendaining** | 25% | **核心框架与主角系统**：<br>- `WukongCharacter`: 悟空主角逻辑（移动、攻击、状态机）<br>- `HealthComponent`, `StaminaComponent`, `CombatComponent`: 核心数值组件<br>- `WukongClone`: 分身术技能实现<br>- `PerformFreezeSpell`: 定身术技能实现<br>- `RestingBarrier`: 安息术（画地为牢）实现<br>- `AnimNotify_PoleStanceAOE`: 立棍重击AOE判定<br>- `ButterflyPawn`: 变身术（蝴蝶）实现<br>- `NPCCharacter` & `Dialogue`: NPC交互与对话系统<br>- `InteractInterface`: 交互接口设计 |
 | **Palind** | 25% | **敌人AI与Boss系统**：<br>- `EnemyBase`: 敌人基类（状态机、感知、受击反馈、硬直韧性、属性）<br>- `RegularEnemy`, `RangedEnemy`: 近战与远程小怪实现<br>- `BossEnemy`: Boss二郎神逻辑（多阶段、技能、连招）<br>- `XiaoTian`: 哮天犬召唤物逻辑<br>- `EnemyAIController`: 行为树与黑板控制<br>- `BossCombatTrigger`: Boss战区域触发器<br>- `BossAnimInstance`: Boss动画状态机 |
 | **Aphrody-Dy** | 25% | **物品、商店与状态系统**：<br>- `InventoryComponent`: 背包与道具管理组件<br>- `ItemBase` (及子类): 道具系统基类<br>- `StatusEffectComponent`: 状态效果管理（Buff/Debuff）<br>- `SceneStateComponent`: 场景切换组件<br>- `EnemyDodgeComponent`: 敌人闪避逻辑组件<br>- `ShopManager`: 商店交易逻辑<br>- `TradeMenuWidget`: 商店UI实现<br>- `GoldPickup` / `GoldComponent`: 金币掉落与拾取逻辑<br>- `TraceHitbox`: 攻击判定优化 |
-| **onnisama** | 25% | **系统功能与UI交互**：<br>- `BlackMythSaveGame`: 存档/读档系统底层实现<br>- `Temple`: 土地庙交互逻辑（存档点、恢复）<br>- `TeleportMenuWidget` / `TeleportButtonWidget`: 传送系统UI<br>- `MainMenuWidget`, `PauseMenuWidget`: 菜单系统<br>- `SaveMenuWidget`, `LoadMenuWidget`: 存档界面逻辑 |
+| **onnisama** | 25% | **系统功能与UI交互**：<br>- `BlackMythSaveGame`: 存档/读档系统底层实现<br>- `Temple`: 土地庙交互逻辑（更新重生点、恢复状态等）<br>- `TeleportMenuWidget` / `TeleportButtonWidget`: 传送系统UI<br>- `MainMenuWidget`, `PauseMenuWidget`: 菜单系统<br>- `SaveMenuWidget`, `LoadMenuWidget`: 存档界面逻辑<br>- `EnemySpawner`: 赋名刷怪系统<br>- `DeathMenuWidget`: 死亡界面以及重生逻辑实现 |
 
 ## 项目组成
 项目主要目录结构如下：
@@ -58,10 +58,10 @@
 ### 扩展功能
 - **技能系统**：实现了多样化的法术技能（分身、定身、变身），丰富了战斗策略。
 - **变身系统**：实现了变身蝴蝶进行侦查或规避战斗的功能。
-- **法宝/道具系统**：实现了背包管理、道具使用（如恢复药水。
+- **法宝/道具系统**：实现了背包管理、道具使用（如恢复药水、体力药水等）。
 - **剧情与交互**：实现了 NPC 对话系统与剧情演出。
-- **存档/读档系统**：实现了在土地庙（Temple）进行存档，并支持从主菜单读取进度。
-- **土地庙系统**：集成了存档、传送（快速旅行）、商店交易、状态恢复等功能。
+- **存档/读档系统**：实现了随时随地对游戏进度进行存档，并支持从主菜单和暂停菜单读取进度。
+- **土地庙系统**：集成了存档重生点、传送至其他土地庙、商店交易、状态恢复等功能。
 
 ## 项目架构与类设计
 
@@ -187,12 +187,12 @@ classDiagram
 
 ### 3. 土地庙系统
 土地庙作为游戏的核心交互枢纽，集成了多种功能模块。
-- **交互框架**：基于 `IInteractInterface` 接口，玩家进入范围后显示按键提示 (`Q`)，触发 `TempleMenuWidget`。
+- **交互框架**：基于 `IInteractInterface` 接口，玩家进入范围后显示按键提示 (`G`)，触发 `TempleMenuWidget`。
 - **传送网络**：
-  - 支持预设点传送与地图任意点传送。
+  - 支持在预设的土地庙之间传送。
   - 解决了传送后的地形高度适配问题，防止角色卡入地底。
 - **功能集成**：
-  - **休息**：回复满血量与体力，重置场景怪物刷新。
+  - **休息**：回复满血量与体力。
   - **重生点**：激活土地庙后自动记录为重生点 (`Respawn Point`)。
   - **商店入口**：直接关联交易界面，购买消耗品与强化道具。
 
@@ -280,6 +280,10 @@ classDiagram
 * 导入敌人模型与动画
 * 实现混合空间（BlendSpace）
 * 优化敌人追逐速度
+
+### 2025-12-11
+
+* 初步实现主菜单并对后续功能完成规划
 
 ### 2025-12-12
 
