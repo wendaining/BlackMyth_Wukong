@@ -19,6 +19,10 @@
 
 ## 部分演示
 
+> [!IMPORTANT]
+>
+> 以下演示包含 gif 动图，请耐心等待加载完毕。
+
 ### 开始菜单
 
 <img width="559" height="321" alt="image" src="https://github.com/user-attachments/assets/8cb54a60-8a29-4683-95d7-908546439da7" />
