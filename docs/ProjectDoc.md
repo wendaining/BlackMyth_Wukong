@@ -238,7 +238,7 @@ classDiagram
 
 ### 2025-11-24
 
-* [Git 协作规范](docs/cooperatingSpecification.md)制定
+* [Git 协作规范](/docs/cooperatingSpecification.md)制定
 * 明确分支管理策略
 * 开始学习UE5.4的基础使用
 
