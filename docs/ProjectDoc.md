@@ -43,13 +43,14 @@
     - 精确的 Hitbox 攻击判定与实时碰撞检测。
 3.  **敌人与 Boss**
     - 实现了近战兵、远程兵、持剑/斧精英怪等多种普通敌人。
-    - 实现了 Boss **二郎神**，具备多阶段战斗逻辑、专属技能（召唤哮天犬、长枪连招）与怒气状态。
-    - 敌人具备基于行为树的 AI：巡逻、侦测玩家、追击、攻击、闪避。
+    - 实现了 Boss **二郎神**，具备两个阶段战斗逻辑、专属技能（召唤哮天犬、长枪连招）。
+    - 敌人具备基于行为树的 AI：巡逻、追击玩家、停止寻找玩家、追击、攻击、闪避。
     - 实现了敌人的攻击、受击、硬直等互动。
 4.  **场景功能**
     - 支持广阔的 3D 场景探索与移动。
     - 包含战斗区域限制（空气墙）与场景切换点。
-    - 支持动态背景音乐切换（探索/战斗/Boss战）。
+    - 支持动态背景音乐切换（探索/战斗/Boss 战）。
+    - Boss 战前 CG 的 camera 切换，使得 CG 更有代入感
 5.  **UI功能**
     - 实现了主菜单、暂停菜单、死亡重开界面。
     - 战斗 HUD：玩家血条/体力条、Boss 专属血条、技能冷却显示、连击数显示。
@@ -93,6 +94,7 @@ classDiagram
     BlackMythCharacter <|-- WukongCharacter
     BlackMythCharacter <|-- EnemyBase
     EnemyBase <|-- RegularEnemy
+    EnemyBase <|-- RangedEnemy
     EnemyBase <|-- BossEnemy
 
     BlackMythCharacter *-- HealthComponent
@@ -117,7 +119,7 @@ classDiagram
             *   `AEnemyBase`: 敌人基类。集成 AI 控制器接口、感知组件 (`PawnSensing`)、属性组件 (`Health`, `Stamina`) 及受击/死亡流程。
                 *   `ARegularEnemy`: 普通近战敌人，实现基础巡逻与近身攻击。
                 *   `ARangedEnemy`: 远程敌人，扩展了投射物生成与远程 AI 行为。
-                *   `ABossEnemy`: Boss（如二郎神）。扩展了多阶段战斗 (`EBossPhase`)、霸体/韧性机制、特定技能（召唤哮天犬）及过场动画触发器。
+                *   `ABossEnemy`: Boss（如二郎神）。扩展了多阶段战斗 (`EBossPhase`)、特定技能（召唤哮天犬）及过场动画 CG 触发器。
 
 *   **物品与交互体系**
     *   `AActor` (UE基类)
@@ -176,7 +178,7 @@ classDiagram
 ### 2. 敌人 AI 与 Boss 战
 敌人 AI 基于行为树 (Behavior Tree)构建，实现了分层决策。
 - **普通敌人**：
-  - **感知系统**：利用 `UPawnSensingComponent` 视觉与听觉感知玩家。
+  - **感知系统**：利用 `UPawnSensingComponent` 视觉感知玩家。
   - **行为模式**：实现了巡逻 (`BTT_FindRandomPatrol`)、追击、攻击 (`BTT_Attack`) 三种状态的流转。
   - **兵种差异**：近战兵（普通/斧头/持剑精英怪）侧重近身压制，远程兵 (`ARangedEnemy`) 保持距离并发射投射物。
 - **Boss 二郎神**：
