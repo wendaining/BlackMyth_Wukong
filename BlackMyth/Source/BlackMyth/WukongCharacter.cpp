@@ -1662,7 +1662,7 @@ void AWukongCharacter::StartCooldown(const FString& CooldownName, float Duration
         // 槽位0: 分身术 (按键1)
         // 槽位1: 定身术 (按键2)
         // 槽位2: 变身术 (按键3)
-        // 槽位3: 法术 (按键4)
+        // 槽位3: 安息术 (按键4)
         if (CooldownName == TEXT("ShadowClone"))
         {
             PlayerHUD->TriggerSkillCooldown(0, Duration);
