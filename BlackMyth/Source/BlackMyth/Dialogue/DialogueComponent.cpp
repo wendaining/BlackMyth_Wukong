@@ -195,14 +195,14 @@ void UDialogueComponent::PlayCurrentDialogue()
 	// 广播事件
 	OnDialogueUpdated.Broadcast(CurrentDialogue, CurrentDialogueIndex);
 
-	// [New] 广播自定义事件标签 (用于触发放狗等逻辑)
+	// 广播自定义事件标签 (用于触发放狗等逻辑)
 	if (!CurrentDialogue.EventTag.IsEmpty())
 	{
 		OnDialogueEvent.Broadcast(CurrentDialogue.EventTag);
 		UE_LOG(LogTemp, Log, TEXT("Dialogue Event Triggered: %s"), *CurrentDialogue.EventTag);
 	}
 
-	// [New] 处理镜头切换逻辑
+	// 处理镜头切换逻辑
 	if (CurrentDialogue.CameraTarget != EDialogueCameraTarget::NoChange)
 	{
 		AActor* CameraActor = nullptr;
@@ -271,13 +271,13 @@ void UDialogueComponent::PlayCurrentDialogue()
 		}
 	}
 
-	// [New] 播放动画蒙太奇 (如果指定了备选说话人，或者拥有者是角色)
+	// 播放动画蒙太奇 (如果指定了备选说话人，或者拥有者是角色)
 	if (CurrentDialogue.DialogueMontage)
 	{
 		AActor* AnimTargetActor = AlternativeSpeaker.Get() ? AlternativeSpeaker.Get() : GetOwner();
 		if (ACharacter* TargetChar = Cast<ACharacter>(AnimTargetActor))
 		{
-			// [New] 确保运动组件允许根运动
+			// 确保运动组件允许根运动
 			if (UCharacterMovementComponent* MoveComp = TargetChar->GetCharacterMovement())
 			{
 				MoveComp->SetDefaultMovementMode(); // 刷新状态

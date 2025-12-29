@@ -20,14 +20,14 @@ ABossEnemy::ABossEnemy()
 	ChasingSpeed = 600.0f;
 	PatrollingSpeed = 300.0f;
 	
-	// 增加攻击范围 (三尖两刃刀的距离感) - [User Request] 增加攻击判定距离
+	// 增加攻击范围 (三尖两刃刀的距离感) 加攻击判定距离
 	AttackRadius = 550.0f;
 	
 	// 缩短反应时间 (人到立即出招)
 	AttackMin = 0.1f;
 	AttackMax = 0.4f;
 
-	// [User Request] 设置超高韧性，防止被打出硬直 (Stunned)
+	// 设置超高韧性，防止被打出硬直 (Stunned)
 	// Float 能够轻松容纳 1,000,000 (10^6)，不会溢出
 	MaxPoise = 1000000.0f;
 	CurrentPoise = MaxPoise;
@@ -120,7 +120,7 @@ void ABossEnemy::Tick(float DeltaTime)
 				}
 			}
 
-			// [Optimization] 如果进入攻击范围，开始攻击流程
+			// 如果进入攻击范围，开始攻击流程
 			if (DistanceToTarget <= AttackRadius)
 			{
 				// 停止移动，进入发呆（AttackTimer）或直接攻击
