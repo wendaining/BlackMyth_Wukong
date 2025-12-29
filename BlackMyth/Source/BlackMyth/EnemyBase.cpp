@@ -313,29 +313,9 @@ void AEnemyBase::Tick(float DeltaTime)
 		if (EnemyState == EEnemyState::EES_Chasing)
 		{
 			// 如果距离大于攻击范围，继续移动
-			if (DistanceToTarget > AttackRadius)
+			if (DistanceToTarget <= AttackRadius)
 			{
-				// 优化：只有在没有移动时才请求移动，避免每帧调用 MoveTo 重置路径
-				// [Fix] 移除 C++ 直接移动逻辑，交由行为树处理，防止“透视”Bug
-				/*
-				if (EnemyController && EnemyController->GetMoveStatus() == EPathFollowingStatus::Idle)
-				{
-					MoveToTarget(CombatTarget);
-				}
-				*/
-			}
-			// 如果进入攻击范围，准备攻击
-			else
-			{
-				// [Fix] 不要在这里调用 StopMovement()！
-				// 如果在这里强制停止移动，会导致行为树里的 MoveTo 任务被判定为 Failed (Aborted)。
-				// 一旦 MoveTo 失败，行为树的 Combat Sequence 就会中断，导致 AI 回退到 Patrol 分支，
-				// 表现为“走到面前突然转身跑远”。
-				// 我们应该信任行为树会自己走到目的地停下，或者在 Attack() 真正开始时再停止。
-				// if (EnemyController) EnemyController->StopMovement();
-				
-				// 开始攻击计时
-				StartAttackTimer();
+			    StartAttackTimer();
 			}
 		}
 		// 如果处于等待攻击状态 (EES_Attacking)
@@ -412,7 +392,7 @@ void AEnemyBase::ReceiveDamage(float Damage, AActor* DamageInstigator, bool bCan
 			UGameplayStatics::PlaySoundAtLocation(this, HitSound, GetActorLocation());
 		}
 
-		// [新增] 物理击退逻辑
+		// 物理击退逻辑
 		// 计算击退方向：从攻击者指向受击者
 		FVector KnockbackDirection = (GetActorLocation() - DamageInstigator->GetActorLocation()).GetSafeNormal();
 		KnockbackDirection.Z = 0.0f; // 保持水平，不飞天
@@ -423,7 +403,7 @@ void AEnemyBase::ReceiveDamage(float Damage, AActor* DamageInstigator, bool bCan
 		// 施加力 (LaunchCharacter 是 Character 类的内置函数)
 		LaunchCharacter(KnockbackDirection * KnockbackStrength, true, true);
 
-		// [新增] 韧性扣除逻辑
+		// 韧性扣除逻辑
 		CurrentPoise -= Damage; // 假设伤害值等于削韧值，也可以单独传参
 		LastHitTime = GetWorld()->GetTimeSeconds(); // 记录受击时间
 		
@@ -676,8 +656,7 @@ void AEnemyBase::Attack()
 		return; // [Fix] 眩晕状态下禁止攻击
 	}
 	
-	// [Fix] 在攻击真正开始时停止移动，防止滑步
-	// 此时就算行为树中断也没关系，因为攻击动作已经接管了表现
+	// 在攻击真正开始时停止移动，防止滑步
 	if (EnemyController) EnemyController->StopMovement();
 
 	UE_LOG(LogTemp, Warning, TEXT("[%s] AEnemyBase::Attack - Attacking Target"), *GetName());
