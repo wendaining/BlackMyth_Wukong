@@ -32,6 +32,8 @@
 
 详见 [项目说明文档](docs/ProjectDoc.md)
 
+**[项目加分项文档](docs/BonusPoints.md)**
+
 ## 操作说明
 
 | **按键**          | **功能描述**                         |
