@@ -2,7 +2,7 @@
 
 > [!CAUTION]
 >
-> 1. **不要直接git clone！！！有需要的部分可以自行选取下载，直接git clone会消耗大量Git LFS带宽，也可以到[release](https://github.com/wendaining/BlackMyth_Wukong/releases/tag/v0.1.0)去下载可以直接游玩的版本。**
+> 1. **不要直接git clone！！！直接Clone下来的文件夹大小高达80GB左右，直接git clone会消耗大量Git LFS带宽，因此有需要的部分可以自行选取下载，也可以到[release](https://github.com/wendaining/BlackMyth_Wukong/releases/tag/v0.1.0)去下载可以直接游玩的版本。**
 > 2. 本游戏的美术资源均获取于网络，请勿商用
 
 ## 项目概述
